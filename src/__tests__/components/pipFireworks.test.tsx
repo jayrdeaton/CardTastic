@@ -10,7 +10,7 @@ import { PipFireworks } from '@/components/winning/PipFireworks'
 let mockDark = false
 let mockSettings: { cardStyle: string; invertDarkModeColors: boolean } = { cardStyle: 'compact', invertDarkModeColors: false }
 jest.mock('react-native-paper', () => ({ ...jest.requireActual('react-native-paper'), useTheme: () => ({ dark: mockDark }) }))
-jest.mock('@/stores/profiles', () => ({ useProfiles: () => ({ tableColorOverride: null }) }))
+jest.mock('@/stores/profiles', () => ({ usePlayer: () => ({ color: '#e91e63' }) }))
 jest.mock('@/hooks/useSettings', () => {
   const actual = jest.requireActual('@/redux/settingsSlice')
   return { useSettings: () => ({ settings: { ...actual.DEFAULT_SETTINGS, ...mockSettings } }) }

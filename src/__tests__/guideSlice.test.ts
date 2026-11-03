@@ -4,7 +4,9 @@ import { createReturningPlayerMigrate, type GuideStorageReader } from '@tastic/h
 import { type PersistedState, persistReducer, persistStore } from 'redux-persist'
 
 import { GUIDE_VERSION } from '@/constants/guide'
+import { SEAT_COLORS } from '@/constants/player'
 import reducer, { guideActions, LEGACY_STORAGE_KEYS, selectGuideVersionSeen } from '@/redux/guideSlice'
+import { createShellMigrate } from '@/redux/shellMigrate'
 
 const REHYDRATE = 'persist/REHYDRATE'
 // redux-persist's own default persistConfig version (store.ts doesn't set one).
@@ -82,9 +84,9 @@ describe('LEGACY_STORAGE_KEYS', () => {
     expect(storage.getItem).not.toHaveBeenCalled()
   })
 
-  // store.ts's wiring (key 'root', no whitelist, the default reconciler, this migrate) run through real
-  // redux-persist against an in-memory storage, so the grandfathered stamp is shown to land in the root
-  // store and survive the next launch.
+  // The store's wiring (key 'root', no whitelist, the default reconciler, this migrate wrapped in the shell reshape as
+  // pack.ts wraps it) run through real redux-persist against an in-memory storage, so the grandfathered stamp is shown
+  // to land in the root store and survive the next launch.
   async function launchStore(items: Record<string, string>) {
     const storage = {
       getItem: async (key: string) => items[key] ?? null,
@@ -95,7 +97,7 @@ describe('LEGACY_STORAGE_KEYS', () => {
         delete items[key]
       }
     }
-    const store = createStore(persistReducer({ key: 'root', storage, timeout: 0, migrate: createReturningPlayerMigrate(storage, LEGACY_STORAGE_KEYS) }, combineReducers({ guide: reducer })))
+    const store = createStore(persistReducer({ key: 'root', storage, timeout: 0, migrate: createShellMigrate(createReturningPlayerMigrate(storage, LEGACY_STORAGE_KEYS), SEAT_COLORS) }, combineReducers({ guide: reducer })))
     const persistor = persistStore(store)
     await new Promise<void>((resolve) => {
       if (persistor.getState().bootstrapped) resolve()
@@ -122,10 +124,10 @@ describe('LEGACY_STORAGE_KEYS', () => {
   })
 })
 
-describe("store.ts's persistConfig", () => {
-  // Importing store.ts builds the app's real store, and redux-persist then schedules its 5s rehydrate
-  // failsafe (persistConfig sets no `timeout`), which would hold the Jest worker open after the suite.
-  // Fake timers park it, and clearAllTimers drops it.
+describe("the store's config (pack.ts)", () => {
+  // Importing store.ts builds the app's real store (@tastic/shell's createPackStore sets redux-persist's `timeout` to 0,
+  // so no failsafe timer is left, but the nested saved-games entries are persisted too). Fake timers park anything
+  // left, and clearAllTimers drops it.
   let storeModule: typeof import('@/redux/store')
 
   beforeAll(() => {
@@ -147,12 +149,13 @@ describe("store.ts's persistConfig", () => {
     expect(storeModule.store.getState().guide).toEqual({ versionSeen: expect.any(Number) })
   })
 
-  it('runs the returning-player migrate over AsyncStorage and the legacy keys', async () => {
-    const { persistConfig } = storeModule
+  it('runs the returning-player migrate over AsyncStorage and the legacy keys, inside the shell reshape', async () => {
+    const migrate = storeModule.storeConfig.migrate!
 
-    expect(await persistConfig.migrate(undefined, PERSIST_VERSION)).toBeUndefined()
+    expect(await migrate(undefined, PERSIST_VERSION)).toBeUndefined()
 
+    // A player from before Redux has no root store, so there's nothing for the reshape to carry: the stamp alone.
     jest.spyOn(AsyncStorage, 'getItem').mockImplementation(async (key: string) => (key === 'solitaire.vibrate.v1' ? 'true' : null))
-    expect(await persistConfig.migrate(undefined, PERSIST_VERSION)).toEqual({ _persist: { version: PERSIST_VERSION, rehydrated: false } })
+    expect(await migrate(undefined, PERSIST_VERSION)).toEqual({ _persist: { version: PERSIST_VERSION, rehydrated: false } })
   })
 })

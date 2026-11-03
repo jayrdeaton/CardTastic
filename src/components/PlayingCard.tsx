@@ -7,7 +7,7 @@ import Animated, { cancelAnimation, useAnimatedStyle, useSharedValue } from 'rea
 
 import { Card, Rank, Suit } from '@/engine/types'
 import { useSettings } from '@/hooks/useSettings'
-import { useProfiles } from '@/stores/profiles'
+import { usePlayer } from '@/stores/profiles'
 
 import { CardBackArt } from './CardBackArt'
 import { CARD_FACE_BITMAPS } from './cardFaceBitmaps'
@@ -77,7 +77,7 @@ interface PlayingCardProps {
 export function PlayingCard({ card, selected, hinted, disabled, dimmed, dimHold, dimFadeIn, hidden, onFacePainted, onPress, onPressIn, style, testID }: PlayingCardProps) {
   const colors = useTableColors()
   const { dark } = useTheme()
-  const { activeProfile } = useProfiles()
+  const { profile } = usePlayer()
   const { settings } = useSettings()
   const { width, height } = useCardSize()
   const cardRadius = cardRadiusForWidth(width)
@@ -109,7 +109,7 @@ export function PlayingCard({ card, selected, hinted, disabled, dimmed, dimHold,
     const backstop = setTimeout(handleFacePainted, FLIP_BACK_MAX_MS)
     return () => clearTimeout(backstop)
   }, [backUntilPainted, handleFacePainted])
-  const backArt = () => <CardBackArt backStyle={settings.cardBackStyle} colors={colors} width={width} height={height} tag={activeProfile?.tag} invertDarkModeColors={settings.invertDarkModeColors} />
+  const backArt = () => <CardBackArt backStyle={settings.cardBackStyle} colors={colors} width={width} height={height} tag={profile?.tag} invertDarkModeColors={settings.invertDarkModeColors} />
 
   if (!card.faceUp) {
     return (

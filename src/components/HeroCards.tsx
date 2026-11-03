@@ -1,11 +1,10 @@
 import { type TableColors } from '@tastic/cards'
-import { useIsFocused } from 'expo-router'
 import { useEffect, useRef } from 'react'
-import { AppState, StyleSheet, View } from 'react-native'
+import { StyleSheet, View } from 'react-native'
 import Animated, { cancelAnimation, Easing, SharedValue, useAnimatedStyle, useSharedValue, withDelay, withRepeat, withSpring, WithSpringConfig, withTiming } from 'react-native-reanimated'
 
 import { useSettings } from '@/hooks/useSettings'
-import { useProfiles } from '@/stores/profiles'
+import { usePlayer } from '@/stores/profiles'
 import type { Settings } from '@/types'
 
 import { CardBackArt } from './CardBackArt'
@@ -81,27 +80,30 @@ function HeroCard({ card, wave, colors, tag, cardBackStyle, invertDarkModeColors
 }
 
 /** Purely decorative hero for the home screen (`scale` shrinks it for the landscape layout; 1 is its natural size) - a fan of face-down cards that spring into place on
- * mount, then pop up one at a time left to right, then rest, forever. Not reactive to color/profile
+ * mount, then pop up one at a time left to right, then rest, forever, while `active` (Home's own: focused, with the app
+ * in the foreground). Not reactive to color/profile
  * changes: CardBack already re-renders live from useTableColors()/the active profile's tag/
  * invertDarkModeColors, same as every in-game card, so the fan just shows whatever's current
  * without any "detect a change" logic of its own. */
-export function HeroCards({ scale = 1 }: { scale?: number } = {}) {
+export function HeroCards({ scale = 1, active = true }: { scale?: number; active?: boolean } = {}) {
   const colors = useTableColors()
-  const { activeProfile } = useProfiles()
+  const { profile } = usePlayer()
   const { settings } = useSettings()
   const wave = useSharedValue(0)
   const hasStartedWave = useRef(false)
 
-  // Home stays mounted underneath a game (or Achievements/Profiles) once navigated away from, so an
-  // unfocused hero would otherwise keep its forever-running wave alive for as long as that other
-  // screen is open - all wasted, since none of it is on screen. Pausing it costs nothing on return:
-  // the wave simply restarts from rest.
-  const focused = useIsFocused()
+  // Home stays mounted underneath a game (or Stats/Profiles) once navigated away from, so a covered hero would otherwise
+  // keep its forever-running wave alive for as long as that other screen is open - all wasted, since none of it is on
+  // screen. Browsers pause or heavily throttle a hidden tab's render loop - and Reanimated's timers with it - and a
+  // backgrounded app's frames stop. So the wave runs only while `active` (@tastic/shell's Home: focused, with the app
+  // in the foreground; react-native-web maps the foreground to the page's visibility), and restarts clean from rest
+  // whenever it comes back rather than catching up from wherever it froze.
+  //
   // Under Reduce Motion (see reducedMotion.tsx) the fan rests: no wave (the entrance lands at once).
   const reduced = useMotionReduced()
 
   useEffect(() => {
-    if (!focused || reduced) return
+    if (!active || reduced) return
 
     // The first-ever wave waits for the whole fan to actually land (HERO_ENTRANCE_TOTAL_MS) plus its own
     // beat, rather than starting mid-entrance - otherwise the earliest cards' bumps would overlap their
@@ -110,29 +112,19 @@ export function HeroCards({ scale = 1 }: { scale?: number } = {}) {
     startWave(wave, hasStartedWave.current ? HERO_WAVE_LEAD_IN_MS : HERO_ENTRANCE_TOTAL_MS + HERO_WAVE_LEAD_IN_MS)
     hasStartedWave.current = true
 
-    // Browsers pause or heavily throttle a hidden tab's render loop - and Reanimated's timers with it -
-    // and a backgrounded app's frames stop, so the wave restarts clean on every return to the
-    // foreground rather than catching up from wherever it froze. react-native-web maps AppState's
-    // 'active' to the browser's visibilitychange event, so this also covers a real user switching
-    // tabs and back on web, not just this dev preview.
-    const subscription = AppState.addEventListener('change', (nextState) => {
-      if (nextState === 'active') startWave(wave, HERO_WAVE_LEAD_IN_MS)
-    })
-
     return () => {
-      subscription.remove()
-      // Blurred (or unmounting): stop the forever-loop and rest the fan, so nothing keeps ticking on
+      // Covered, in the background (or unmounting): stop the forever-loop and rest the fan, so nothing keeps ticking on
       // the UI thread for a screen that isn't visible.
       cancelAnimation(wave)
       wave.value = 0
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [focused, reduced])
+  }, [active, reduced])
 
   return (
     <View style={{ width: HERO_FAN_SPAN * scale, height: HERO_FAN_HEIGHT * scale }} pointerEvents='none'>
       {HERO_FAN_CARDS.map((card) => (
-        <HeroCard key={card.key} card={card} wave={wave} colors={colors} tag={activeProfile?.tag} cardBackStyle={settings.cardBackStyle} invertDarkModeColors={settings.invertDarkModeColors} scale={scale} />
+        <HeroCard key={card.key} card={card} wave={wave} colors={colors} tag={profile?.tag} cardBackStyle={settings.cardBackStyle} invertDarkModeColors={settings.invertDarkModeColors} scale={scale} />
       ))}
     </View>
   )

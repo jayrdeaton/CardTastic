@@ -14,3 +14,11 @@ const { actions, reducer } = createAchievementsSlice<StatsState>({
 
 export const achievementsActions = actions
 export default reducer
+
+/** `stats` without one player's own bucket: a player's reset (stores/gameStats.tsx) and a deleted profile (pack.ts).
+ * The Everyone totals keep their games. */
+export function dropProfileStats(stats: StatsState, profileId: string): StatsState {
+  if (!(profileId in stats.profiles)) return stats
+  const { [profileId]: _removed, ...rest } = stats.profiles
+  return { ...stats, profiles: rest }
+}

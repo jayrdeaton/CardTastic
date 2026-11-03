@@ -3,8 +3,8 @@ import type { TableColors } from '@tastic/cards'
 import { useMemo } from 'react'
 import { useTheme } from 'react-native-paper'
 
-import { DEFAULT_SEED_COLOR, HINT_RING_TONE, THEME_HARMONY } from '@/constants/theme'
-import { useProfiles } from '@/stores/profiles'
+import { HINT_RING_TONE, THEME_HARMONY } from '@/constants/theme'
+import { usePlayer } from '@/stores/profiles'
 
 import { darkColors, lightColors } from './palettes'
 
@@ -72,6 +72,12 @@ export function previewCardBack(seedHex: string, dark: boolean): string {
   return getBlendedColor(seedHex, base.cardBack, PROFILE_TINT_ALPHA)
 }
 
+/** The Paper theme a player's color makes: the muted card back as its seed, in THEME_HARMONY. What ProfileThemeSync
+ * keeps the theme on, and what the pack's seatTheme starts a fresh install on (pack.ts). */
+export function playerTheme(seedHex: string, dark: boolean) {
+  return { color: previewCardBack(seedHex, dark), harmony: THEME_HARMONY }
+}
+
 /** Derives a full TableColors palette tinted toward a seed color (an active player profile's
  * color, or DEFAULT_SEED_COLOR when nothing's been picked - see useTableColors below). Only
  * cardBack/cardBackPattern/cardBackPatternInverted/tableFelt/tableFeltDark/hintGreen are overridden - every
@@ -103,12 +109,12 @@ function derivePlayerTableColors(profileColor: string, dark: boolean, base: Tabl
   }
 }
 
-/** Read the OS/user-selected appearance and active player profile, returning the matching
- * palette - always derived (see derivePlayerTableColors), from the active profile/guest's own
- * color where one's been picked, or DEFAULT_SEED_COLOR otherwise. Must be called from inside both
- * auto-paper's <Provider> and <ProfilesProvider> (both mounted in src/app/_layout.tsx).
+/** Read the OS/user-selected appearance and the player's color (usePlayer: their pick, their
+ * profile's own color, or DEFAULT_SEED_COLOR for a guest who never picked one), returning the matching
+ * palette - always derived (see derivePlayerTableColors). Must be called from inside auto-paper's
+ * <Provider> and the Redux store (both mounted by @tastic/shell's RootLayout, see src/app/_layout.tsx).
  *
- * Memoized on [dark, tableColorOverride] - derivePlayerTableColors runs a real RGB/HSL color-blend
+ * Memoized on [dark, color] - derivePlayerTableColors runs a real RGB/HSL color-blend
  * pipeline (several getBlendedColor/getTonalColor/getTriadicPalette calls, each doing regex-backed
  * hex/rgb string parsing), and this hook is called directly by every PlayingCard/EmptySlot/
  * FoundationSlot instance (not just once per screen) - unmemoized, a single move/tap/drag-drop
@@ -120,9 +126,9 @@ function derivePlayerTableColors(profileColor: string, dark: boolean, base: Tabl
  * a dedicated audit, not just a theoretical one. */
 export function useTableColors(): TableColors {
   const { dark } = useTheme()
-  const { tableColorOverride } = useProfiles()
+  const { color } = usePlayer()
   return useMemo(() => {
     const base = dark ? darkColors : lightColors
-    return derivePlayerTableColors(tableColorOverride ?? DEFAULT_SEED_COLOR, dark, base)
-  }, [dark, tableColorOverride])
+    return derivePlayerTableColors(color, dark, base)
+  }, [dark, color])
 }

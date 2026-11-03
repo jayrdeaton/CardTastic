@@ -9,7 +9,7 @@ import type { Card } from '@/engine/types'
 // The face reports itself as loading until its onLoad, and a card turned face-up in place keeps its back drawn over the
 // new face until then. "Loaded" here is firing the face Image's load event.
 
-jest.mock('@/stores/profiles', () => ({ useProfiles: () => ({ activeProfile: null, tableColorOverride: undefined }) }))
+jest.mock('@/stores/profiles', () => ({ usePlayer: () => ({ profile: null, color: '#e91e63' }) }))
 jest.mock('@/hooks/useSettings', () => {
   const actual = jest.requireActual('@/redux/settingsSlice')
   const value = { settings: { ...actual.DEFAULT_SETTINGS } }

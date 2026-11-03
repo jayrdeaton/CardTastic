@@ -2,18 +2,18 @@ import { useAchievements } from '@tastic/achievements'
 import { createContext, ReactNode, useCallback, useContext, useMemo, useState } from 'react'
 import { useDispatch, useSelector, useStore } from 'react-redux'
 
+import { GUEST_PLAYER_ID } from '@/constants/player'
 import { PlayerPar, playerParFor } from '@/engine/par'
 import type { WinsBefore } from '@/engine/topWins'
 import type { VariantId } from '@/engine/variants'
-import { achievementsActions } from '@/redux/achievementsSlice'
-import { GUEST_PLAYER_ID } from '@/redux/activeProfileSlice'
+import { achievementsActions, dropProfileStats } from '@/redux/achievementsSlice'
 import { recentWinsActions, type RecentWinsState } from '@/redux/recentWinsSlice'
 import type { AppDispatch, RootState } from '@/redux/store'
 import { topWinsActions, type TopWinsState } from '@/redux/topWinsSlice'
 
 import { ACHIEVEMENT_CATALOG } from './achievementCatalog'
 import { clearAllGamesInProgress } from './gameInProgress'
-import { useProfiles } from './profiles'
+import { usePlayer } from './profiles'
 import { applyDealAbandoned, applyDealWon, applyHintUsed, applyUndoUsed, getProfileStatsView } from './statsEngine'
 import { AchievementDefinition, DealMetrics, StatsState, UnlockedAchievementsState } from './statsTypes'
 
@@ -55,11 +55,11 @@ function profileViews(stats: StatsState): Record<string, StatsState> {
 }
 
 export function GameStatsProvider({ children }: { children: ReactNode }) {
-  const { activeProfileId } = useProfiles()
+  const { profileId } = usePlayer()
   // Whose bucket a deal also goes into, besides the phone's totals (Everyone): the profile playing, or guest. Guest's
   // play was kept only in the totals until 2026-10-22 (Jay asked for Guest in the Stats screen's player picker), so its
   // bucket starts from then.
-  const player = activeProfileId ?? GUEST_PLAYER_ID
+  const player = profileId ?? GUEST_PLAYER_ID
   const { stats, unlockedAchievements, recordOutcome, resetAll, removeProfile } = useAchievements<StatsState, RootState>({
     catalog: ACHIEVEMENT_CATALOG,
     select: (state) => state.achievements,
@@ -117,11 +117,7 @@ export function GameStatsProvider({ children }: { children: ReactNode }) {
 
   const removeProfileStats = useCallback(
     (profileId: string) => {
-      removeProfile(profileId, (prev) => {
-        if (!(profileId in prev.profiles)) return prev
-        const { [profileId]: _removed, ...rest } = prev.profiles
-        return { ...prev, profiles: rest }
-      })
+      removeProfile(profileId, (prev) => dropProfileStats(prev, profileId))
     },
     [removeProfile]
   )

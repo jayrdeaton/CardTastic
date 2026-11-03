@@ -96,7 +96,6 @@ jest.mock('@rific/toaster', () => ({ useToast: () => ({ info: () => {} }) }))
 jest.mock('@/components/winning/PipFireworks', () => ({ PipFireworks: () => null }))
 jest.mock('@/games/shared/WinBanner', () => ({ WinBanner: () => null }))
 jest.mock('@/stores/gameStats', () => ({ useGameStats: () => ({ recordDealWon: () => {}, recordDealAbandoned: () => {}, recordHintUsed: () => {} }) }))
-jest.mock('@/stores/lastActiveGame', () => ({ useLastActiveGame: () => ({ setLastActiveGame: () => {}, clearLastActiveGame: () => {} }) }))
 jest.mock('@/components/theme', () => {
   const actual = jest.requireActual('@/components/theme')
   return { ...actual, useTableColors: () => actual.lightColors }

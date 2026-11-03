@@ -363,7 +363,6 @@ jest.mock('@/games/shared/WinBanner', () => {
   return { WinBanner: () => <MockText testID='win-banner'>won</MockText> }
 })
 jest.mock('@/stores/gameStats', () => ({ useGameStats: () => ({ recordDealWon: () => {}, recordDealAbandoned: () => {}, recordHintUsed: () => {} }) }))
-jest.mock('@/stores/lastActiveGame', () => ({ useLastActiveGame: () => ({ setLastActiveGame: () => {}, clearLastActiveGame: () => {} }) }))
 jest.mock('@/hooks/useSettings', () => {
   const actual = jest.requireActual('@/redux/settingsSlice')
   return { useSettings: () => ({ settings: actual.DEFAULT_SETTINGS }) }

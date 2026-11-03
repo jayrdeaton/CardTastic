@@ -1,7 +1,7 @@
 import { configureStore } from '@reduxjs/toolkit'
 
+import { GUEST_PLAYER_ID } from '@/constants/player'
 import { FOUNDATION_LAYOUT } from '@/engine/foundation'
-import { GUEST_PLAYER_ID } from '@/redux/activeProfileSlice'
 import gameInProgress, { gameInProgressActions, type SavedGame } from '@/redux/gameInProgressSlice'
 import { SOLITAIRE_GAME_IDS, type SolitaireGameId } from '@/stores/statsTypes'
 
@@ -9,7 +9,7 @@ import { SOLITAIRE_GAME_IDS, type SolitaireGameId } from '@/stores/statsTypes'
 // slice, so the real stores/gameInProgress module (debounce, flush, load, clear) runs against it without
 // pulling in the app's whole store and every package its reducers come from. Wire it with
 //   jest.mock('@/redux/store', () => require('<relative path>/testUtils/gameInProgressStore').storeModule)
-// Lives outside __tests__ because jest runs every file under there as a suite. It has no activeProfile
+// Lives outside __tests__ because jest runs every file under there as a suite. It has no profileSelection
 // slice, so every save here is guest's (GUEST_PLAYER_ID).
 const store = configureStore({ reducer: { gameInProgress }, middleware: (getDefaultMiddleware) => getDefaultMiddleware({ serializableCheck: false, immutableCheck: false }) })
 

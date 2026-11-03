@@ -105,7 +105,7 @@ function StockPacket({ onPress, highlighted }: { onPress: () => void; highlighte
 export default withGameProviders(ScorpionScreenInner)
 
 function ScorpionScreenInner() {
-  const { styles, dropZones, recordDealWon, recordDealAbandoned, recordHintUsed, recordUndoUsed, setLastActiveGame, clearLastActiveGame } = useGameScreenBasics(makeStyles)
+  const { styles, dropZones, recordDealWon, recordDealAbandoned, recordHintUsed, recordUndoUsed } = useGameScreenBasics(makeStyles)
   const { info: infoToast } = useToast()
   const { settings } = useSettings()
   // The stock variant the in-progress deal was actually dealt with - deliberately not re-derived
@@ -539,16 +539,13 @@ function ScorpionScreenInner() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state])
 
-  // Resumes a saved board if one exists, otherwise deals fresh - either way, this screen becomes
-  // the "last active game" for as long as it stays mounted (see app/index.tsx), and stops being it
-  // the instant the player actually backs out.
+  // Resumes a saved board if one exists, otherwise deals fresh. The shell's play route (PlayRoute) remembers this game
+  // for a cold launch to come back to while this screen is mounted (`resumable`, games/<id>/definition.ts).
   useEffect(() => {
     loadGameInProgress<ScorpionState>('scorpion').then((saved) => {
       if (saved) restoreGame(saved)
       else startNewGame(controller)
-      setLastActiveGame('scorpion')
     })
-    return () => clearLastActiveGame()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 

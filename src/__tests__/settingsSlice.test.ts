@@ -8,26 +8,31 @@ describe('settingsSlice', () => {
   })
 
   it('merges a partial patch over the current settings', () => {
-    const next = reducer(DEFAULT_SETTINGS, settingsActions.initialize({ lockOrientation: true, lockedRotation: -90 }))
-    expect(next).toEqual({ ...DEFAULT_SETTINGS, lockOrientation: true, lockedRotation: -90 })
-  })
-
-  it('clears lockedRotation when unlocking', () => {
-    const locked = reducer(DEFAULT_SETTINGS, settingsActions.initialize({ lockOrientation: true, lockedRotation: 180 }))
-    expect(reducer(locked, settingsActions.initialize({ lockOrientation: false, lockedRotation: undefined })).lockedRotation).toBeUndefined()
+    const next = reducer(DEFAULT_SETTINGS, settingsActions.initialize({ klondikeDraw: 3, autoHintSeconds: 15 }))
+    expect(next).toEqual({ ...DEFAULT_SETTINGS, klondikeDraw: 3, autoHintSeconds: 15 })
   })
 
   // Settings saved by an older build have no value for a field added since; rehydrating must fill it
   // from the defaults rather than leave it undefined.
   it('fills fields missing from saved settings with the defaults on rehydrate', () => {
-    const key = (Object.keys(DEFAULT_SETTINGS) as (keyof typeof DEFAULT_SETTINGS)[]).find((k) => k !== 'lockOrientation')!
-    const saved: Partial<typeof DEFAULT_SETTINGS> = { ...DEFAULT_SETTINGS, lockOrientation: true }
+    const key = (Object.keys(DEFAULT_SETTINGS) as (keyof typeof DEFAULT_SETTINGS)[]).find((k) => k !== 'klondikeDraw')!
+    const saved: Partial<typeof DEFAULT_SETTINGS> = { ...DEFAULT_SETTINGS, klondikeDraw: 3 }
     delete saved[key]
     const next = reducer(undefined, { type: REHYDRATE, payload: { settings: saved } } as { type: string })
-    expect(next).toEqual({ ...DEFAULT_SETTINGS, lockOrientation: true })
+    expect(next).toEqual({ ...DEFAULT_SETTINGS, klondikeDraw: 3 })
   })
 
   it('keeps the defaults when nothing was saved', () => {
     expect(reducer(undefined, { type: REHYDRATE, payload: {} } as { type: string })).toEqual(DEFAULT_SETTINGS)
+  })
+
+  // Lock Orientation is the shell's appSettings since the CardTastic move, but a 1.2.8 store's lock stays in `settings`
+  // for one release, as it was, so a rollback to 1.2.8 finds it: nothing that writes settings any more names it.
+  it("keeps a 1.2.8 store's lock as it was saved, through every later patch", () => {
+    const saved = { ...DEFAULT_SETTINGS, lockOrientation: true, lockedRotation: 90 }
+    const rehydrated = reducer(undefined, { type: REHYDRATE, payload: { settings: saved } } as { type: string })
+    const patched = reducer(rehydrated, settingsActions.initialize({ klondikeDraw: 3 }))
+
+    expect(patched).toMatchObject({ lockOrientation: true, lockedRotation: 90, klondikeDraw: 3 })
   })
 })

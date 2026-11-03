@@ -1,11 +1,10 @@
 import { act, fireEvent, render, screen } from '@testing-library/react-native'
-import { type ReactNode } from 'react'
 import { AccessibilityInfo, Text } from 'react-native'
 
 import { FLIGHT_SPRING, SPRING_START_LAG_MS, springSettleMs } from '@/components/dragdrop/dragSpring'
 import { isMotionReduced, ReducedMotionBridge, useMotionReduced } from '@/components/reducedMotion'
 import { setMotionReduced } from '@/components/reducedMotionFlag'
-import { SettingsDialog } from '@/components/SettingsDialog'
+import { SettingsSections } from '@/components/SettingsSections'
 
 // Reduce Motion is on when the Settings row is OR the device's setting is, live (reducedMotion.tsx), so the App Store's
 // Reduced Motion accessibility claim holds: a player who turned it on in iOS Settings gets no card flights.
@@ -25,18 +24,12 @@ jest.mock('@/hooks/useSettings', () => {
   const { DEFAULT_SETTINGS } = jest.requireActual('@/redux/settingsSlice')
   return { useSettings: () => ({ settings: { ...DEFAULT_SETTINGS, reduceMotion: mockRowOn }, setSettings: mockSetSettings }) }
 })
-jest.mock('@tastic/hud/chrome', () => ({
-  ...jest.requireActual('@tastic/hud/chrome'),
-  BaseSettingsDialog: ({ children }: { children?: ReactNode }) => children
-}))
-jest.mock('@tastic/hud/guide', () => ({ ...jest.requireActual('@tastic/hud/guide'), useGuide: () => ({ isOpen: false, open: jest.fn(), close: jest.fn(), requestAutoShow: jest.fn() }) }))
-jest.mock('@rific/toaster', () => ({ ...jest.requireActual('@rific/toaster'), useToast: () => ({ error: jest.fn(), info: jest.fn(), success: jest.fn() }) }))
 jest.mock('@/components/theme', () => {
   const actual = jest.requireActual('@/components/theme')
   return { ...actual, useTableColors: () => actual.lightColors }
 })
-jest.mock('@/components/useFontsPreload', () => ({ CARD_FONT_FAMILY: 'TestSerif' }))
-jest.mock('@/stores/profiles', () => ({ useProfiles: () => ({ activeProfile: null }) }))
+jest.mock('@/components/cardFont', () => ({ CARD_FONT_FAMILY: 'TestSerif' }))
+jest.mock('@/stores/profiles', () => ({ usePlayer: () => ({ profile: null }) }))
 
 function Probe() {
   return <Text testID='reduced'>{String(useMotionReduced())}</Text>
@@ -97,20 +90,20 @@ describe('springSettleMs under Reduce Motion', () => {
   })
 })
 
-describe("SettingsDialog's Reduce Motion row", () => {
-  async function renderDialog() {
-    await render(<SettingsDialog visible onDismiss={jest.fn()} rotation={0} />)
+describe("the Settings sections' Reduce Motion row", () => {
+  async function renderSections() {
+    await render(<SettingsSections />)
   }
 
   it('toggles the row with the device setting off', async () => {
-    await renderDialog()
+    await renderSections()
     expect(screen.queryByText('On in device settings')).toBeNull()
     await fireEvent.press(screen.getByText('Reduce Motion'))
     expect(mockSetSettings).toHaveBeenCalledWith({ reduceMotion: true })
   })
 
   it('shows on, says why and takes no tap while the device setting is on', async () => {
-    await renderDialog()
+    await renderSections()
     await setSystem(true)
     expect(screen.getByText('On in device settings')).toBeTruthy()
     await fireEvent.press(screen.getByText('Reduce Motion'))

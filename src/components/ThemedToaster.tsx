@@ -63,8 +63,9 @@ function ToastIcon({ color, name }: { color?: string; name: string; size?: numbe
   )
 }
 
-/** The app's one toaster, laid over every screen in the root overlay frame (see _layout.tsx's RootOverlays). It must render inside that
- * RotatedFrame (with `rotatedSafeArea`): the frame width and the insets it reads are the turned frame's own. */
+/** The app's one toaster (the pack's `Toaster`), laid over every screen in the frame @tastic/shell's RootLayout draws a pack's toaster
+ * in: a RotatedFrame turned with the phone, with `rotatedSafeArea`, so the frame width and the insets it reads are the turned frame's
+ * own, and `passThrough`, so only a toast takes a touch over the stack. */
 export function ThemedToaster() {
   const { colors, fonts } = useAutoPaperTheme()
   const insets = useSafeAreaInsets()

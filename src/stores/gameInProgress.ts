@@ -1,9 +1,9 @@
 import { AppState } from 'react-native'
 
+import { GUEST_PLAYER_ID } from '@/constants/player'
 import { FOUNDATION_LAYOUT, FOUNDATION_SUITS } from '@/engine/foundation'
 import { SUITS } from '@/engine/types'
 import type { UndoEntry } from '@/games/shared/undoTypes'
-import { GUEST_PLAYER_ID } from '@/redux/activeProfileSlice'
 import { gameInProgressActions, LEGACY_OWNER, type SavedGame } from '@/redux/gameInProgressSlice'
 import { persistor, store } from '@/redux/store'
 
@@ -43,10 +43,10 @@ const saveTimers = new Map<SolitaireGameId, ReturnType<typeof setTimeout>>()
 let appStateListenerInstalled = false
 let legacyAdopted = false
 
-/** Whose saves are being read and written: the selected profile's id, or GUEST_PLAYER_ID. */
+/** Whose saves are being read and written: seat 1's profile id, or GUEST_PLAYER_ID. */
 function currentOwner(): string {
-  // Optional on purpose: the test stand-in store (testUtils/gameInProgressStore.ts) has no activeProfile slice.
-  return (store.getState() as { activeProfile?: string | null }).activeProfile ?? GUEST_PLAYER_ID
+  // Optional on purpose: the test stand-in store (testUtils/gameInProgressStore.ts) has no profileSelection slice.
+  return (store.getState() as { profileSelection?: Record<1, string | null> }).profileSelection?.[1] ?? GUEST_PLAYER_ID
 }
 
 // Saves from before they were per profile belong to nobody in particular; the player active the first

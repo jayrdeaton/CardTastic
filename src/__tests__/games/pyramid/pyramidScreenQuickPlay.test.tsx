@@ -155,7 +155,6 @@ jest.mock('@/games/shared/WinBanner', () => {
   return { WinBanner: () => <MockText testID='win-banner'>won</MockText> }
 })
 jest.mock('@/stores/gameStats', () => ({ useGameStats: () => ({ recordDealWon: () => {}, recordDealAbandoned: () => {}, recordHintUsed: () => {} }) }))
-jest.mock('@/stores/lastActiveGame', () => ({ useLastActiveGame: () => ({ setLastActiveGame: () => {}, clearLastActiveGame: () => {} }) }))
 jest.mock('@/components/theme', () => {
   const actual = jest.requireActual('@/components/theme')
   return { ...actual, useTableColors: () => actual.lightColors }

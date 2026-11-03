@@ -16,7 +16,7 @@ import { GameChrome } from '@/components/GameChrome'
 jest.mock('@/components/SettingsDialog', () => ({ SettingsDialog: () => null }))
 jest.mock('@/components/RulesDialog', () => ({ RulesDialog: () => null }))
 jest.mock('@/hooks/useSettings', () => ({ useSettings: () => ({ settings: { ...jest.requireActual('@/redux/settingsSlice').DEFAULT_SETTINGS }, setSettings: jest.fn() }) }))
-jest.mock('@/components/useFontsPreload', () => ({ CARD_FONT_FAMILY: 'TestSerif' }))
+jest.mock('@/components/cardFont', () => ({ CARD_FONT_FAMILY: 'TestSerif' }))
 // The window GameChrome lays out for: portrait unless a test turns it sideways (the wide layout).
 let mockWide = false
 jest.mock('@/components/gameLayout', () => {
@@ -29,7 +29,6 @@ jest.mock('@/components/gameLayout', () => {
     }
   }
 })
-jest.mock('@/stores/lastActiveGame', () => ({ useLastActiveGame: () => ({ clearLastActiveGame: jest.fn(), setLastActiveGame: jest.fn(), consumeResumeGame: () => null }) }))
 
 const VIEWPORT = 800
 

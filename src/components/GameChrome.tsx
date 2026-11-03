@@ -12,11 +12,11 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Par } from '@/engine/par'
 import { computeScore } from '@/engine/score'
 import { useSettings } from '@/hooks/useSettings'
-import { useLastActiveGame } from '@/stores/lastActiveGame'
 import { commaString } from '@/utils/commaString'
 
 import { HintHandler, useAutoHint } from './autoHint'
 import { useBoardScroll } from './boardScroll'
+import { CARD_FONT_FAMILY } from './cardFont'
 import { AUTO_PLAY_STAGGER_MS } from './dragdrop/dragSpring'
 import { GAME_CONTENT_BOTTOM_PADDING, GAME_CONTENT_MAX_WIDTH, GAME_CONTENT_PADDING, GAME_CONTENT_TOP_PADDING, useGameLayout } from './gameLayout'
 import { useHintHold } from './hintHold'
@@ -27,7 +27,6 @@ import { SettingsDialog } from './SettingsDialog'
 import { CHROME_FG } from './theme'
 import { UndoHandler, useUndoHold } from './undoHold'
 import { useCardSoundEffects } from './useCardSounds'
-import { CARD_FONT_FAMILY } from './useFontsPreload'
 
 export function formatTime(totalSeconds: number): string {
   const m = Math.floor(totalSeconds / 60)
@@ -327,7 +326,6 @@ export function GameChrome({ title, subtitle, onNewGame, onUndo: undoMove, onUnd
   const [footerSettling, setFooterSettling] = useState(false)
   const footerSettleTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   useEffect(() => () => clearTimeout(footerSettleTimerRef.current), [])
-  const { clearLastActiveGame } = useLastActiveGame()
   // Every undo the buttons ask for, counted for the Undos stat once it has taken a move back.
   const onUndo: UndoHandler = (opts) => {
     const result = undoMove(opts)
@@ -501,20 +499,15 @@ export function GameChrome({ title, subtitle, onNewGame, onUndo: undoMove, onUnd
         <View style={styles.cornerButtons} pointerEvents='box-none'>
           <CornerActionButtons
             onBack={() => {
-              // Cleared explicitly on the tap itself, not left to each screen's own unmount cleanup:
-              // on web, React Navigation's Stack keeps the previous screen mounted (hidden, not
-              // unmounted) across a pop (same quirk this app's own ProfilesManager integration hit -
-              // see .claude/CLAUDE.md), so an unmount-based clear never fires there, and app/index.tsx
-              // would see a stale lastActiveGame and immediately redirect right back into this game.
-              clearLastActiveGame()
               // Every game screen is one level below the main menu with nothing deeper, so this is
               // always "go home," not "undo the last navigation" - router.back() depended on real
               // history existing (it errors with "GO_BACK was not handled" whenever this screen was
-              // reached directly, e.g. a deep link, a dev reload straight into /klondike, or the
-              // cold-launch redirect in app/index.tsx). dismissTo() pops back to the Home that's
+              // reached directly, e.g. a deep link, a dev reload straight into /play/klondike, or
+              // the shell's cold-launch redirect from Home). dismissTo() pops back to the Home that's
               // already in the stack beneath this game (same instance, no remount - the menu is still
               // exactly as it was), and only falls back to replace semantics when there is no Home
-              // beneath (a deep link / cold-launch resume). replace('/') did NOT do this: it mounted a
+              // beneath (a deep link / cold-launch resume). Either way this screen unmounts, and the
+              // shell's play route (PlayRoute) forgets the resume with it. replace('/') did NOT do this: it mounted a
               // brand-new Home on top of the old one, so every round trip leaked one more live Home
               // (each rebuilding ~370 SVG preview cards on the next tap) and going Home got slower each time.
               router.dismissTo('/')

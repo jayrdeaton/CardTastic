@@ -10,7 +10,7 @@ interface SettingsSectionProps {
   children: ReactNode
 }
 
-// Renders inside BaseSettingsDialog's own MD3 card (see SettingsDialog.tsx), so this uses
+// Renders inside BaseSettingsDialog's own MD3 card (see SettingsSections.tsx), so this uses
 // useAutoPaperTheme's colors.* tokens - the same ones that dialog's own built-in rows use - rather
 // than Solitaire's felt-table useTableColors().
 export function SettingsSection({ label, children }: SettingsSectionProps) {

@@ -8,7 +8,7 @@ import { Icon, Provider as PaperProvider } from 'react-native-paper'
 import { ThemedToaster, TOAST_BADGE_SIZE, TOAST_LEVEL_ICONS, TOAST_MAX_WIDTH, TOAST_TOP, toastBadgeInk, toastStackFrame } from '@/components/ThemedToaster'
 import { showNoHintToast } from '@/games/shared/gameToasts'
 
-jest.mock('@/components/useFontsPreload', () => ({ CARD_FONT_FAMILY: 'TestSerif' }))
+jest.mock('@/components/cardFont', () => ({ CARD_FONT_FAMILY: 'TestSerif' }))
 
 // The toaster itself is stood in for: what's pinned here is what ThemedToaster hands it (the toaster's own stacking, swiping and timing are
 // @rific/toaster's tests).

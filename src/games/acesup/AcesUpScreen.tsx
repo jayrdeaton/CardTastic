@@ -82,7 +82,7 @@ const STOCK_DISPLAY_CARD: Card = { id: 'acesup-stock', suit: 'spades', rank: 1, 
 export default withGameProviders(AcesUpScreenInner)
 
 function AcesUpScreenInner() {
-  const { styles, dropZones, recordDealWon, recordDealAbandoned, recordHintUsed, recordUndoUsed, setLastActiveGame, clearLastActiveGame } = useGameScreenBasics(makeStyles)
+  const { styles, dropZones, recordDealWon, recordDealAbandoned, recordHintUsed, recordUndoUsed } = useGameScreenBasics(makeStyles)
   const { info: infoToast } = useToast()
   // Width the board may occupy - rotation-aware, and net of the side-chrome gutters in the wide (landscape)
   // layout; the plain window width (capped) in portrait. See gameLayout.ts.
@@ -441,9 +441,7 @@ function AcesUpScreenInner() {
     loadGameInProgress<AcesUpState>('acesup').then((saved) => {
       if (saved) restoreGame(saved)
       else startNewGame()
-      setLastActiveGame('acesup')
     })
-    return () => clearLastActiveGame()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 

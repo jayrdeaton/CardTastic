@@ -12,8 +12,7 @@ import { HINT_GLIDE_LANDED_MS } from '@/components/hinting/HintGlideLayer'
 jest.mock('@/components/SettingsDialog', () => ({ SettingsDialog: () => null }))
 jest.mock('@/components/RulesDialog', () => ({ RulesDialog: () => null }))
 jest.mock('@/hooks/useSettings', () => ({ useSettings: () => ({ settings: { ...jest.requireActual('@/redux/settingsSlice').DEFAULT_SETTINGS }, setSettings: jest.fn() }) }))
-jest.mock('@/components/useFontsPreload', () => ({ CARD_FONT_FAMILY: 'TestSerif' }))
-jest.mock('@/stores/lastActiveGame', () => ({ useLastActiveGame: () => ({ clearLastActiveGame: jest.fn(), setLastActiveGame: jest.fn(), consumeResumeGame: () => null }) }))
+jest.mock('@/components/cardFont', () => ({ CARD_FONT_FAMILY: 'TestSerif' }))
 
 async function advance(ms: number) {
   await act(async () => {

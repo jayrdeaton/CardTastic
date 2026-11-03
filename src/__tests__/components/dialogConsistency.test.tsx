@@ -7,7 +7,7 @@ import { RulesDialog } from '@/components/RulesDialog'
 import { LossBanner } from '@/games/shared/LossBanner'
 import { WinBanner } from '@/games/shared/WinBanner'
 
-jest.mock('@/components/useFontsPreload', () => ({ CARD_FONT_FAMILY: 'TestSerif' }))
+jest.mock('@/components/cardFont', () => ({ CARD_FONT_FAMILY: 'TestSerif' }))
 // No win recorded this session: the win card measures against Klondike's expert par (345).
 jest.mock('@/stores/gameStats', () => ({ useGameStats: () => ({ lastWin: null }) }))
 

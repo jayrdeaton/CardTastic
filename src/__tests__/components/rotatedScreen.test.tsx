@@ -6,13 +6,12 @@ import { StyleSheet, Text, View, type ViewStyle } from 'react-native'
 import { Portal } from 'react-native-paper'
 import { type EdgeInsets, SafeAreaInsetsContext } from 'react-native-safe-area-context'
 
-import { RotatedScreen } from '@/components/RotatedScreen'
-
 // ---------------------------------------------------------------------------------------------------------------------
-// Render tests of the REAL RotatedScreen (src/components/RotatedScreen.tsx) and the package frames it and the root overlays
-// are built on (@tastic/hud's RotatedFrame, over @tastic/core's FakeLandscapeView): the real @tastic/core rotation math
-// (rotateInsets / rotateDimensions / toRotationStyle), the real Paper Portal + Portal.Host and the real safe-area context +
-// provider. Same technique as homeScreen.test.tsx: only what needs a native runtime or a provider is replaced.
+// Render tests of the package frames every screen and the root toaster are built on (@tastic/hud's RotatedFrame, over
+// @tastic/core's FakeLandscapeView; @tastic/shell's screens use it, and Solitaire's own RotatedScreen did until
+// 2026-11-02): the real @tastic/core rotation math (rotateInsets / rotateDimensions / toRotationStyle), the real Paper
+// Portal + Portal.Host and the real safe-area context + provider. Only what needs a native runtime or a provider is
+// replaced.
 //   - rotation, the window and the safe-area insets are mutable (`mockRotation`, `mockWindow`, `mockInsets`). useRotation AND
 //     useRotatedWindowDimensions are both replaced, and react-native's useWindowDimensions (which RotatedFrame and
 //     FakeLandscapeView read directly) is replaced at its module. RotatedFrame turns its FakeLandscapeView by the mocked
@@ -96,7 +95,7 @@ interface Json {
 const asElements = (children: (Json | string)[] | null): Json[] => (children ?? []).filter((c): c is Json => typeof c !== 'string')
 
 /** ONE toJSON() snapshot: every call builds fresh objects, so paths (and the identity comparisons between them) must all come from the same one.
- * More than one root (RotatedScreen's status bar beside its frame) comes back wrapped in an unnamed (type '') container: unwrapped here. */
+ * More than one root (a status bar beside a frame) comes back wrapped in an unnamed (type '') container: unwrapped here. */
 const snapshot = (): Json[] => {
   const root = screen.toJSON() as Json | Json[] | null
   if (Array.isArray(root)) return root
@@ -626,81 +625,5 @@ describe('RotatedFrame: one tree at every angle', () => {
       await screen.rerender(tree())
       expect(pathOrFail('probe')).toHaveLength(depthAt0)
     }
-  })
-})
-
-// ------------------------------------------------------------------------------------------------- RotatedScreen
-
-describe('RotatedScreen', () => {
-  it('always mounts a Portal.Host inside the frame (a Portal child renders, inside the rotated frame)', async () => {
-    mockRotation = 90
-    await render(
-      <RotatedScreen>
-        <Probe />
-        <PortalProbe />
-      </RotatedScreen>
-    )
-
-    const roots = snapshot()
-    const { inner } = frameOf('probe', roots)
-    expect(styleOf(inner).transform).toEqual([{ rotate: '90deg' }])
-    expect(pathOrFail('portal-content', roots)).toContain(inner)
-  })
-
-  it('passes rotatedSafeArea through: rotated insets when set, raw when not', async () => {
-    mockRotation = 90
-    await render(
-      <RotatedScreen rotatedSafeArea>
-        <Probe />
-      </RotatedScreen>
-    )
-    expect(lastSeenInsets()).toEqual({ top: 0, right: 34, bottom: 0, left: 62 })
-
-    await screen.rerender(
-      <RotatedScreen>
-        <Probe />
-      </RotatedScreen>
-    )
-    expect(lastSeenInsets()).toEqual(PHYSICAL_INSETS)
-  })
-
-  it('passes maxContentWidth through to the column (in the wide layout, where it applies)', async () => {
-    mockRotation = 90
-    await render(
-      <RotatedScreen maxContentWidth={640}>
-        <Probe />
-      </RotatedScreen>
-    )
-
-    expect(styleOf(frameOf().column)).toMatchObject({ width: '100%', alignSelf: 'center', flex: 1, maxWidth: 640 })
-  })
-
-  it('does not let touches fall through (a routed screen owns the whole screen)', async () => {
-    await render(
-      <RotatedScreen>
-        <Probe />
-      </RotatedScreen>
-    )
-
-    const { inner, column } = frameOf()
-    expect(inner.props.pointerEvents).toBeUndefined()
-    expect(column.props.pointerEvents).toBeUndefined()
-  })
-
-  it('does not remount its content across rotations', async () => {
-    const tree = () => (
-      <RotatedScreen rotatedSafeArea maxContentWidth={640}>
-        <Probe />
-      </RotatedScreen>
-    )
-    await render(tree())
-
-    for (const rotation of [90, -90, 0, 180, 0] as const) {
-      mockRotation = rotation
-      await screen.rerender(tree())
-    }
-
-    expect(mockMounts.probe).toBe(1)
-    expect(mockUnmounts.probe ?? 0).toBe(0)
   })
 })

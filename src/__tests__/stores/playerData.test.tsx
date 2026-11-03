@@ -1,15 +1,19 @@
 import { type Action, configureStore, type Dispatch } from '@reduxjs/toolkit'
 import { unlockedKey } from '@tastic/achievements'
+import { profilesActions } from '@tastic/profile'
+import { createSeatColorsReducer, seatColorsActions } from '@tastic/shell'
 import { act, renderHook } from '@testing-library/react-native'
 import { ReactNode } from 'react'
 import { Provider } from 'react-redux'
 
-import achievements, { achievementsActions } from '@/redux/achievementsSlice'
-import playerSettings, { type PlayerSettings, playerSettingsActions } from '@/redux/playerSettingsSlice'
-import recentWins, { recentWinsActions } from '@/redux/recentWinsSlice'
+import { SEAT_COLORS } from '@/constants/player'
+import { achievementsActions } from '@/redux/achievementsSlice'
+import { gameInProgressActions, type GameInProgressSlot } from '@/redux/gameInProgressSlice'
+import { packReducers } from '@/redux/packReducers'
+import { type PlayerSettings, playerSettingsActions } from '@/redux/playerSettingsSlice'
+import { recentWinsActions } from '@/redux/recentWinsSlice'
 import { DEFAULT_SETTINGS } from '@/redux/settingsSlice'
-import tableColor, { tableColorActions } from '@/redux/tableColorSlice'
-import topWins, { topWinsActions } from '@/redux/topWinsSlice'
+import { topWinsActions } from '@/redux/topWinsSlice'
 import { clearProfileGamesInProgress } from '@/stores/gameInProgress'
 import { GameStatsProvider, useGameStats } from '@/stores/gameStats'
 import { usePlayerData } from '@/stores/playerData'
@@ -19,21 +23,29 @@ import { DEFAULT_PROFILE_STATS, DEFAULT_STATS } from '@/stores/statsValidation'
 // Saved games are covered by gameInProgress.test.ts; here only that the right player's are dropped.
 jest.mock('@/stores/gameInProgress', () => ({ clearProfileGamesInProgress: jest.fn(), clearAllGamesInProgress: jest.fn() }))
 let mockActiveProfileId: string | null = null
-jest.mock('@/stores/profiles', () => ({ useProfiles: () => ({ activeProfileId: mockActiveProfileId }) }))
+jest.mock('@/stores/profiles', () => ({ usePlayer: () => ({ profileId: mockActiveProfileId }) }))
 
 const KID = 'profile-kid'
 const DAD = 'profile-dad'
 const played = { ...DEFAULT_PROFILE_STATS, currentDayStreak: 3 }
 const settingsOf = (klondikeDraw: 1 | 3): PlayerSettings => ({ settings: { ...DEFAULT_SETTINGS, klondikeDraw }, sound: { enabled: true }, haptic: { vibrate: true }, keepAwake: { enabled: true }, theme: { appearance: 'system', blur: true } })
 
+// The pack's own reducers (onProfileRemoved and all), and the shell's seatColors.
+const { achievements, gameInProgress, playerSettings, recentWins, topWins } = packReducers
+
 async function setup() {
-  const store = configureStore({ reducer: { achievements, playerSettings, tableColor, recentWins, topWins }, middleware: (getDefault) => getDefault({ serializableCheck: false }) })
+  const store = configureStore({ reducer: { achievements, gameInProgress, playerSettings, recentWins, topWins, seatColors: createSeatColorsReducer(SEAT_COLORS) }, middleware: (getDefault) => getDefault({ serializableCheck: false }) })
   const stats: StatsState = { ...DEFAULT_STATS, currentDayStreak: 5, profiles: { [KID]: played, [DAD]: played } }
   store.dispatch(achievementsActions.update({ stats, unlocked: { [unlockedKey('first_win', null)]: 1, [unlockedKey('first_win', KID)]: 2, [unlockedKey('first_win', DAD)]: 3 } }))
   // @tastic/profile's action creators type their actions without RTK's index signature.
-  ;(store.dispatch as Dispatch<Action>)(playerSettingsActions.set({ id: KID, extension: settingsOf(1) }))
-  store.dispatch(tableColorActions.setColor({ id: KID, color: '#abcdef' }))
-  store.dispatch(tableColorActions.setColor({ id: DAD, color: '#123456' }))
+  const send = store.dispatch as Dispatch<Action>
+  send(playerSettingsActions.set({ id: KID, extension: settingsOf(1) }))
+  send(playerSettingsActions.set({ id: DAD, extension: settingsOf(3) }))
+  send(seatColorsActions.setProfileColor({ profile: { id: KID, color: '#111111' }, color: '#abcdef' }))
+  send(seatColorsActions.setProfileColor({ profile: { id: DAD, color: '#222222' }, color: '#123456' }))
+  store.dispatch(gameInProgressActions.klondike.setSaved({ owner: KID, saved: { state: {}, moves: 12, elapsedSeconds: 30 } }))
+  store.dispatch(gameInProgressActions.spider.setSaved({ owner: KID, saved: { state: {}, moves: 40, elapsedSeconds: 90 } }))
+  store.dispatch(gameInProgressActions.klondike.setSaved({ owner: DAD, saved: { state: {}, moves: 7, elapsedSeconds: 20 } }))
   store.dispatch(recentWinsActions.add({ player: KID, variant: 'klondike', win: { score: 400, moves: 150, seconds: 250 } }))
   store.dispatch(recentWinsActions.add({ player: DAD, variant: 'klondike', win: { score: 300, moves: 120, seconds: 180 } }))
   store.dispatch(topWinsActions.add({ player: KID, variant: 'klondike', win: { score: 400, moves: 150, seconds: 250, at: null } }))
@@ -44,8 +56,10 @@ async function setup() {
     </Provider>
   )
   const { result } = await renderHook(() => ({ ...usePlayerData(), ...useGameStats() }), { wrapper })
-  return { store, result }
+  return { store, send, result }
 }
+
+const ownersOf = (slot: GameInProgressSlot) => Object.keys(slot).filter((key) => key !== '_persist')
 
 describe('one player at a time', () => {
   beforeEach(() => jest.mocked(clearProfileGamesInProgress).mockClear())
@@ -67,20 +81,38 @@ describe('one player at a time', () => {
     expect(Object.keys(store.getState().topWins)).toEqual([DAD])
     // Their settings and their color are still theirs.
     expect(store.getState().playerSettings[KID]?.settings.klondikeDraw).toBe(1)
-    expect(store.getState().tableColor.profileColors?.[KID]).toBe('#abcdef')
+    expect(store.getState().seatColors.profileColors[KID]?.color).toBe('#abcdef')
   })
 
-  it('forgetting a deleted player also drops their settings and their color', async () => {
-    const { store, result } = await setup()
+  // The shell's deleteProfile dispatches @tastic/profile's remove; every reducer that keeps something per player
+  // answers it (onProfileRemoved, redux/packReducers.ts). forgetPlayer, which did this by hand, is gone.
+  it("a profile deleted on the Profiles screen takes everything of theirs with it, and nobody else's", async () => {
+    const { store, send } = await setup()
 
-    await act(() => result.current.forgetPlayer(KID))
+    await act(() => void send(profilesActions.remove(KID)))
 
-    expect(store.getState().achievements.stats.profiles[KID]).toBeUndefined()
-    expect(clearProfileGamesInProgress).toHaveBeenCalledWith(KID)
-    expect(store.getState().playerSettings[KID]).toBeUndefined()
-    expect(store.getState().recentWins[KID]).toBeUndefined()
-    expect(store.getState().topWins[KID]).toBeUndefined()
-    expect(store.getState().tableColor.profileColors).toEqual({ [DAD]: '#123456' })
+    const state = store.getState()
+    expect(state.achievements.stats.profiles[KID]).toBeUndefined()
+    expect(state.achievements.stats.profiles[DAD]).toEqual(played)
+    expect(state.achievements.stats.currentDayStreak).toBe(5)
+    expect(Object.keys(state.achievements.unlocked).sort()).toEqual([unlockedKey('first_win', null), unlockedKey('first_win', DAD)].sort())
+    expect(ownersOf(state.gameInProgress.klondike)).toEqual([DAD])
+    expect(ownersOf(state.gameInProgress.spider)).toEqual([])
+    expect(state.recentWins[KID]).toBeUndefined()
+    expect(Object.keys(state.topWins)).toEqual([DAD])
+    expect(state.playerSettings[KID]).toBeUndefined()
+    expect(state.playerSettings[DAD]?.settings.klondikeDraw).toBe(3)
+    expect(Object.keys(state.seatColors.profileColors)).toEqual([DAD])
+  })
+
+  it('a profile deleted in a sibling app (a roster sync) leaves its data behind', async () => {
+    const { store, send } = await setup()
+
+    await act(() => void send(profilesActions.setAll([])))
+
+    expect(store.getState().achievements.stats.profiles[KID]).toEqual(played)
+    expect(ownersOf(store.getState().gameInProgress.klondike).sort()).toEqual([DAD, KID].sort())
+    expect(store.getState().playerSettings[KID]).toBeDefined()
   })
 })
 

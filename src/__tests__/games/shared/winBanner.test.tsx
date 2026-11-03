@@ -6,7 +6,7 @@ import { addTopWin, type TopWins, type WinsBefore } from '@/engine/topWins'
 import type { VariantId } from '@/engine/variants'
 import { WinBanner } from '@/games/shared/WinBanner'
 
-jest.mock('@/components/useFontsPreload', () => ({ CARD_FONT_FAMILY: 'TestSerif' }))
+jest.mock('@/components/cardFont', () => ({ CARD_FONT_FAMILY: 'TestSerif' }))
 
 // The par the latest win was measured against (useGameStats' lastWin), set per test.
 let mockLastWin: { variant: VariantId; par: PlayerPar; before?: WinsBefore } | null = null

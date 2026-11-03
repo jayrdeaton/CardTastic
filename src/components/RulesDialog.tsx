@@ -10,7 +10,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import type { Par } from '@/engine/par'
 import { commaString } from '@/utils/commaString'
 
-import { CARD_FONT_FAMILY } from './useFontsPreload'
+import { CARD_FONT_FAMILY } from './cardFont'
 
 interface RulesDialogProps {
   visible: boolean

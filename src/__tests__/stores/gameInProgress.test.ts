@@ -22,7 +22,8 @@ describe('game-in-progress persistence (coalesced saves)', () => {
   // Every setSaved dispatch for one game - one per actual save into the store.
   const savesOf = (gameId: string) => dispatch.mock.calls.filter(([action]) => action.type === `gameInProgress/${gameId}/setSaved`)
   const movesInStore = (gameId: 'klondike' | 'spider', owner = 'guest') => (redux.store.getState().gameInProgress[gameId][owner] as { moves: number } | undefined)?.moves
-  const selectProfile = (id: string | null) => redux.store.dispatch(require('@/redux/activeProfileSlice').activeProfileActions.select(id))
+  // Seat 1 of the shell's profileSelection is who's playing.
+  const selectProfile = (id: string | null) => redux.store.dispatch(require('@tastic/shell').profileSelectionActions.select({ seat: 1, profileId: id }))
 
   beforeEach(async () => {
     jest.useFakeTimers()
@@ -207,6 +208,26 @@ describe('game-in-progress persistence (coalesced saves)', () => {
       await api.flushGameInProgress()
       expect(persistedMoves(disk, 'klondike', 'profile-kid')).toBeUndefined()
     })
+
+    it("a profile deleted on the Profiles screen takes its deals with it, from each game's own entry too", async () => {
+      selectProfile('profile-dad')
+      api.saveGameInProgress('klondike', board(12))
+      api.saveGameInProgress('spider', board(30))
+      selectProfile(null)
+      api.saveGameInProgress('klondike', board(1))
+      await api.flushGameInProgress()
+      expect(persistedMoves(disk, 'spider', 'profile-dad')).toBe(30)
+
+      // What the shell's deleteProfile dispatches first (pack.ts' onProfileRemoved answers it).
+      redux.store.dispatch(require('@tastic/profile').profilesActions.remove('profile-dad'))
+      expect(movesInStore('klondike', 'profile-dad')).toBeUndefined()
+      expect(movesInStore('spider', 'profile-dad')).toBeUndefined()
+      expect(movesInStore('klondike')).toBe(1)
+      await redux.persistor.flush()
+      expect(persistedMoves(disk, 'klondike', 'profile-dad')).toBeUndefined()
+      expect(persistedMoves(disk, 'spider', 'profile-dad')).toBeUndefined()
+      expect(persistedMoves(disk, 'klondike')).toBe(1)
+    })
   })
 })
 
@@ -230,7 +251,7 @@ describe('saves from before they were per profile', () => {
     jest.spyOn(AsyncStorage, 'removeItem').mockImplementation((async (k: string) => void disk.delete(k)) as never)
     const redux: Redux = require('@/redux/store')
     while (!redux.persistor.getState().bootstrapped) await jest.advanceTimersByTimeAsync(10)
-    redux.store.dispatch(require('@/redux/activeProfileSlice').activeProfileActions.select('profile-dad'))
+    redux.store.dispatch(require('@tastic/shell').profileSelectionActions.select({ seat: 1, profileId: 'profile-dad' }))
     const api: Api = require('@/stores/gameInProgress')
 
     expect((await api.loadGameInProgress('klondike'))?.moves).toBe(77)
@@ -238,7 +259,7 @@ describe('saves from before they were per profile', () => {
     const slots = redux.store.getState().gameInProgress
     expect(slots.spider['profile-dad']?.moves).toBe(5)
     expect(slots.klondike.saved).toBeUndefined()
-    redux.store.dispatch(require('@/redux/activeProfileSlice').activeProfileActions.select('profile-kid'))
+    redux.store.dispatch(require('@tastic/shell').profileSelectionActions.select({ seat: 1, profileId: 'profile-kid' }))
     expect(await api.loadGameInProgress('klondike')).toBeNull()
   })
 })

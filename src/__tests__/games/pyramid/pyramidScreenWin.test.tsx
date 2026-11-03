@@ -269,7 +269,6 @@ jest.mock('@/games/shared/WinBanner', () => {
   }
 })
 jest.mock('@/stores/gameStats', () => ({ useGameStats: () => ({ recordDealWon: mockRecordWon, recordDealAbandoned: () => {}, recordHintUsed: () => {} }) }))
-jest.mock('@/stores/lastActiveGame', () => ({ useLastActiveGame: () => ({ setLastActiveGame: () => {}, clearLastActiveGame: () => {} }) }))
 jest.mock('@/components/theme', () => {
   const actual = jest.requireActual('@/components/theme')
   return { ...actual, useTableColors: () => actual.lightColors }

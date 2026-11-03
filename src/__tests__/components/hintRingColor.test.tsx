@@ -8,9 +8,9 @@ import { HINT_RING_TONE, THEME_HARMONY } from '@/constants/theme'
 // back's own hue, so a ringed card in a stack never blends into the backs beside it, and well away from the felt.
 
 let mockDark = false
-let mockOverride: string | null = null
+let mockOverride = '#e91e63'
 jest.mock('react-native-paper', () => ({ ...jest.requireActual('react-native-paper'), useTheme: () => ({ dark: mockDark }) }))
-jest.mock('@/stores/profiles', () => ({ useProfiles: () => ({ tableColorOverride: mockOverride }) }))
+jest.mock('@/stores/profiles', () => ({ usePlayer: () => ({ color: mockOverride }) }))
 
 function hue(hex: string): number {
   const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255)

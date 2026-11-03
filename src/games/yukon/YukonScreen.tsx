@@ -117,7 +117,7 @@ function groupCascadedByFoundation(s: YukonState, moves: MoveInfo[]): CascadeUnd
 export default withGameProviders(YukonScreenInner)
 
 function YukonScreenInner() {
-  const { styles, dropZones, recordDealWon, recordDealAbandoned, recordHintUsed, recordUndoUsed, setLastActiveGame, clearLastActiveGame } = useGameScreenBasics(makeStyles)
+  const { styles, dropZones, recordDealWon, recordDealAbandoned, recordHintUsed, recordUndoUsed } = useGameScreenBasics(makeStyles)
   const { info: infoToast } = useToast()
   const { settings } = useSettings()
   // No draw-count/suit-count-style config to lock at deal time (unlike Klondike/Spider) - a single
@@ -639,17 +639,13 @@ function YukonScreenInner() {
     beat: cascadeFeedback
   })
 
-  // Resumes a saved board if one exists, otherwise deals fresh - either way, this screen becomes
-  // the "last active game" for as long as it stays mounted (see app/index.tsx), and stops being it
-  // the instant the player actually backs out (a Back tap, swipe-back, or hardware back all unmount
-  // this the same way - unlike merely backgrounding the app, which leaves it mounted).
+  // Resumes a saved board if one exists, otherwise deals fresh. The shell's play route (PlayRoute) remembers this game
+  // for a cold launch to come back to while this screen is mounted (`resumable`, games/<id>/definition.ts).
   useEffect(() => {
     loadGameInProgress<YukonState, UndoEntry<YukonState, YukonUndoMove>>('yukon').then((saved) => {
       if (saved) restoreGame(saved)
       else startNewGame()
-      setLastActiveGame('yukon')
     })
-    return () => clearLastActiveGame()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 

@@ -94,7 +94,7 @@ function makeStyles() {
 export default withGameProviders(FortyThievesScreenInner)
 
 function FortyThievesScreenInner() {
-  const { styles, dropZones, recordDealWon, recordDealAbandoned, recordHintUsed, recordUndoUsed, setLastActiveGame, clearLastActiveGame } = useGameScreenBasics(makeStyles)
+  const { styles, dropZones, recordDealWon, recordDealAbandoned, recordHintUsed, recordUndoUsed } = useGameScreenBasics(makeStyles)
   const { info: infoToast } = useToast()
   const { settings } = useSettings()
   // The move-style rule the in-progress deal was actually dealt with - deliberately not
@@ -407,9 +407,7 @@ function FortyThievesScreenInner() {
     loadGameInProgress<FortyThievesState>('fortythieves').then((saved) => {
       if (saved) restoreGame(saved)
       else startNewGame()
-      setLastActiveGame('fortythieves')
     })
-    return () => clearLastActiveGame()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 

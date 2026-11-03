@@ -6,13 +6,15 @@ import { Text } from 'react-native-paper'
 
 import { formatTime } from '@/components/GameChrome'
 import { formatDay } from '@/components/PlayCalendar'
-import type { GameFilter } from '@/components/StatsFilters'
+import { GUEST_PLAYER_ID } from '@/constants/player'
 import { boardValue, TOP_WINS_KEPT, type TopWin, type TopWinsBoard } from '@/engine/topWins'
 import { type VariantId, type VariantInfo, VARIANTS } from '@/engine/variants'
-import { GUEST_PLAYER_ID } from '@/redux/activeProfileSlice'
 import type { TopWinsState } from '@/redux/topWinsSlice'
-import { GAME_TITLES, type StatsState } from '@/stores/statsTypes'
+import { GAME_TITLES, type SolitaireGameId, type StatsState } from '@/stores/statsTypes'
 import { commaString } from '@/utils/commaString'
+
+/** The game picker's choice: one game, or All Games. */
+export type GameFilter = SolitaireGameId | 'all'
 
 interface RecordsListProps {
   board: TopWinsBoard

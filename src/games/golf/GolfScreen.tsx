@@ -65,7 +65,7 @@ const WASTE: PileRef = { zone: 'waste', index: 0 }
 export default withGameProviders(GolfScreenInner)
 
 function GolfScreenInner() {
-  const { styles, dropZones, recordDealWon, recordDealAbandoned, recordHintUsed, recordUndoUsed, setLastActiveGame, clearLastActiveGame } = useGameScreenBasics(makeStyles)
+  const { styles, dropZones, recordDealWon, recordDealAbandoned, recordHintUsed, recordUndoUsed } = useGameScreenBasics(makeStyles)
   const { info: infoToast } = useToast()
   const { settings } = useSettings()
   // The rank-wrap rule the in-progress deal was actually dealt with - deliberately not re-derived
@@ -400,16 +400,13 @@ function GolfScreenInner() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state])
 
-  // Resumes a saved board if one exists, otherwise deals fresh - either way, this screen becomes the
-  // "last active game" for as long as it stays mounted (see app/index.tsx), and stops being it the
-  // instant the player actually backs out.
+  // Resumes a saved board if one exists, otherwise deals fresh. The shell's play route (PlayRoute) remembers this game
+  // for a cold launch to come back to while this screen is mounted (`resumable`, games/<id>/definition.ts).
   useEffect(() => {
     loadGameInProgress<GolfState, UndoEntry<GolfState, MoveInfo>>('golf').then((saved) => {
       if (saved) restoreGame(saved)
       else startNewGame(controller)
-      setLastActiveGame('golf')
     })
-    return () => clearLastActiveGame()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 

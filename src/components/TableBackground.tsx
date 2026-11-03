@@ -4,8 +4,8 @@ import Svg, { Defs, RadialGradient, Rect, Stop } from 'react-native-svg'
 
 import { useTableColors } from './theme'
 
-/** The one felt table the whole app plays on - mounted ONCE, at the root (`ThemedStack` in
- * app/_layout.tsx), behind the navigation Stack, whose screens are transparent. Every screen - each
+/** The one felt table the whole app plays on - mounted ONCE, at the root (the pack's `Backdrop`, which
+ * @tastic/shell's RootLayout draws behind the navigation Stack, whose screens it makes transparent). Every screen - each
  * game (GameChrome and its GameLoading), the main menu, achievements, profiles - just draws its content
  * over it, so navigating between them reads as one continuous table rather than several screens that
  * each happen to paint the same color, and a screen that hasn't rendered its content yet (a game

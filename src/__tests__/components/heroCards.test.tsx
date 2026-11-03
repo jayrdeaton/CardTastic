@@ -1,5 +1,5 @@
-import { act, render, screen } from '@testing-library/react-native'
-import { AppState, StyleSheet } from 'react-native'
+import { render, screen } from '@testing-library/react-native'
+import { StyleSheet } from 'react-native'
 import { cancelAnimation, withRepeat } from 'react-native-reanimated'
 
 import { HeroCards } from '@/components/HeroCards'
@@ -12,9 +12,7 @@ jest.mock('react-native-reanimated', () => {
   const stand = jest.requireActual('../../__mocks__/react-native-reanimated')
   return { ...stand, withRepeat: jest.fn(stand.withRepeat) }
 })
-const mockFocus = { value: true }
-jest.mock('expo-router', () => ({ useIsFocused: () => mockFocus.value }))
-jest.mock('@/stores/profiles', () => ({ useProfiles: () => ({ activeProfile: null }) }))
+jest.mock('@/stores/profiles', () => ({ usePlayer: () => ({ profile: null }) }))
 jest.mock('@/hooks/useSettings', () => {
   const actual = jest.requireActual('@/redux/settingsSlice')
   const value = { settings: { ...actual.DEFAULT_SETTINGS } }
@@ -30,23 +28,9 @@ jest.mock('@tastic/cards', () => {
   return { CardBack: () => <MockView testID='hero-card-back' />, DecoratedCardBack: () => <MockView testID='hero-card-back' /> }
 })
 
-let appStateHandler: ((state: string) => void) | undefined
-const removeAppStateListener = jest.fn()
-
 beforeEach(() => {
-  mockFocus.value = true
   jest.mocked(withRepeat).mockClear()
   jest.mocked(cancelAnimation).mockClear()
-  removeAppStateListener.mockClear()
-  appStateHandler = undefined
-  jest.spyOn(AppState, 'addEventListener').mockImplementation(((_type: string, handler: (s: string) => void) => {
-    appStateHandler = handler
-    return { remove: removeAppStateListener }
-  }) as never)
-})
-
-afterEach(() => {
-  jest.restoreAllMocks()
 })
 
 describe('HeroCards', () => {
@@ -56,22 +40,13 @@ describe('HeroCards', () => {
     expect(withRepeat).toHaveBeenCalledTimes(1)
   })
 
-  it('restarts that one clock (not one per card) when the app comes back to the foreground', async () => {
-    await render(<HeroCards />)
-    await act(async () => appStateHandler?.('background'))
-    expect(withRepeat).toHaveBeenCalledTimes(1)
-    await act(async () => appStateHandler?.('active'))
-    expect(withRepeat).toHaveBeenCalledTimes(2)
-  })
-
-  it('stops the clock while Home is covered and starts it once on return', async () => {
-    const { rerender } = await render(<HeroCards />)
-    mockFocus.value = false
-    await rerender(<HeroCards />)
+  // `active` is @tastic/shell's Home's own: focused, with the app in the foreground.
+  it('stops the clock while Home is covered or in the background, and restarts that one clock (not one per card) on return', async () => {
+    const { rerender } = await render(<HeroCards active />)
+    await rerender(<HeroCards active={false} />)
     expect(cancelAnimation).toHaveBeenCalledTimes(1)
-    expect(removeAppStateListener).toHaveBeenCalledTimes(1)
-    mockFocus.value = true
-    await rerender(<HeroCards />)
+    expect(withRepeat).toHaveBeenCalledTimes(1)
+    await rerender(<HeroCards active />)
     expect(withRepeat).toHaveBeenCalledTimes(2)
   })
 

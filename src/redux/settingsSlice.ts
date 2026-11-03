@@ -21,7 +21,6 @@ export const DEFAULT_SETTINGS: Settings = {
   cardStyle: 'compact',
   cardBackStyle: 'geometric',
   invertDarkModeColors: false,
-  lockOrientation: false,
   reduceMotion: false
 }
 

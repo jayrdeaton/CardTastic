@@ -64,18 +64,20 @@ export interface Settings {
   // red/black ink as light mode) stays the default look; this is an opt-in alternative, not a
   // replacement.
   invertDarkModeColors: boolean
-  // Global, not per-game: freezes the current rotation reading (see @tastic/core's OrientationProvider/
-  // useRotation) instead of following the phone's live tilt - the same "Lock Orientation" setting the
-  // rest of the fleet's own games expose. Defaults false, matching every existing app's own default
-  // for this setting (nothing pins the layout until the player deliberately opts in).
-  lockOrientation: boolean
-  // The angle the lock is holding, written by OrientationProvider's onLockChange (recorded on lock,
-  // cleared on unlock) and handed back as lockInitialValue, so a relaunch reopens in the orientation
-  // the player locked to instead of portrait. Never set by the UI directly; absent while unlocked.
-  lockedRotation?: ViewRotation
+  // Lock Orientation and its angle aren't here any more: they're @tastic/shell's `appSettings` (since the
+  // CardTastic move, 2026-10-29), still following the player (redux/playerSettingsSlice.ts). A store saved
+  // before keeps them in `settings` for one release (LegacySettingsLock), for a rollback to 1.2.8.
   // The Settings row's own Reduce Motion. Applied together with the device's setting (either one turns it on), see
   // components/reducedMotion.tsx for what it does. Defaults false.
   reduceMotion: boolean
+}
+
+/** Lock Orientation as Settings held it until the CardTastic move (2026-10-29): what a store saved by 1.2.8 has in
+ * `settings`, kept there untouched for one release so an OTA rolled back to 1.2.8 finds the lock (redux/shellMigrate.ts
+ * copies it into the shell's `appSettings`), and what a player's filed settings carry (redux/playerSettingsSlice.ts). */
+export interface LegacySettingsLock {
+  lockOrientation?: boolean
+  lockedRotation?: ViewRotation
 }
 
 /** The Auto Hint setting's choices, in the order its Settings row cycles through them. */

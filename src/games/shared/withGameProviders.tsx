@@ -23,12 +23,11 @@ import { WinCascadeProvider } from '@/components/winning/WinCascadeLayer'
  * Wrapping only Inner would leave a card mid-drag or mid-deal rendering unrotated while the board
  * underneath it rotates - a visible, jarring break, not a subtle one. Those overlays convert their
  * screen-space positions into the rotated frame themselves - see overlayFrame.ts. This is every game
- * screen's own entire exported component (src/app/<game>.tsx re-exports withGameProviders(Inner)
- * directly), so this one wrapper is what gives a game screen the rotation. Home, Achievements and Profiles
- * get the same frame from RotatedScreen (components/RotatedScreen.tsx: @tastic/hud's RotatedFrame, which is a
- * FakeLandscapeView + a Portal.Host), and the root layout's toaster/update dialog from RotatedFrame - so nothing in
- * the app is left in physical portrait. The status bar hides while the frame is turned from the root Stack's screen
- * options (_layout.tsx's ThemedStack), not from here.
+ * screen's own entire exported component (each game's `PlayScreen`, games/<id>/definition.ts), so this one
+ * wrapper is what gives a game screen the rotation. Home, Stats and Profiles are @tastic/shell's, turned the same
+ * way (hud's RotatedFrame, a FakeLandscapeView + a Portal.Host, or a FakeLandscapeView of their own), and so is the
+ * root toaster - so nothing in the app is left in physical portrait. The status bar hides while the frame is turned
+ * from the root Stack's screen options (the shell's and the pack's useScreenOptions), not from here.
  *
  * The Portal.Host sits inside FakeLandscapeView and OUTSIDE the three providers, for two reasons. (1) The
  * game's dialogs (Settings, Rules, the New Game confirm) render through Paper's Portal, which by default
