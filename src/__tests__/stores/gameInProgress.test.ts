@@ -10,6 +10,10 @@ const persistedMoves = (disk: Map<string, string>, gameId: string, owner = 'gues
   const entry = JSON.parse(raw)[owner]
   return entry ? JSON.parse(entry)?.moves : undefined
 }
+// The first beforeEach compiles the real store and the whole @tastic/shell barrel it imports (every later one finds
+// them compiled). On a cold Jest cache with every worker compiling at once that took over Jest's 5s default, which
+// failed `npm run verify` before a build.
+const STORE_LOAD_TIMEOUT_MS = 30_000
 
 describe('game-in-progress persistence (coalesced saves)', () => {
   let api: Api
@@ -46,7 +50,7 @@ describe('game-in-progress persistence (coalesced saves)', () => {
     while (!redux.persistor.getState().bootstrapped) await jest.advanceTimersByTimeAsync(10)
     dispatch = jest.spyOn(redux.store, 'dispatch')
     api = require('@/stores/gameInProgress')
-  })
+  }, STORE_LOAD_TIMEOUT_MS)
 
   afterEach(() => {
     jest.useRealTimers()
