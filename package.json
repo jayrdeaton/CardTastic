@@ -49,7 +49,7 @@
     "@tastic/edge-guard": "^0.1.5",
     "@tastic/hud": "^0.26.0",
     "@tastic/profile": "^0.16.2",
-    "@tastic/shell": "^0.2.0",
+    "@tastic/shell": "^0.2.1",
     "@tastic/split-screen": "^0.5.5",
     "dejavu-fonts-ttf": "^2.37.3",
     "expo": "~58.0.14",
