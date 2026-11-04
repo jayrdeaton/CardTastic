@@ -56,6 +56,8 @@ function statsViewFor(stats: StatsState, profileId: string | null): StatsState {
  * day streaks come from the day log too (getGameView), and there is no win streak across games. */
 export function SolitaireStatsSections({ profileId, gameId }: PackStatsSectionsProps) {
   const { stats } = useGameStats()
+  // Narrowed to a game that isn't solitaire (RatSlap), its own sections say it all.
+  if (gameId && !(SOLITAIRE_GAME_IDS as readonly string[]).includes(gameId)) return null
   const game = (gameId ?? 'all') as GameFilter
   const statsView = statsViewFor(stats, profileId)
   const shown = game === 'all' ? statsView : getGameView(statsView, game)

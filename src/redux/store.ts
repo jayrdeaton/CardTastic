@@ -5,6 +5,7 @@ import { createPackStore, type PackStoreConfig, type PackStoreSource, type Seat,
 
 import { playerTheme } from '@/components/theme'
 import { SEAT_COLORS } from '@/constants/player'
+import { ratslapGuide } from '@/games/ratslap/guide'
 import { LEGACY_STORAGE_KEYS } from '@/redux/guideSlice'
 import { packReducers, type PackReducersState } from '@/redux/packReducers'
 import { playerSettingsMiddleware } from '@/redux/playerSettingsSlice'
@@ -16,15 +17,20 @@ import { SOLITAIRE_GAME_IDS } from '@/stores/statsTypes'
 // be an import cycle. Everything imports the store through this module, and screen tests swap it for
 // testUtils/gameInProgressStore.ts.
 
+// RatSlap's part (its definition, games/ratslap/definition.ts, holds its screen, which can't be imported here): its How
+// to Play's seen version. Its stats are among Solitaire's own keys (redux/ratslapStatsSlice.ts), so a player's reset and
+// Reset Stats reach them.
+const RATSLAP_STORE = { id: 'ratslap', reducers: { ratslapGuide: ratslapGuide.reducer }, resumable: false }
+
 export const storeSource = {
   seatColors: SEAT_COLORS,
   // A fresh install starts on the theme seat 1's color makes, the one ProfileThemeSync keeps it on.
   seatTheme: (colors: Record<Seat, string>, dark: boolean) => playerTheme(colors[1], dark),
   // Solitaire's own keys (redux/packReducers.ts).
   reducers: packReducers,
-  // Every game resumes (its play screen saves its own board), so the shell mounts its `lastActiveGame` key: the same key,
-  // shape and action types Solitaire's own had, so a saved resume carries over. No game has store keys of its own.
-  games: SOLITAIRE_GAME_IDS.map((id) => ({ id, reducers: {}, resumable: true }))
+  // Every solitaire game resumes (its play screen saves its own board), so the shell mounts its `lastActiveGame` key: the
+  // same key, shape and action types Solitaire's own had, so a saved resume carries over. RatSlap's matches aren't saved.
+  games: [...SOLITAIRE_GAME_IDS.map((id) => ({ id, reducers: {}, resumable: true })), RATSLAP_STORE]
 } satisfies PackStoreSource
 
 export const storeConfig: PackStoreConfig = {

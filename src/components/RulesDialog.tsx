@@ -19,6 +19,8 @@ interface RulesDialogProps {
   rules: string[]
   /** In a game: its variant's expert par, told after the medals. Home's sheet has no deal, so no par. */
   par?: Par
+  /** The moves-plus-seconds Scoring paragraph, every solitaire game's. False for a game scored some other way (RatSlap). */
+  scoring?: boolean
 }
 
 /** "How to play" sheet for a game - a bulleted rules list, reached from GameChrome's info button and
@@ -28,7 +30,7 @@ interface RulesDialogProps {
  * be a Paper Modal with its own plain dark title and a 160pt "Got it" button. ConfirmDialog itself
  * doesn't fit: its `message` is one centered paragraph with no scroll area. Like the Settings sheet
  * (and unlike a confirm), a tap outside the card or Android's back button closes it. */
-export function RulesDialog({ visible, onDismiss, title, rules, par }: RulesDialogProps) {
+export function RulesDialog({ visible, onDismiss, title, rules, par, scoring = true }: RulesDialogProps) {
   const { colors } = useAutoPaperTheme()
   const { compact, onLayout } = useCompactDialog()
   // The card's cap is a number, never a percentage: the space the dialog lays out in (the rotated
@@ -71,8 +73,8 @@ export function RulesDialog({ visible, onDismiss, title, rules, par }: RulesDial
               {/* One shared section rather than a per-game rules.ts bullet - the formula (see
               engine/score.ts) is identical across every game, so duplicating this sentence into all
               11 games' constants/gameRules.ts entries would just be 11 copies to keep in sync. */}
-              <Text style={[styles.scoreHeading, { color: colors.onSurface }]}>Scoring</Text>
-              <Text style={[styles.scoreText, { color: colors.onSurfaceVariant }]}>Score is moves plus seconds, and lower is better. The clock starts with your first move and pauses while you&rsquo;re away from the game or in Settings or Rules. Every move counts, even one you undo or one the game plays for you. Every win earns a medal: bronze, silver for beating your par (the middle score of your last 20 wins here), or gold for a win in your best fifth of them.{par ? ` Expert par, a strong win under these rules, is ${commaString(par.score)}: ${commaString(par.moves)} moves in ${formatParTime(par.seconds)}. It is your par until your first win here, and what the achievements measure.` : ''}</Text>
+              {scoring ? <Text style={[styles.scoreHeading, { color: colors.onSurface }]}>Scoring</Text> : null}
+              {scoring ? <Text style={[styles.scoreText, { color: colors.onSurfaceVariant }]}>Score is moves plus seconds, and lower is better. The clock starts with your first move and pauses while you&rsquo;re away from the game or in Settings or Rules. Every move counts, even one you undo or one the game plays for you. Every win earns a medal: bronze, silver for beating your par (the middle score of your last 20 wins here), or gold for a win in your best fifth of them.{par ? ` Expert par, a strong win under these rules, is ${commaString(par.score)}: ${commaString(par.moves)} moves in ${formatParTime(par.seconds)}. It is your par until your first win here, and what the achievements measure.` : ''}</Text> : null}
             </View>
           </FadingScrollView>
           <View style={overlayActionStyles.actions}>

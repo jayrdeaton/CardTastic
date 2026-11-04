@@ -1,0 +1,53 @@
+// RatSlap's state: two hands, the center pile, and any face-card challenge in progress.
+
+import { type AnyCard } from '@tastic/cards'
+
+export type PlayerIndex = 1 | 2
+
+/** The rules a match is dealt with, each one switchable before a match (all on by default). */
+export interface RatSlapRules {
+  /** A slap wins the pile when the top two cards match (two 7s, or two jokers). */
+  doubles: boolean
+  /** A slap wins the pile when the top card matches the one two below it (7, 4, 7). */
+  sandwiches: boolean
+  /** Two jokers in the deck. A joker cancels a face-card challenge, however many tries are used. */
+  jokers: boolean
+}
+
+export const DEFAULT_RULES: RatSlapRules = { doubles: true, sandwiches: true, jokers: true }
+
+/** An open challenge: `attacker` played a J, Q, K or A, and `defender` has `requiredChances` tries
+ * (1, 2, 3 or 4) to play one of their own, or the attacker wins the pile. */
+export interface Challenge {
+  triggerCard: AnyCard
+  requiredChances: number
+  chancesUsed: number
+  attacker: PlayerIndex
+  defender: PlayerIndex
+}
+
+export interface RatSlapState {
+  rules: RatSlapRules
+  /** Index 0 is player 1. The top of a hand is the END of its array; index 0 is its bottom card. */
+  hands: [AnyCard[], AnyCard[]]
+  /** Played cards, face up, bottom to top: the last one is the top card. */
+  pile: AnyCard[]
+  /** Cards burned by wrong slaps, face down under the pile, bottom first. They go to whoever wins
+   * the pile, and never count toward a double or a sandwich. */
+  burned: AnyCard[]
+  /** Who plays next while no challenge is open (a challenge's defender plays during one). */
+  turn: PlayerIndex
+  challenge: Challenge | null
+  /** Who played the pile's top card, or null for an empty pile. */
+  lastPlayer: PlayerIndex | null
+  /** Set once the pile is won; it waits there until collected (collectPile), and nothing can be
+   * played meanwhile. */
+  pileWinner: PlayerIndex | null
+  /** A pile won by a slap is settled. One won by a face card can still be slapped away while it
+   * waits to be collected, if a double or a sandwich is showing. */
+  pileWonBySlap: boolean
+  /** The match's winner, once there is one. */
+  winner: PlayerIndex | null
+}
+
+export type SlapPattern = 'double' | 'sandwich'

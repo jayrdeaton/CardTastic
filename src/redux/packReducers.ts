@@ -7,6 +7,7 @@ import activeProfile from './activeProfileSlice'
 import gameInProgress, { gameInProgressActions } from './gameInProgressSlice'
 import guide from './guideSlice'
 import playerSettings, { playerSettingsActions } from './playerSettingsSlice'
+import ratslapStats, { ratslapStatsActions } from './ratslapStatsSlice'
 import recentWins, { recentWinsActions } from './recentWinsSlice'
 import settings from './settingsSlice'
 import tableColor from './tableColorSlice'
@@ -35,6 +36,8 @@ export const packReducers = {
   // Each player's best wins in each variant, by score and by time: the win card's rank and the Records tab (see
   // topWinsSlice.ts).
   topWins: onProfileRemoved(topWins, (state, profileId) => topWins(state, topWinsActions.forget(profileId))),
+  // RatSlap's results, everyone's and each player's (see ratslapStatsSlice.ts).
+  ratslapStats: onProfileRemoved(ratslapStats, (state, profileId) => ratslapStats(state, ratslapStatsActions.forget(profileId))),
   // Which version of the how-to-play flow this player has finished or skipped. Its own key rather than a Settings
   // field, so it survives Reset Stats. See guideSlice.ts's own doc.
   guide,

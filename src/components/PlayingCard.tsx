@@ -1,11 +1,11 @@
 import { Pressable } from '@rific/feedback-press'
-import { CardFace, rankLabel, type TableColors, useCardSize } from '@tastic/cards'
+import { type AnyCard, CardFace, isJoker, rankLabel, type TableColors, useCardSize } from '@tastic/cards'
 import React from 'react'
 import { Image, ImageSourcePropType, ImageStyle, Platform, StyleProp, StyleSheet, View, ViewStyle } from 'react-native'
 import { useTheme } from 'react-native-paper'
 import Animated, { cancelAnimation, useAnimatedStyle, useSharedValue } from 'react-native-reanimated'
 
-import { Card, Rank, Suit } from '@/engine/types'
+import { Rank, Suit } from '@/engine/types'
 import { useSettings } from '@/hooks/useSettings'
 import { usePlayer } from '@/stores/profiles'
 
@@ -14,6 +14,7 @@ import { CARD_FACE_BITMAPS } from './cardFaceBitmaps'
 import { FaceLoadTrackingContext, trackFaceLoad } from './cardFacePaint'
 import { DIM_FADE_BACKSTOP_MS, fadeInDimScrim } from './dimScrimAnimation'
 import { startHintPulse } from './hintAnimation'
+import { JokerFace } from './JokerFace'
 import { CARD_RADIUS, cardRadiusForWidth, useTableColors } from './theme'
 
 const SHEEN_SOURCE = require('../../assets/card-sheen.png')
@@ -28,7 +29,8 @@ const WEB_OWN_LAYER = Platform.select<ViewStyle>({ web: { willChange: 'transform
 const sheenStyles = StyleSheet.create({ sheen: { bottom: 0, left: 0, pointerEvents: 'none', position: 'absolute', right: 0, top: 0 }, subtle: { opacity: 0.35 } })
 
 interface PlayingCardProps {
-  card: Card
+  /** A ranked card, or a joker (RatSlap's), whose face is drawn live (JokerFace). */
+  card: AnyCard
   /** Highlight this card as part of the current selection. */
   selected?: boolean
   /** Highlight this card as the one the Hint feature suggests moving - a breathing, glowing ring in
@@ -142,6 +144,19 @@ export function PlayingCard({ card, selected, hinted, disabled, dimmed, dimHold,
   // count. Every style x (normal, dark-mode invert) is baked in; invert in LIGHT mode draws the normal face - theme.ts's
   // lightColors mirror the *Inverted tokens so it is meant to be a no-op there.
   const faceVariant = settings.invertDarkModeColors && dark ? 'invert' : 'normal'
+  if (isJoker(card)) {
+    return (
+      <Pressable testID={testID} onPress={onPress} onPressIn={onPress ? onPressIn : undefined} disabled={disabled} soundDisabled style={[styles.card, styles.shadow, cardSize, style]}>
+        <View style={[styles.clip, styles.face]}>
+          <JokerFace card={card} colors={colors} width={width} height={height} invert={faceVariant === 'invert'} />
+          <PaintedOnMount onPainted={backUntilPainted || onFacePainted ? handleFaceLoaded : undefined} />
+          <CardSheen subtle={faceVariant === 'invert'} />
+        </View>
+        {dimOverlay}
+        {borderOverlay}
+      </Pressable>
+    )
+  }
   const faceSource = CARD_FACE_BITMAPS[settings.cardStyle][faceVariant][card.suit][card.rank - 1]
   return (
     <Pressable testID={testID} onPress={onPress} onPressIn={onPress ? onPressIn : undefined} disabled={disabled} soundDisabled style={[styles.card, styles.shadow, cardSize, style]}>
@@ -161,6 +176,15 @@ export function PlayingCard({ card, selected, hinted, disabled, dimmed, dimHold,
       {borderOverlay}
     </Pressable>
   )
+}
+
+/** A live-drawn face (a joker's) is painted in the frame it mounts, with no bitmap to wait for: it reports so at once, so
+ * a card turned face-up in place drops its back before that frame, and a ghost waiting on the face goes on. */
+function PaintedOnMount({ onPainted }: { onPainted?: () => void }) {
+  React.useLayoutEffect(() => {
+    onPainted?.()
+  }, [onPainted])
+  return null
 }
 
 /** The hint feature's pulsing ring (see hintAnimation.ts) - mounted only while a card is hinted, so it starts each pulse

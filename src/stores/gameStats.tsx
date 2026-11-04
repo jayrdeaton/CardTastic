@@ -7,6 +7,7 @@ import { PlayerPar, playerParFor } from '@/engine/par'
 import type { WinsBefore } from '@/engine/topWins'
 import type { VariantId } from '@/engine/variants'
 import { achievementsActions, dropProfileStats } from '@/redux/achievementsSlice'
+import { ratslapStatsActions } from '@/redux/ratslapStatsSlice'
 import { recentWinsActions, type RecentWinsState } from '@/redux/recentWinsSlice'
 import type { AppDispatch, RootState } from '@/redux/store'
 import { topWinsActions, type TopWinsState } from '@/redux/topWinsSlice'
@@ -131,6 +132,7 @@ export function GameStatsProvider({ children }: { children: ReactNode }) {
     clearAllGamesInProgress()
     dispatch(recentWinsActions.clear())
     dispatch(topWinsActions.clear())
+    dispatch(ratslapStatsActions.clear())
   }, [resetAll, dispatch])
 
   const value = useMemo(

@@ -1,5 +1,7 @@
 import type { ViewRotation } from '@tastic/core'
 
+import type { CpuLevel } from '@/games/ratslap/engine/cpu'
+
 // The persisted player settings (see redux/settingsSlice.ts for the defaults and hooks/useSettings.ts
 // for reading and writing them).
 export interface Settings {
@@ -24,6 +26,14 @@ export interface Settings {
   // Forty Thieves' tableau moves: false (default) is the strict classic rule, one card at a time
   // only; true allows a valid same-suit descending run to move together as a shortcut.
   fortyThievesRunMoves: boolean
+  // RatSlap's rules, each switchable on its setup screen before a match (all on by default): slaps
+  // on doubles, slaps on sandwiches, and the two jokers (Jay's house rule: a joker cancels a face-card
+  // challenge). A match runs on the rules it was dealt with (games/ratslap/engine/types.ts).
+  ratslapDoubles: boolean
+  ratslapSandwiches: boolean
+  ratslapJokers: boolean
+  // How quick the CPU in RatSlap's seat 2 is (games/ratslap/engine/cpu.ts).
+  ratslapCpu: CpuLevel
   // Global, not per-game (unlike every setting above): whether auto-play runs at all - the safe cards
   // that follow the player's own play of a card to a foundation (useAutoFoundationCascade), and the
   // finish that files a solved board away on its own (useAutoFinish; see engine/autoFoundation.ts). Applies

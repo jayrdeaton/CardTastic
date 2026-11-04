@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import { useDispatch } from 'react-redux'
 
+import { ratslapStatsActions } from '@/redux/ratslapStatsSlice'
 import { recentWinsActions } from '@/redux/recentWinsSlice'
 import type { AppDispatch } from '@/redux/store'
 import { topWinsActions } from '@/redux/topWinsSlice'
@@ -25,6 +26,7 @@ export function usePlayerData(): { resetPlayer: (profileId: string) => void } {
         clearProfileGamesInProgress(profileId)
         dispatch(recentWinsActions.forget(profileId))
         dispatch(topWinsActions.forget(profileId))
+        dispatch(ratslapStatsActions.forget(profileId))
       }
     }),
     [removeProfileStats, dispatch]

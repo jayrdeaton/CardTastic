@@ -2,7 +2,7 @@ import { readdirSync, readFileSync, statSync } from 'fs'
 import { join, relative } from 'path'
 
 // Solitaire takes everything it needs from @tastic/hud through hud's light './chrome' and './guide'
-// entries. hud's main entry also re-exports the per-seat lobby and the Skia gauge, so a single import
+// entries, and './lobby' (Skia-free too) for RatSlap's setup options. hud's main entry also re-exports the per-seat lobby and the Skia gauge, so a single import
 // from it would need @shopify/react-native-skia and @tastic/split-screen, which this app no longer
 // installs. eslint.config.cjs bans the bare specifier in import statements; this also covers
 // jest.mock(), jest.requireActual(), require() and import(), and any other hud subpath, by checking
@@ -10,7 +10,7 @@ import { join, relative } from 'path'
 
 const SRC = join(__dirname, '..')
 const HUD_SPECIFIER = /(['"`])(@tastic\/hud(?:\/[^'"`]*)?)\1/g
-const ALLOWED = ['@tastic/hud/chrome', '@tastic/hud/guide']
+const ALLOWED = ['@tastic/hud/chrome', '@tastic/hud/guide', '@tastic/hud/lobby']
 
 function sourceFiles(dir: string): string[] {
   return readdirSync(dir).flatMap((name) => {
@@ -28,7 +28,7 @@ describe('@tastic/hud import boundary', () => {
     expect(found.map(({ file }) => file)).toEqual(expect.arrayContaining([join('components', 'RulesDialog.tsx'), join('components', 'GameChrome.tsx'), join('constants', 'guideSteps.tsx'), join('__tests__', 'components', 'dialogConsistency.test.tsx')]))
   })
 
-  it("names only '@tastic/hud/chrome' and '@tastic/hud/guide'", () => {
+  it("names only '@tastic/hud/chrome', '@tastic/hud/guide' and '@tastic/hud/lobby'", () => {
     expect(found.filter(({ specifier }) => !ALLOWED.includes(specifier))).toEqual([])
   })
 })

@@ -4,6 +4,11 @@ const makeGesture = () => {
   g.onEnd = () => g
   g.onStart = () => g
   g.onChange = () => g
+  // RatSlap's touch zones (games/ratslap/RatSlapScreen.tsx).
+  g.minDistance = () => g
+  g.maxPointers = () => g
+  g.enabled = () => g
+  g.onBegin = () => g
   return g
 }
 

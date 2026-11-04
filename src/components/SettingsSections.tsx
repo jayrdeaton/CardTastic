@@ -1,6 +1,7 @@
 import { useAutoPaperTheme } from '@rific/auto-paper'
 import { TouchableRipple } from '@rific/feedback-press'
 import { CardFace } from '@tastic/cards'
+import { usePathname } from 'expo-router'
 import { ReactNode } from 'react'
 import { StyleSheet, View } from 'react-native'
 import { Icon, Text } from 'react-native-paper'
@@ -84,6 +85,8 @@ export function SettingsSections() {
   const colors = useTableColors()
   const { colors: paperColors } = useAutoPaperTheme()
   const { profile } = usePlayer()
+  // RatSlap's sheet (games/ratslap) leaves out the rows for foundations, hints and unplayable cards, none of which it has.
+  const solitaireRows = !usePathname().endsWith('/ratslap')
 
   return (
     <>
@@ -98,49 +101,55 @@ export function SettingsSections() {
           rather than imported. Global (not per-game), since it's one play-style preference that
           applies identically to every foundation-building game rather than a rule variant any single
           game owns - see types/index.ts's own doc comment on autoMoveToFoundation. */}
-          <TouchableRipple onPress={() => setSettings({ autoMoveToFoundation: !settings.autoMoveToFoundation })} style={styles.toggleButton} accessibilityLabel={`Auto-move to foundation ${settings.autoMoveToFoundation ? 'on' : 'off'}`}>
-            <View style={styles.toggleContent}>
-              <View style={[styles.iconBadge, { backgroundColor: settings.autoMoveToFoundation ? paperColors.tertiaryContainer : paperColors.surfaceVariant }]}>
-                <Icon source={settings.autoMoveToFoundation ? 'arrow-up-bold-circle' : 'arrow-up-bold-circle-outline'} size={18} color={settings.autoMoveToFoundation ? paperColors.tertiary : paperColors.onSurfaceVariant} />
+          {solitaireRows && (
+            <TouchableRipple onPress={() => setSettings({ autoMoveToFoundation: !settings.autoMoveToFoundation })} style={styles.toggleButton} accessibilityLabel={`Auto-move to foundation ${settings.autoMoveToFoundation ? 'on' : 'off'}`}>
+              <View style={styles.toggleContent}>
+                <View style={[styles.iconBadge, { backgroundColor: settings.autoMoveToFoundation ? paperColors.tertiaryContainer : paperColors.surfaceVariant }]}>
+                  <Icon source={settings.autoMoveToFoundation ? 'arrow-up-bold-circle' : 'arrow-up-bold-circle-outline'} size={18} color={settings.autoMoveToFoundation ? paperColors.tertiary : paperColors.onSurfaceVariant} />
+                </View>
+                <Text variant='bodyLarge' style={{ color: paperColors.onSurface }}>
+                  Auto-Move to Foundation
+                </Text>
               </View>
-              <Text variant='bodyLarge' style={{ color: paperColors.onSurface }}>
-                Auto-Move to Foundation
-              </Text>
-            </View>
-          </TouchableRipple>
+            </TouchableRipple>
+          )}
           {/* Same bare-row shape as the toggle above - a second gameplay-assist preference, not a
           rule variant (see types/index.ts's own doc comment on dimUnplayable). Only
           FreeCell/Canfield/Golf/Spider ever have a face-up-but-unplayable card to dim in the first
           place; a no-op everywhere else. */}
-          <TouchableRipple onPress={() => setSettings({ dimUnplayable: !settings.dimUnplayable })} style={styles.toggleButton} accessibilityLabel={`Dim unplayable cards ${settings.dimUnplayable ? 'on' : 'off'}`}>
-            <View style={styles.toggleContent}>
-              <View style={[styles.iconBadge, { backgroundColor: settings.dimUnplayable ? paperColors.tertiaryContainer : paperColors.surfaceVariant }]}>
-                <Icon source={settings.dimUnplayable ? 'card-off-outline' : 'card-outline'} size={18} color={settings.dimUnplayable ? paperColors.tertiary : paperColors.onSurfaceVariant} />
+          {solitaireRows && (
+            <TouchableRipple onPress={() => setSettings({ dimUnplayable: !settings.dimUnplayable })} style={styles.toggleButton} accessibilityLabel={`Dim unplayable cards ${settings.dimUnplayable ? 'on' : 'off'}`}>
+              <View style={styles.toggleContent}>
+                <View style={[styles.iconBadge, { backgroundColor: settings.dimUnplayable ? paperColors.tertiaryContainer : paperColors.surfaceVariant }]}>
+                  <Icon source={settings.dimUnplayable ? 'card-off-outline' : 'card-outline'} size={18} color={settings.dimUnplayable ? paperColors.tertiary : paperColors.onSurfaceVariant} />
+                </View>
+                <Text variant='bodyLarge' style={{ color: paperColors.onSurface }}>
+                  Dim Unplayable Cards
+                </Text>
               </View>
-              <Text variant='bodyLarge' style={{ color: paperColors.onSurface }}>
-                Dim Unplayable Cards
-              </Text>
-            </View>
-          </TouchableRipple>
+            </TouchableRipple>
+          )}
           {/* Same bare-row shape as the toggles above, but three-way: each tap steps to the next choice
           (Off, 15s, 30s, then Off again), and the choice is the row's caption, in the same spot as
           the other rows' captions (Jay, 2026-10-15: it used to sit on the right, the only row that
           did). See types/index.ts's own doc comment on autoHintSeconds. */}
-          <TouchableRipple onPress={() => setSettings({ autoHintSeconds: nextAutoHint(settings.autoHintSeconds) })} style={styles.toggleButton} accessibilityLabel={`Auto hint ${autoHintCaption(settings.autoHintSeconds).toLowerCase()}`}>
-            <View style={styles.toggleContent}>
-              <View style={[styles.iconBadge, { backgroundColor: settings.autoHintSeconds > 0 ? paperColors.tertiaryContainer : paperColors.surfaceVariant }]}>
-                <Icon source={settings.autoHintSeconds > 0 ? 'lightbulb-auto' : 'lightbulb-off-outline'} size={18} color={settings.autoHintSeconds > 0 ? paperColors.tertiary : paperColors.onSurfaceVariant} />
+          {solitaireRows && (
+            <TouchableRipple onPress={() => setSettings({ autoHintSeconds: nextAutoHint(settings.autoHintSeconds) })} style={styles.toggleButton} accessibilityLabel={`Auto hint ${autoHintCaption(settings.autoHintSeconds).toLowerCase()}`}>
+              <View style={styles.toggleContent}>
+                <View style={[styles.iconBadge, { backgroundColor: settings.autoHintSeconds > 0 ? paperColors.tertiaryContainer : paperColors.surfaceVariant }]}>
+                  <Icon source={settings.autoHintSeconds > 0 ? 'lightbulb-auto' : 'lightbulb-off-outline'} size={18} color={settings.autoHintSeconds > 0 ? paperColors.tertiary : paperColors.onSurfaceVariant} />
+                </View>
+                <View style={styles.flexShrink}>
+                  <Text variant='bodyLarge' style={{ color: paperColors.onSurface }}>
+                    Auto Hint
+                  </Text>
+                  <Text variant='bodySmall' numberOfLines={1} style={{ color: paperColors.onSurfaceVariant }}>
+                    {autoHintCaption(settings.autoHintSeconds)}
+                  </Text>
+                </View>
               </View>
-              <View style={styles.flexShrink}>
-                <Text variant='bodyLarge' style={{ color: paperColors.onSurface }}>
-                  Auto Hint
-                </Text>
-                <Text variant='bodySmall' numberOfLines={1} style={{ color: paperColors.onSurfaceVariant }}>
-                  {autoHintCaption(settings.autoHintSeconds)}
-                </Text>
-              </View>
-            </View>
-          </TouchableRipple>
+            </TouchableRipple>
+          )}
           {/* Same bare-row shape as the toggles above (see components/reducedMotion.tsx for what it does). It shows Reduce Motion
           as the app applies it: on while the device's own setting is, with no tap (the device's setting wins) and a caption saying
           where it comes from. */}

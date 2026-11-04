@@ -13,8 +13,8 @@ import { HINT_RING_TONE } from '@/constants/theme'
 
 // Card size in the pictures, and how far a card fanned onto another sits below it (about the game's
 // own face-up fan step for a card this wide, which keeps the covered card's rank and suit showing).
-const CARD_WIDTH = 40
-const CARD_HEIGHT = 56
+export const CARD_WIDTH = 40
+export const CARD_HEIGHT = 56
 const FAN_STEP = 18
 
 type Suit = 'heart' | 'spade'
@@ -25,12 +25,12 @@ const SUIT_ICON: Record<Suit, string> = { heart: 'cards-heart', spade: 'cards-sp
 const PATH_DOTS = [0, 1, 2, 3]
 const PATH_DOT = 5
 const PATH_GAP = 5
-const PATH_WIDTH = PATH_DOTS.length * PATH_DOT + (PATH_DOTS.length - 1) * PATH_GAP
+export const PATH_WIDTH = PATH_DOTS.length * PATH_DOT + (PATH_DOTS.length - 1) * PATH_GAP
 
 // A face-up card: rank and suit in the top strip (the part that stays visible when another card is
 // fanned over it) and a big suit in the middle. Red suits use the theme's error red, black suits its
 // on-surface ink, so the card reads right in light and dark mode alike.
-function MiniCard({ rank, suit, style }: { rank: string; suit: Suit; style?: StyleProp<ViewStyle> }) {
+export function MiniCard({ rank, suit, style }: { rank: string; suit: Suit; style?: StyleProp<ViewStyle> }) {
   const { colors } = useAutoPaperTheme()
   const ink = suit === 'heart' ? colors.error : colors.onSurface
 
@@ -48,7 +48,7 @@ function MiniCard({ rank, suit, style }: { rank: string; suit: Suit; style?: Sty
 }
 
 // A row of PATH_DOTS in the theme's primary. `style` places it (both pictures position it absolutely).
-function PathDots({ style }: { style: StyleProp<ViewStyle> }) {
+export function PathDots({ style }: { style: StyleProp<ViewStyle> }) {
   const { colors } = useAutoPaperTheme()
 
   return (
