@@ -33,7 +33,7 @@
   "submit": {
     "production": {
       "ios": {
-        "appName": "SolitaireTastic"
+        "appName": "CardTastic"
       }
     },
     "preview": {}

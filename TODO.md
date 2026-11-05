@@ -26,10 +26,17 @@ Deferred on 2026-10-16 to ship the first Expo SDK 58 build the same day.
 
 Jay plans to add multiplayer card games to this app and then rename it CardTastic: many solitaire games plus some multiplayer ones, all card games. Not before: as a solitaire-only app the name promises more than it has.
 
+**Names changed 2026-11-05** (Jay, once RatSlap, Slapjack, Six-Card Golf and Trash were in; War not yet): `app.json`'s `expo.name` (the label under the icon and the web tab title), `store.config.json`'s `title`, `eas.json`'s `appName`, Home's title (`src/pack.ts`' `wordmark`, decided: CardTastic), the player menu's color caption ("CardTastic only"), README.md and store/README.md. Home's Solitaire tab keeps its name (it's the kind of game). Left:
+- **A new native build:** `expo.name` is native, and it changes the fingerprint, so an OTA can't carry it. Prebuild names the Xcode project after it, so a local build needs `npx expo prebuild --clean` first (the gitignored `ios/` is still `Solitaire.xcodeproj`).
+- **The listing text:** the subtitle ("Solitaire Card Games, Ad Free"), promo text, description ("Eleven classic solitaire games in one app") and keywords, rewritten for the two-player games (the `app-store-prep` skill). Keep "solitaire" in the subtitle.
+- **The art:** new screenshots (Home's title and tabs changed), and the header and search art (`store/creative/build.mjs`; the search art says "11 Classic Solitaire Games").
+- **The name on App Store Connect:** the next `eas metadata:push` renames the record; it refuses a name another app has, so check CardTastic is free first.
+- **Then** the sites and the Games-Web hub listing (the `site-alignment` skill), the resubmission, and the web build at `/solitaire` (its path stays).
+
 - **Change:** `store.config.json`'s `title` (the App Store name; App Store Connect refuses one that's taken when you save it), `app.json`'s `expo.name` (the label under the icon; native, so a new build), `eas.json`'s `submit.production.ios.appName` (only used to create the record), README.md and store/README.md.
 - **Keep:** the bundle ID `com.infinitetoken.solitaire` (an existing App Store record's can't change), the slug `Solitaire` (the EAS project link), the `solitaire` scheme and the web path `/solitaire`.
 - **Search:** "SolitaireTastic" never matched a search for "solitaire" on its own (one word), so the rename costs no search traffic. The subtitle is what carries "solitaire": keep the word in it when the subtitle and description are rewritten for the multiplayer games (the description opens "Eleven classic solitaire games in one app").
-- **Decide then:** whether Home's "Solitaire" heading (`src/app/index.tsx`) becomes CardTastic (the Home screenshot shows it), and the new header and search art (`store/creative/build.mjs`; the search art says "11 Classic Solitaire Games"). Then the sites and the Games-Web hub listing (the `site-alignment` skill).
+- **Decided 2026-11-05:** Home's heading became CardTastic. The art and the sites are under "Left" above.
 
 ## CardTastic plan (2026-10-28)
 
@@ -42,7 +49,7 @@ Jay chose the shell package first and Ratscrew as the first multiplayer game. Ea
    - **On a phone:** a match against the CPU and one with a kid (the feel of the slap, the CPU's speed at each level, the length of a match: about 200 cards at the median in a simulation, about 550 at the 90th percentile).
    - **Not built:** achievements, calendar days for RatSlap, Edge Guard (native), a joker face upstream in `@tastic/cards` (it's drawn in-app, `components/JokerFace.tsx`), and a baked Home preview (the tile draws five live cards).
    - Retiring the EgyptianRatscrew repo is Jay's call.
-4. **Then** the rename above, a new build and the resubmission. The other shared-view games: Slapjack, Six-Card Golf and Trash were built 2026-11-04 (uncommitted, not released; CLAUDE.md's "Slapjack, Six-Card Golf and Trash" section), War not yet. Home splits the games into two tabs, Solitaire and Two Player (2026-11-05, Jay's choice: tabs only, no player count on the tiles since the tab says it, and the two-player blurbs lost "Two players."): `@tastic/shell`'s new `PackDefinition.homeTabs`, uncommitted in `../React-Native-Game-Shell` and unreleased, so it needs a shell release after 0.3.1 (committed 2026-11-05 without it) before Solitaire can install it; checked here against its packed tarball.
+4. **Then** the rename above (names changed 2026-11-05; the build, listing, art and resubmission are left, see that section), a new build and the resubmission. The other shared-view games: Slapjack, Six-Card Golf and Trash were built 2026-11-04 (uncommitted, not released; CLAUDE.md's "Slapjack, Six-Card Golf and Trash" section), War not yet. Home splits the games into two tabs, Solitaire and Two Player (2026-11-05, Jay's choice: tabs only, no player count on the tiles since the tab says it, and the two-player blurbs lost "Two players."): `@tastic/shell`'s `PackDefinition.homeTabs`, released in 0.4.0 (2026-11-05) and installed here.
 
 ### Step 2 in detail: Solitaire onto `@tastic/shell` (plan, 2026-10-29)
 

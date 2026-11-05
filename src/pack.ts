@@ -40,11 +40,11 @@ export const games: readonly PackGameDefinition[] = [klondike, freecell, yukon, 
 const solitaire = {
   // Seat 1's color, the theme it makes, and Solitaire's own store keys.
   ...storeSource,
-  name: 'Solitaire',
+  name: 'CardTastic',
   // Home's title and the line under it (HeroTitle).
-  wordmark: ['Solitaire', 'No ads. No accounts. Plays offline. Just cards.'],
+  wordmark: ['CardTastic', 'No ads. No accounts. Plays offline. Just cards.'],
   // Under the Color row of seat 1's menu, while a profile plays: a pick here changes this app's color only.
-  colorCaption: 'Solitaire only',
+  colorCaption: 'CardTastic only',
   games,
   // Home's tabs (Jay, 2026-11-04): the solitaire games, then the games for two players (the ones with a seat 2), each in
   // Home's order. Home opens on Solitaire.

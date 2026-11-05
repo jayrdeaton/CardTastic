@@ -87,7 +87,7 @@ describe('the pack', () => {
     expect(pack.Toaster).toBeDefined()
     expect(pack.SettingsSections).toBeDefined()
     expect(pack.HeroTitle).toBeDefined()
-    expect(pack.wordmark[0]).toBe('Solitaire')
+    expect(pack.wordmark[0]).toBe('CardTastic')
     expect(pack.edgeGuard).toBe(false)
   })
 

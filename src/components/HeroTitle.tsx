@@ -25,7 +25,7 @@ export function heroScaleFor(fit: { width: number; height: number }, windowHeigh
   return clamp(Math.min(maxScale, fit.width / HERO_FAN_SPAN, (fit.height - WIDE_TEXT_HEIGHT) / HERO_FAN_HEIGHT), HERO_MIN_SCALE, 1)
 }
 
-/** Home's hero (the pack's `HeroTitle`): the fan of card backs, "Solitaire" and the line under it (the pack's
+/** Home's hero (the pack's `HeroTitle`): the fan of card backs, "CardTastic" and the line under it (the pack's
  * `wordmark`). Upright it is its natural size, at the top of Home's column; in the wide layout it shrinks to the left
  * pane (`fit`). The fan rests while Home is covered or the app is in the background (`active`). Purely decorative: it
  * takes no touches. */
