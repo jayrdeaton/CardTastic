@@ -6,25 +6,9 @@
 import { CARD_ASPECT, faceUpFanOffset, RANK_INK_RIGHT_FRACTION } from '@tastic/cards'
 
 import { wasteFanStep } from '@/components/wasteFan'
+import { cardRect, cardTilt, type Point, type Pose, type Rect } from '@/games/table/geometry'
 
 import type { PlayerIndex } from './engine/types'
-
-export interface Point {
-  x: number
-  y: number
-}
-
-/** Where a card lies: its center, and how far it's turned (degrees). */
-export interface Pose extends Point {
-  rotate: number
-}
-
-export interface Rect {
-  x: number
-  y: number
-  width: number
-  height: number
-}
 
 export interface TableLayout {
   width: number
@@ -84,7 +68,7 @@ export function tableLayout(width: number, height: number, insets: { top: number
     1: { x: width / 2, y: bottom - DECK_EDGE_MARGIN - cardHeight / 2 },
     2: { x: width / 2, y: top + DECK_EDGE_MARGIN + cardHeight / 2 }
   }
-  const target = (deck: Point): Rect => ({ x: deck.x - cardWidth / 2 - DECK_TARGET_SLOP, y: deck.y - cardHeight / 2 - DECK_TARGET_SLOP, width: cardWidth + DECK_TARGET_SLOP * 2, height: cardHeight + DECK_TARGET_SLOP * 2 })
+  const target = (deck: Point): Rect => cardRect(deck, cardWidth, cardHeight, DECK_TARGET_SLOP)
   return {
     width,
     height,
@@ -96,10 +80,6 @@ export function tableLayout(width: number, height: number, insets: { top: number
     pileStep: Math.round(wasteFanStep(cardWidth, RANK_INK_RIGHT_FRACTION) + PILE_TILT_ROOM),
     burnedLift: Math.round(faceUpFanOffset(cardWidth) + BURNED_CLEAR)
   }
-}
-
-export function inRect(point: Point, rect: Rect): boolean {
-  return point.x >= rect.x && point.x <= rect.x + rect.width && point.y >= rect.y && point.y <= rect.y + rect.height
 }
 
 /** Which half of the table a point is in: player 1's (the bottom) or player 2's. */
@@ -142,7 +122,5 @@ export function slapArea(layout: TableLayout, player: PlayerIndex): { y: number;
 /** A fanned pile card's turn, in degrees: the same every time it's drawn, from its id, and at most
  * PILE_TILT_MAX either way, so it never covers the rank of the card beside it. */
 export function pileTilt(cardId: string): number {
-  let hash = 2166136261
-  for (let i = 0; i < cardId.length; i++) hash = Math.imul(hash ^ cardId.charCodeAt(i), 16777619)
-  return Math.round(((((hash >>> 0) & 0xff) / 255) * 2 - 1) * PILE_TILT_MAX * 2) / 2
+  return cardTilt(cardId, PILE_TILT_MAX)
 }

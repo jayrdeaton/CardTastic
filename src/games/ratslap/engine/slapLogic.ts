@@ -1,5 +1,6 @@
-// The two slap patterns, on a pile of played cards (bottom to top). Two jokers match each other,
-// though neither has a rank; a joker never matches a ranked card.
+// The slap patterns, on a pile of played cards (bottom to top): RatSlap's double and sandwich, and
+// Slapjack's Jack. Two jokers match each other, though neither has a rank; a joker never matches a
+// ranked card.
 
 import { type AnyCard, isJoker } from '@tastic/cards'
 
@@ -18,4 +19,10 @@ export function isDouble(pile: AnyCard[]): boolean {
 export function isSandwich(pile: AnyCard[]): boolean {
   if (pile.length < 3) return false
   return isMatch(pile[pile.length - 1], pile[pile.length - 3])
+}
+
+/** A Jack is on top. */
+export function isJackOnTop(pile: AnyCard[]): boolean {
+  const top = pile[pile.length - 1]
+  return !!top && !isJoker(top) && top.rank === 11
 }

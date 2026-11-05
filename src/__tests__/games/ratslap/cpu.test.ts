@@ -1,9 +1,10 @@
 import { type Card, type Rank, type Suit } from '@tastic/cards'
 
 import { mulberry32, type RandomFn } from '@/engine/rng'
-import { CPU_STYLES, type CpuLevel, cpuPlayDelayMs, cpuSlapPlan, isCpuLevel } from '@/games/ratslap/engine/cpu'
+import { CPU_STYLES, cpuPlayDelayMs, cpuSlapPlan } from '@/games/ratslap/engine/cpu'
 import { collectPile, createInitialState, playCard, slap, toPlay } from '@/games/ratslap/engine/rules'
-import { DEFAULT_RULES, type PlayerIndex, type RatSlapRules, type RatSlapState } from '@/games/ratslap/engine/types'
+import { DEFAULT_RULES, type PlayerIndex, type RatSlapRules, type RatSlapState, SLAPJACK_RULESET } from '@/games/ratslap/engine/types'
+import { type CpuLevel, isCpuLevel } from '@/games/table/cpuLevel'
 
 function card(rank: Rank, suit: Suit = 'clubs', idSuffix = ''): Card {
   return { id: `${suit}-${rank}${idSuffix}`, suit, rank, faceUp: true }
@@ -156,15 +157,16 @@ describe('whole matches between two CPUs', () => {
   })
 
   it.each([
-    ['doubles only', { doubles: true, sandwiches: false, jokers: true }],
-    ['sandwiches only', { doubles: false, sandwiches: true, jokers: true }],
-    ['no jokers', { doubles: true, sandwiches: true, jokers: false }]
+    ['doubles only', { ...DEFAULT_RULES, sandwiches: false }],
+    ['sandwiches only', { ...DEFAULT_RULES, doubles: false }],
+    ['no jokers', { ...DEFAULT_RULES, jokers: false }],
+    ['Slapjack', SLAPJACK_RULESET]
   ] as const)('%s: every match ends', (_label, rules) => {
     expect(simulateMany(300, rules, { 1: 'medium', 2: 'medium' }).capped).toBe(0)
   })
 
   it('with both slaps off (Beggar-my-Neighbour), which can go round forever, few matches reach the cap', () => {
-    const { capped } = simulateMany(300, { doubles: false, sandwiches: false, jokers: true }, { 1: 'medium', 2: 'medium' })
+    const { capped } = simulateMany(300, { ...DEFAULT_RULES, doubles: false, sandwiches: false }, { 1: 'medium', 2: 'medium' })
     expect(capped).toBeLessThan(15)
   })
 })

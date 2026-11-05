@@ -1,9 +1,10 @@
 import { useAutoPaperTheme } from '@rific/auto-paper'
 import type { GuideStep } from '@tastic/hud/guide'
-import { type StyleProp, StyleSheet, View, type ViewStyle } from 'react-native'
+import { StyleSheet, View } from 'react-native'
 import { Icon, Text } from 'react-native-paper'
 
-import { CARD_HEIGHT, CARD_WIDTH, MiniCard, PATH_WIDTH, PathDots } from '@/components/GuideArt'
+import { CARD_HEIGHT, CARD_WIDTH, MiniCard, PATH_WIDTH, PathDots, type Suit } from '@/components/GuideArt'
+import { MiniBack } from '@/games/table/guideArt'
 
 /** The rules RatSlap's cards depend on: the player's own settings, as the setup screen will start them. */
 export interface RatSlapGuideInput {
@@ -23,18 +24,13 @@ export function getRatSlapGuideSteps(input: RatSlapGuideInput, { touch }: { touc
     { title: 'Face Cards', body: 'A J, Q, K or A gives the other player 1 to 4 tries to answer.', art: <FaceCardArt /> }
   ]
   const slapOn = input.doubles && input.sandwiches ? 'a double or a sandwich' : input.doubles ? 'a double' : input.sandwiches ? 'a sandwich' : null
-  if (slapOn) steps.push({ title: 'Slap the Pile', body: `${press} anywhere on your side to slap ${slapOn}.`, art: <SlapArt /> })
+  if (slapOn) steps.push({ title: 'Slap the Pile', body: `${press} anywhere on your side to slap ${slapOn}.`, art: <SlapArt under={['7', 'spade']} top={['7', 'heart']} label='Two sevens on the pile, slapped' /> })
   if (input.jokers) steps.push({ title: 'Jokers', body: 'A joker cancels any face card’s challenge.', art: <JokerArt /> })
   return steps
 }
 
-/** A face-down card: the theme's primary, framed like a mini card. */
-function MiniBack({ style }: { style?: StyleProp<ViewStyle> }) {
-  const { colors } = useAutoPaperTheme()
-  return <View style={[styles.card, { backgroundColor: colors.primary, borderColor: colors.outline }, style]} />
-}
-
-function PlayArt() {
+/** Your deck playing its top card onto the pile. Slapjack's first card too. */
+export function PlayArt() {
   return (
     <View accessible accessibilityLabel='Your deck plays its top card onto the pile' style={styles.stage}>
       <MiniBack style={styles.left} />
@@ -61,15 +57,22 @@ function FaceCardArt() {
   )
 }
 
-function SlapArt() {
+/** Two cards on the pile and a hand slapping them: RatSlap's double, Slapjack's Jack. With `wrong`, the slap is crossed
+ * out. */
+export function SlapArt({ under, top, label, wrong = false }: { under: [string, Suit]; top: [string, Suit]; label: string; wrong?: boolean }) {
   const { colors } = useAutoPaperTheme()
   return (
-    <View accessible accessibilityLabel='Two sevens on the pile, slapped' style={styles.stage}>
-      <MiniCard rank='7' suit='spade' style={[styles.pileUnder, { transform: [{ rotate: '-8deg' }] }]} />
-      <MiniCard rank='7' suit='heart' style={[styles.pileTop, { transform: [{ rotate: '7deg' }] }]} />
+    <View accessible accessibilityLabel={label} style={styles.stage}>
+      <MiniCard rank={under[0]} suit={under[1]} style={[styles.pileUnder, { transform: [{ rotate: '-8deg' }] }]} />
+      <MiniCard rank={top[0]} suit={top[1]} style={[styles.pileTop, { transform: [{ rotate: '7deg' }] }]} />
       <View style={styles.hand}>
-        <Icon source='hand-back-right' size={34} color={colors.primary} />
+        <Icon source='hand-back-right' size={34} color={wrong ? colors.error : colors.primary} />
       </View>
+      {wrong ? (
+        <View style={styles.wrong}>
+          <Icon source='close-thick' size={22} color={colors.error} />
+        </View>
+      ) : null}
     </View>
   )
 }
@@ -100,5 +103,6 @@ const styles = StyleSheet.create({
   right: { left: STAGE_WIDTH - CARD_WIDTH - 16, top: 8 },
   stage: { height: STAGE_HEIGHT, width: STAGE_WIDTH },
   tries: { alignItems: 'center', flexDirection: 'row', gap: 6, left: 72, position: 'absolute', top: STAGE_HEIGHT / 2 - 10 },
-  try: { borderRadius: 7, borderWidth: 2, height: 14, width: 14 }
+  try: { borderRadius: 7, borderWidth: 2, height: 14, width: 14 },
+  wrong: { left: STAGE_WIDTH / 2 + 42, position: 'absolute', top: 30 }
 })

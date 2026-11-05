@@ -17,9 +17,9 @@ export const CARD_WIDTH = 40
 export const CARD_HEIGHT = 56
 const FAN_STEP = 18
 
-type Suit = 'heart' | 'spade'
+export type Suit = 'heart' | 'spade' | 'club' | 'diamond'
 
-const SUIT_ICON: Record<Suit, string> = { heart: 'cards-heart', spade: 'cards-spade' }
+const SUIT_ICON: Record<Suit, string> = { heart: 'cards-heart', spade: 'cards-spade', club: 'cards-club', diamond: 'cards-diamond' }
 
 // The dotted path from what's pressed to where the move goes, faint to strong like SwipeHint's.
 const PATH_DOTS = [0, 1, 2, 3]
@@ -32,7 +32,7 @@ export const PATH_WIDTH = PATH_DOTS.length * PATH_DOT + (PATH_DOTS.length - 1) *
 // on-surface ink, so the card reads right in light and dark mode alike.
 export function MiniCard({ rank, suit, style }: { rank: string; suit: Suit; style?: StyleProp<ViewStyle> }) {
   const { colors } = useAutoPaperTheme()
-  const ink = suit === 'heart' ? colors.error : colors.onSurface
+  const ink = suit === 'heart' || suit === 'diamond' ? colors.error : colors.onSurface
 
   return (
     <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.outline }, style]}>

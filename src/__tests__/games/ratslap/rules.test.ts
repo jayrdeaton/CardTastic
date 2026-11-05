@@ -1,7 +1,7 @@
 import { type Card, type Joker, type Rank, type Suit } from '@tastic/cards'
 
 import { cardCount, collectPile, createInitialState, isOut, isPlayable, isSlappable, playCard, slap, slapPattern, toPlay } from '@/games/ratslap/engine/rules'
-import { DEFAULT_RULES, type RatSlapRules, type RatSlapState } from '@/games/ratslap/engine/types'
+import { DEFAULT_RULES, type RatSlapRules, type RatSlapState, SLAPJACK_RULESET } from '@/games/ratslap/engine/types'
 
 function card(rank: Rank, suit: Suit = 'clubs', idSuffix = ''): Card {
   return { id: `${suit}-${rank}${idSuffix}`, suit, rank, faceUp: true }
@@ -30,7 +30,7 @@ function makeState(overrides: Partial<RatSlapState> = {}): RatSlapState {
   }
 }
 
-const NO_SLAPS: RatSlapRules = { doubles: false, sandwiches: false, jokers: true }
+const NO_SLAPS: RatSlapRules = { ...DEFAULT_RULES, doubles: false, sandwiches: false }
 
 describe('createInitialState', () => {
   it('deals two 27-card hands with the jokers, an empty pile, player 1 to start, nothing won', () => {
@@ -366,5 +366,35 @@ describe('the deck stays whole', () => {
       state = next
     }
     expect(cardCount(state)).toBe(total)
+  })
+})
+
+describe('Slapjack (SLAPJACK_RULESET)', () => {
+  it('a face card just passes the turn: no challenge', () => {
+    const next = playCard(makeState({ rules: SLAPJACK_RULESET, hands: [[card(13, 'spades', '-k')], P2_HAND] }), 1)!
+    expect(next.challenge).toBeNull()
+    expect(next.turn).toBe(2)
+  })
+
+  it('a Jack on top is the only good slap: doubles and sandwiches are wrong slaps', () => {
+    expect(slapPattern(makeState({ rules: SLAPJACK_RULESET, pile: [card(4), card(11, 'hearts')] }))).toBe('jack')
+    expect(isSlappable(makeState({ rules: SLAPJACK_RULESET, pile: [card(7), card(7, 'hearts')] }))).toBe(false)
+    expect(isSlappable(makeState({ rules: SLAPJACK_RULESET, pile: [card(7), card(2), card(7, 'hearts')] }))).toBe(false)
+    expect(isSlappable(makeState({ rules: SLAPJACK_RULESET, pile: [card(11), card(4, 'hearts')] }))).toBe(false)
+  })
+
+  it('a good slap wins the pile; a wrong one burns the slapper’s top card, as in RatSlap', () => {
+    const won = slap(makeState({ rules: SLAPJACK_RULESET, pile: [card(4), card(11, 'hearts')], lastPlayer: 1, turn: 2 }), 2)!
+    expect(won.pileWinner).toBe(2)
+    expect(won.pileWonBySlap).toBe(true)
+    const burned = slap(makeState({ rules: SLAPJACK_RULESET, pile: [card(4), card(12, 'hearts')], lastPlayer: 1, turn: 2 }), 2)!
+    expect(burned.burned).toHaveLength(1)
+    expect(burned.hands[1]).toHaveLength(1)
+  })
+
+  it('deals 26 cards each, with no jokers', () => {
+    const state = createInitialState(9, SLAPJACK_RULESET)
+    expect(state.hands[0]).toHaveLength(26)
+    expect(state.hands[1]).toHaveLength(26)
   })
 })

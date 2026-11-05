@@ -1,11 +1,14 @@
 import AsyncStorage from '@react-native-async-storage/async-storage'
-import type { EnhancedStore, Middleware } from '@reduxjs/toolkit'
+import type { EnhancedStore, Middleware, Reducer } from '@reduxjs/toolkit'
 import { createReturningPlayerMigrate } from '@tastic/hud/guide'
 import { createPackStore, type PackStoreConfig, type PackStoreSource, type Seat, type ShellState } from '@tastic/shell'
 
 import { playerTheme } from '@/components/theme'
 import { SEAT_COLORS } from '@/constants/player'
 import { ratslapGuide } from '@/games/ratslap/guide'
+import { sixCardGolfGuide } from '@/games/sixcardgolf/guide'
+import { slapjackGuide } from '@/games/slapjack/guide'
+import { trashGuide } from '@/games/trash/guide'
 import { LEGACY_STORAGE_KEYS } from '@/redux/guideSlice'
 import { packReducers, type PackReducersState } from '@/redux/packReducers'
 import { playerSettingsMiddleware } from '@/redux/playerSettingsSlice'
@@ -17,10 +20,15 @@ import { SOLITAIRE_GAME_IDS } from '@/stores/statsTypes'
 // be an import cycle. Everything imports the store through this module, and screen tests swap it for
 // testUtils/gameInProgressStore.ts.
 
-// RatSlap's part (its definition, games/ratslap/definition.ts, holds its screen, which can't be imported here): its How
-// to Play's seen version. Its stats are among Solitaire's own keys (redux/ratslapStatsSlice.ts), so a player's reset and
-// Reset Stats reach them.
-const RATSLAP_STORE = { id: 'ratslap', reducers: { ratslapGuide: ratslapGuide.reducer }, resumable: false }
+// The two-player games' part (each definition, games/<id>/definition.ts, holds its screen, which can't be imported here):
+// each How to Play's seen version. Their results are among Solitaire's own keys (redux/matchStatsSlice.ts), so a
+// player's reset and Reset Stats reach them. Their matches aren't saved.
+const TABLE_GAME_STORES: { id: string; reducers: Record<string, Reducer>; resumable: boolean }[] = [
+  { id: 'ratslap', reducers: { ratslapGuide: ratslapGuide.reducer }, resumable: false },
+  { id: 'slapjack', reducers: { slapjackGuide: slapjackGuide.reducer }, resumable: false },
+  { id: 'sixcardgolf', reducers: { sixCardGolfGuide: sixCardGolfGuide.reducer }, resumable: false },
+  { id: 'trash', reducers: { trashGuide: trashGuide.reducer }, resumable: false }
+]
 
 export const storeSource = {
   seatColors: SEAT_COLORS,
@@ -29,8 +37,8 @@ export const storeSource = {
   // Solitaire's own keys (redux/packReducers.ts).
   reducers: packReducers,
   // Every solitaire game resumes (its play screen saves its own board), so the shell mounts its `lastActiveGame` key: the
-  // same key, shape and action types Solitaire's own had, so a saved resume carries over. RatSlap's matches aren't saved.
-  games: [...SOLITAIRE_GAME_IDS.map((id) => ({ id, reducers: {}, resumable: true })), RATSLAP_STORE]
+  // same key, shape and action types Solitaire's own had, so a saved resume carries over.
+  games: [...SOLITAIRE_GAME_IDS.map((id) => ({ id, reducers: {}, resumable: true })), ...TABLE_GAME_STORES]
 } satisfies PackStoreSource
 
 export const storeConfig: PackStoreConfig = {

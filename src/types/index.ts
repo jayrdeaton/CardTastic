@@ -1,6 +1,6 @@
 import type { ViewRotation } from '@tastic/core'
 
-import type { CpuLevel } from '@/games/ratslap/engine/cpu'
+import type { CpuLevel } from '@/games/table/cpuLevel'
 
 // The persisted player settings (see redux/settingsSlice.ts for the defaults and hooks/useSettings.ts
 // for reading and writing them).
@@ -34,6 +34,15 @@ export interface Settings {
   ratslapJokers: boolean
   // How quick the CPU in RatSlap's seat 2 is (games/ratslap/engine/cpu.ts).
   ratslapCpu: CpuLevel
+  // Slapjack's CPU (the slap games share one engine and one CPU, games/ratslap/engine/cpu.ts).
+  slapjackCpu: CpuLevel
+  // Six-Card Golf: how many holes a match plays, and how well its CPU plays (games/sixcardgolf/engine/cpu.ts).
+  sixCardGolfHoles: SixCardGolfHoles
+  sixCardGolfCpu: CpuLevel
+  // Trash: how many cards each player starts a match with (10 is the full game, Ace to 10; 5 a short one, Ace to 5), and
+  // how well its CPU plays (games/trash/engine/cpu.ts).
+  trashCards: TrashCards
+  trashCpu: CpuLevel
   // Global, not per-game (unlike every setting above): whether auto-play runs at all - the safe cards
   // that follow the player's own play of a card to a foundation (useAutoFoundationCascade), and the
   // finish that files a solved board away on its own (useAutoFinish; see engine/autoFoundation.ts). Applies
@@ -93,3 +102,11 @@ export interface LegacySettingsLock {
 /** The Auto Hint setting's choices, in the order its Settings row cycles through them. */
 export const AUTO_HINT_CHOICES = [0, 15, 30] as const
 export type AutoHintSeconds = (typeof AUTO_HINT_CHOICES)[number]
+
+/** Six-Card Golf's match lengths, in the order its setup screen shows them. */
+export const SIX_CARD_GOLF_HOLES = [1, 3, 9] as const
+export type SixCardGolfHoles = (typeof SIX_CARD_GOLF_HOLES)[number]
+
+/** Trash's starting hands: the full game (Ace to 10) and a short one (Ace to 5). */
+export const TRASH_CARDS = [10, 5] as const
+export type TrashCards = (typeof TRASH_CARDS)[number]

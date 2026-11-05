@@ -11,7 +11,12 @@ const BACK: AnyCard = { id: 'preview-back', suit: 'clubs', rank: 2, faceUp: fals
 
 /** RatSlap's Home tile: a deck at each end of the table and a double on the pile between them, ready to
  * slap. Five live cards (the solitaire tiles' baked face layer is for whole deals). */
-export function RatSlapPreview({ width, height }: GamePreviewProps) {
+export function RatSlapPreview(props: GamePreviewProps) {
+  return <SlapPreview {...props} under={SEVEN_OF_SPADES} top={SEVEN_OF_HEARTS} />
+}
+
+/** A slap game's tile: a deck at each end of the table, and two cards on the pile between them. */
+export function SlapPreview({ width, height, under, top }: GamePreviewProps & { under: AnyCard; top: AnyCard }) {
   const colors = useTableColors()
   const cardHeight = height * 0.6
   const cardWidth = cardHeight * CARD_ASPECT
@@ -21,8 +26,8 @@ export function RatSlapPreview({ width, height }: GamePreviewProps) {
       <CardSizeProvider width={cardWidth}>
         <PlayingCard card={BACK} disabled style={at(width * 0.17, 0, 3)} />
         <PlayingCard card={BACK} disabled style={at(width * 0.17)} />
-        <PlayingCard card={SEVEN_OF_SPADES} disabled style={at(width * 0.5 - cardWidth * 0.12, -10)} />
-        <PlayingCard card={SEVEN_OF_HEARTS} disabled style={at(width * 0.5 + cardWidth * 0.12, 8)} />
+        <PlayingCard card={under} disabled style={at(width * 0.5 - cardWidth * 0.12, -10)} />
+        <PlayingCard card={top} disabled style={at(width * 0.5 + cardWidth * 0.12, 8)} />
         <PlayingCard card={BACK} disabled style={at(width * 0.83, 0, 3)} />
         <PlayingCard card={BACK} disabled style={at(width * 0.83)} />
       </CardSizeProvider>

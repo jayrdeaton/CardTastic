@@ -8,10 +8,11 @@ import { GAME_TITLES, SOLITAIRE_GAME_IDS } from '@/stores/statsTypes'
 // and no How to Play of its own, every one resumable, with a preview and a rules sheet; then RatSlap, for two players.
 
 const SOLITAIRE_ORDER = ['klondike', 'freecell', 'yukon', 'canfield', 'fortythieves', 'spider', 'scorpion', 'pyramid', 'golf', 'tripeaks', 'acesup']
-const HOME_ORDER = [...SOLITAIRE_ORDER, 'ratslap']
+const TABLE_GAMES = ['ratslap', 'slapjack', 'sixcardgolf', 'trash']
+const HOME_ORDER = [...SOLITAIRE_ORDER, ...TABLE_GAMES]
 
 describe('the pack', () => {
-  it("lists the eleven solitaire games and RatSlap in Home's order", () => {
+  it("lists the eleven solitaire games and the four for two players in Home's order", () => {
     expect(games.map((g) => g.id)).toEqual(HOME_ORDER)
     expect(pack.games).toBe(games)
   })
@@ -19,7 +20,7 @@ describe('the pack', () => {
   it('holds every game the stats know, and the store is built from the same ids', () => {
     expect([...SOLITAIRE_ORDER].sort()).toEqual([...SOLITAIRE_GAME_IDS].sort())
     const storeGames = storeSource.games as readonly { id: string; resumable?: boolean }[]
-    expect(storeGames.map((g) => g.id)).toEqual([...SOLITAIRE_GAME_IDS, 'ratslap'])
+    expect(storeGames.map((g) => g.id)).toEqual([...SOLITAIRE_GAME_IDS, ...TABLE_GAMES])
     expect(storeGames.map((g) => g.id).sort()).toEqual(games.map((g) => g.id).sort())
     // Each store entry says what its game's definition says about resuming.
     storeGames.forEach((entry) => expect(!!entry.resumable).toBe(!!games.find((g) => g.id === entry.id)?.resumable))
@@ -45,13 +46,18 @@ describe('the pack', () => {
     expect(game.guide).toBeUndefined()
   })
 
-  it('RatSlap: seat 2 the CPU or a person, a setup screen and its own How to Play, not resumable, the status bar hidden', () => {
-    const game = games.find((g) => g.id === 'ratslap')!
-    expect(game.title).toBe('RatSlap')
+  it.each([
+    ['ratslap', 'RatSlap', 'ratslapGuide'],
+    ['slapjack', 'Slapjack', 'slapjackGuide'],
+    ['sixcardgolf', 'Six-Card Golf', 'sixCardGolfGuide'],
+    ['trash', 'Trash', 'trashGuide']
+  ])('%s: seat 2 the CPU or a person, a setup screen and its own How to Play, not resumable, the status bar hidden', (id, title, guideKey) => {
+    const game = games.find((g) => g.id === id)!
+    expect(game.title).toBe(title)
     expect(game.seatTwo).toEqual(['cpu', 'person'])
     expect(game.useLoadout).toBeDefined()
     expect(game.guide?.version).toBeGreaterThan(0)
-    expect(Object.keys(game.reducers)).toEqual(['ratslapGuide'])
+    expect(Object.keys(game.reducers)).toEqual([guideKey])
     expect(game.resumable).toBe(false)
     expect(game.keepStatusBar).toBe(false)
     expect(game.Preview).toBeDefined()

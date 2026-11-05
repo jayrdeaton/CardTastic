@@ -6,8 +6,9 @@ import { type AnyCard } from '@tastic/cards'
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { type RandomFn, randomSeed } from '@/engine/rng'
+import { type CpuLevel } from '@/games/table/cpuLevel'
 
-import { type CpuLevel, cpuPlayDelayMs, cpuSlapPlan } from './engine/cpu'
+import { cpuPlayDelayMs, cpuSlapPlan } from './engine/cpu'
 import { collectPile, createInitialState, otherPlayer, playCard, slap, toPlay } from './engine/rules'
 import { type PlayerIndex, type RatSlapRules, type RatSlapState } from './engine/types'
 

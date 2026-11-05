@@ -1,10 +1,12 @@
-// RatSlap's state: two hands, the center pile, and any face-card challenge in progress.
+// RatSlap's state, and Slapjack's (the same table under other rules): two hands, the center pile, and any face-card
+// challenge in progress.
 
 import { type AnyCard } from '@tastic/cards'
 
 export type PlayerIndex = 1 | 2
 
-/** The rules a match is dealt with, each one switchable before a match (all on by default). */
+/** The rules a match is dealt with. RatSlap's first three are each switchable before a match (all on by default); the
+ * last two tell RatSlap from Slapjack. */
 export interface RatSlapRules {
   /** A slap wins the pile when the top two cards match (two 7s, or two jokers). */
   doubles: boolean
@@ -12,9 +14,16 @@ export interface RatSlapRules {
   sandwiches: boolean
   /** Two jokers in the deck. A joker cancels a face-card challenge, however many tries are used. */
   jokers: boolean
+  /** A J, Q, K or A opens a challenge (RatSlap). Off, every card just passes the turn (Slapjack). */
+  faceCards: boolean
+  /** A slap wins the pile when a Jack is on top (Slapjack). */
+  jacks: boolean
 }
 
-export const DEFAULT_RULES: RatSlapRules = { doubles: true, sandwiches: true, jokers: true }
+export const DEFAULT_RULES: RatSlapRules = { doubles: true, sandwiches: true, jokers: true, faceCards: true, jacks: false }
+
+/** Slapjack: slap every Jack, and nothing else. No challenges, no jokers. */
+export const SLAPJACK_RULESET: RatSlapRules = { doubles: false, sandwiches: false, jokers: false, faceCards: false, jacks: true }
 
 /** An open challenge: `attacker` played a J, Q, K or A, and `defender` has `requiredChances` tries
  * (1, 2, 3 or 4) to play one of their own, or the attacker wins the pile. */
@@ -50,4 +59,4 @@ export interface RatSlapState {
   winner: PlayerIndex | null
 }
 
-export type SlapPattern = 'double' | 'sandwich'
+export type SlapPattern = 'double' | 'sandwich' | 'jack'

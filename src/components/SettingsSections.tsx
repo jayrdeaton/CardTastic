@@ -11,6 +11,7 @@ import { useSystemReduceMotion } from '@/components/reducedMotion'
 import { SettingsSection } from '@/components/SettingsSection'
 import { useTableColors } from '@/components/theme'
 import { useSettings } from '@/hooks/useSettings'
+import { MATCH_GAME_IDS } from '@/redux/matchStatsSlice'
 import { usePlayer } from '@/stores/profiles'
 import { AUTO_HINT_CHOICES, type AutoHintSeconds, type Settings } from '@/types'
 
@@ -85,8 +86,10 @@ export function SettingsSections() {
   const colors = useTableColors()
   const { colors: paperColors } = useAutoPaperTheme()
   const { profile } = usePlayer()
-  // RatSlap's sheet (games/ratslap) leaves out the rows for foundations, hints and unplayable cards, none of which it has.
-  const solitaireRows = !usePathname().endsWith('/ratslap')
+  // A two-player game's sheet (RatSlap, Slapjack, Six-Card Golf, Trash) leaves out the rows for foundations, hints and
+  // unplayable cards, none of which they have.
+  const path = usePathname()
+  const solitaireRows = !MATCH_GAME_IDS.some((id) => path.endsWith(`/${id}`))
 
   return (
     <>

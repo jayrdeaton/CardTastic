@@ -3,19 +3,10 @@
 // how often it misses a good pile or slaps a wrong one.
 
 import { type RandomFn } from '@/engine/rng'
+import { type CpuLevel } from '@/games/table/cpuLevel'
 
 import { isOut, isSlappable } from './rules'
 import { type PlayerIndex, type RatSlapState } from './types'
-
-export type CpuLevel = 'easy' | 'medium' | 'hard'
-
-export const CPU_LEVELS: readonly CpuLevel[] = ['easy', 'medium', 'hard']
-
-export const DEFAULT_CPU_LEVEL: CpuLevel = 'medium'
-
-export function isCpuLevel(value: unknown): value is CpuLevel {
-  return CPU_LEVELS.includes(value as CpuLevel)
-}
 
 interface CpuStyle {
   /** How long it waits before playing a card, in ms. */

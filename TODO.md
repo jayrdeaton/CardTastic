@@ -42,7 +42,7 @@ Jay chose the shell package first and Ratscrew as the first multiplayer game. Ea
    - **On a phone:** a match against the CPU and one with a kid (the feel of the slap, the CPU's speed at each level, the length of a match: about 200 cards at the median in a simulation, about 550 at the 90th percentile).
    - **Not built:** achievements, calendar days for RatSlap, Edge Guard (native), a joker face upstream in `@tastic/cards` (it's drawn in-app, `components/JokerFace.tsx`), and a baked Home preview (the tile draws five live cards).
    - Retiring the EgyptianRatscrew repo is Jay's call.
-4. **Then** the rename above, a new build and the resubmission. The other shared-view games follow: Slapjack (reuses Ratscrew's slap zones), War, Trash, and multiplayer Golf (under a name that isn't solitaire Golf's). Jay wants Home to show each game's player count and to split games by type; the shell's Home does neither yet, so they come with the second multiplayer game.
+4. **Then** the rename above, a new build and the resubmission. The other shared-view games: Slapjack, Six-Card Golf and Trash were built 2026-11-04 (uncommitted, not released; CLAUDE.md's "Slapjack, Six-Card Golf and Trash" section), War not yet. Jay wants Home to show each game's player count and to split games by type; the shell's Home does neither yet, so that's a `@tastic/shell` change, still to do.
 
 ### Step 2 in detail: Solitaire onto `@tastic/shell` (plan, 2026-10-29)
 

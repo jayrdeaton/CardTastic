@@ -1,5 +1,7 @@
 // RatSlap (Egyptian Ratscrew) for two players, as pure functions over one state. Every function
-// that changes the state returns a new one, or null for a move the rules don't allow.
+// that changes the state returns a new one, or null for a move the rules don't allow. Slapjack is the
+// same game with no face-card challenges and a slap on every Jack (SLAPJACK_RULESET): the same burn
+// for a wrong slap, the same way back in when out of cards (Jay, 2026-11-04).
 //
 // Ported from ~/Developer/EgyptianRatscrew's engine on 2026-11-04 and brought in line with the rules
 // Jay settled that day:
@@ -14,7 +16,7 @@
 import { type AnyCard, isJoker, type Rank } from '@tastic/cards'
 
 import { dealHands, shuffledDeck } from './deck'
-import { isDouble, isSandwich } from './slapLogic'
+import { isDouble, isJackOnTop, isSandwich } from './slapLogic'
 import { type PlayerIndex, type RatSlapRules, type RatSlapState, type SlapPattern } from './types'
 
 export function otherPlayer(player: PlayerIndex): PlayerIndex {
@@ -97,7 +99,7 @@ export function playCard(state: RatSlapState, player: PlayerIndex): RatSlapState
   if (isJoker(card)) return settle({ ...played, challenge: null, turn: other })
 
   // A face card opens a challenge, or answers one and turns it round on the attacker.
-  const chances = chancesFor(card.rank)
+  const chances = state.rules.faceCards ? chancesFor(card.rank) : null
   if (chances !== null) {
     const defender = challenge ? challenge.attacker : other
     return settle({ ...played, challenge: { triggerCard: card, requiredChances: chances, chancesUsed: 0, attacker: player, defender }, turn: defender })
@@ -113,6 +115,7 @@ export function playCard(state: RatSlapState, player: PlayerIndex): RatSlapState
 
 /** The pattern a slap would win on, under the match's rules, or null. */
 export function slapPattern(state: RatSlapState): SlapPattern | null {
+  if (state.rules.jacks && isJackOnTop(state.pile)) return 'jack'
   if (state.rules.doubles && isDouble(state.pile)) return 'double'
   if (state.rules.sandwiches && isSandwich(state.pile)) return 'sandwich'
   return null

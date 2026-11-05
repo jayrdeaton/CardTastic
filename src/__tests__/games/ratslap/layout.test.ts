@@ -1,6 +1,7 @@
 import { CARD_ASPECT, faceUpFanOffset, RANK_INK_RIGHT_FRACTION } from '@tastic/cards'
 
-import { burnedPose, DECK_LABEL_ROOM, halfAt, inRect, PILE_DRAWN, pileCardPose, pileTilt, slapArea, tableLayout } from '@/games/ratslap/layout'
+import { burnedPose, DECK_LABEL_ROOM, halfAt, PILE_DRAWN, pileCardPose, pileTilt, slapArea, tableLayout } from '@/games/ratslap/layout'
+import { inRect } from '@/games/table/geometry'
 
 // RatSlap's table in screen coordinates: a deck near each short edge, the pile between them.
 
