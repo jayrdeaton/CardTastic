@@ -45,10 +45,10 @@
         {
           "image": "./assets/images/splash-light.png",
           "imageWidth": 200,
-          "backgroundColor": "#FAFAFA",
+          "backgroundColor": "#1E5C47",
           "dark": {
             "image": "./assets/images/splash-dark.png",
-            "backgroundColor": "#050505"
+            "backgroundColor": "#123F30"
           }
         }
       ],
