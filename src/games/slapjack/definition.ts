@@ -22,7 +22,7 @@ const JACK_OF_HEARTS: AnyCard = { id: 'preview-hearts-11', suit: 'hearts', rank:
 export const slapjack: GameDefinition = {
   id: 'slapjack',
   title: SLAPJACK_TITLE,
-  blurb: 'Two players. Slap every Jack.',
+  blurb: 'Slap every Jack.',
   reducers: { slapjackGuide: slapjackGuide.reducer },
   seatTwo: ['cpu', 'person'],
   twoPlayerSeats: { faceToFaceOnWeb: true, followUpsideDown: false },

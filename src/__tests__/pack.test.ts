@@ -5,7 +5,8 @@ import { storeSource } from '@/redux/store'
 import { GAME_TITLES, SOLITAIRE_GAME_IDS } from '@/stores/statsTypes'
 
 // Solitaire as @tastic/shell's pack (pack.ts): the eleven solitaire games Home lists, each a game with no seats, no loadout
-// and no How to Play of its own, every one resumable, with a preview and a rules sheet; then RatSlap, for two players.
+// and no How to Play of its own, every one resumable, with a preview and a rules sheet; then the four for two players.
+// Home shows them on two tabs, Solitaire and Two Player.
 
 const SOLITAIRE_ORDER = ['klondike', 'freecell', 'yukon', 'canfield', 'fortythieves', 'spider', 'scorpion', 'pyramid', 'golf', 'tripeaks', 'acesup']
 const TABLE_GAMES = ['ratslap', 'slapjack', 'sixcardgolf', 'trash']
@@ -64,6 +65,15 @@ describe('the pack', () => {
     expect(game.Rules).toBeDefined()
     expect(game.PlayScreen).toBeDefined()
     expect(game.StatsSections).toBeDefined()
+  })
+
+  it("splits Home into a Solitaire tab and a Two Player tab, each in Home's order, and no blurb says how many play", () => {
+    expect(pack.homeTabs?.map((t) => t.label)).toEqual(['Solitaire', 'Two Player'])
+    const [solo, twoPlayer] = pack.homeTabs!
+    expect(games.filter(solo.includes).map((g) => g.id)).toEqual(SOLITAIRE_ORDER)
+    expect(games.filter(twoPlayer.includes).map((g) => g.id)).toEqual(TABLE_GAMES)
+    // The tab says it.
+    games.forEach((g) => expect(g.blurb).not.toMatch(/two players/i))
   })
 
   it("teaches every game with the pack's own How to Play, its seen version Solitaire's own guide key", () => {

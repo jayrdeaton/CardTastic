@@ -19,7 +19,7 @@ export const TRASH_TITLE = 'Trash'
 export const trash: GameDefinition = {
   id: 'trash',
   title: TRASH_TITLE,
-  blurb: 'Two players. Fill your spots, Ace to 10.',
+  blurb: 'Fill your spots, Ace to 10.',
   reducers: { trashGuide: trashGuide.reducer },
   seatTwo: ['cpu', 'person'],
   twoPlayerSeats: { faceToFaceOnWeb: true, followUpsideDown: false },

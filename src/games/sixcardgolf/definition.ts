@@ -20,7 +20,7 @@ export const SIX_CARD_GOLF_TITLE = 'Six-Card Golf'
 export const sixcardgolf: GameDefinition = {
   id: 'sixcardgolf',
   title: SIX_CARD_GOLF_TITLE,
-  blurb: 'Two players. Swap low, pair up, score least.',
+  blurb: 'Swap low, pair up, score least.',
   reducers: { sixCardGolfGuide: sixCardGolfGuide.reducer },
   seatTwo: ['cpu', 'person'],
   twoPlayerSeats: { faceToFaceOnWeb: true, followUpsideDown: false },

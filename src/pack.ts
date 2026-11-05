@@ -46,6 +46,12 @@ const solitaire = {
   // Under the Color row of seat 1's menu, while a profile plays: a pick here changes this app's color only.
   colorCaption: 'Solitaire only',
   games,
+  // Home's tabs (Jay, 2026-11-04): the solitaire games, then the games for two players (the ones with a seat 2), each in
+  // Home's order. Home opens on Solitaire.
+  homeTabs: [
+    { label: 'Solitaire', includes: (game) => !game.seatTwo },
+    { label: 'Two Player', includes: (game) => !!game.seatTwo }
+  ],
   HeroTitle,
   // The player button reads GUEST, its menu's row Guest.
   guestLabel: 'GUEST',

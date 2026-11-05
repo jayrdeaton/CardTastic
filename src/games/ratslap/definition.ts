@@ -21,7 +21,7 @@ export const RATSLAP_TITLE = 'RatSlap'
 export const ratslap: GameDefinition = {
   id: 'ratslap',
   title: RATSLAP_TITLE,
-  blurb: 'Two players. Slap doubles and sandwiches.',
+  blurb: 'Slap doubles and sandwiches.',
   reducers: { ratslapGuide: ratslapGuide.reducer },
   seatTwo: ['cpu', 'person'],
   twoPlayerSeats: { faceToFaceOnWeb: true, followUpsideDown: false },
