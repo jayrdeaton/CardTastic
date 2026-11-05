@@ -32,8 +32,8 @@ export interface RatSlapState {
   hands: [AnyCard[], AnyCard[]]
   /** Played cards, face up, bottom to top: the last one is the top card. */
   pile: AnyCard[]
-  /** Cards burned by wrong slaps, face down under the pile, bottom first. They go to whoever wins
-   * the pile, and never count toward a double or a sandwich. */
+  /** Cards burned by wrong slaps, face up under the pile, bottom first (each new one goes under the
+   * rest). They go to whoever wins the pile, and never count toward a double or a sandwich. */
   burned: AnyCard[]
   /** Who plays next while no challenge is open (a challenge's defender plays during one). */
   turn: PlayerIndex

@@ -21,8 +21,8 @@ export interface MatchEvents {
   played: (player: PlayerIndex, card: AnyCard) => void
   burned: (player: PlayerIndex, card: AnyCard) => void
   wonPile: (player: PlayerIndex, bySlap: boolean) => void
-  /** The cards a pile's winner took, bottom to top as they lay (burned cards first). */
-  collected: (player: PlayerIndex, cards: AnyCard[]) => void
+  /** The cards a pile's winner took: the played ones bottom to top, and the burned ones under them (newest first). */
+  collected: (player: PlayerIndex, taken: { pile: AnyCard[]; burned: AnyCard[] }) => void
   matchOver: (winner: PlayerIndex) => void
 }
 
@@ -63,7 +63,7 @@ export function useRatSlapMatch({ rules, cpu, paused, events, seed = randomSeed,
     if (next.pile.length > prev.pile.length) events.played(actor, next.pile[next.pile.length - 1])
     if (next.burned.length > prev.burned.length) events.burned(actor, next.burned[0])
     if (next.pileWinner !== null && (next.pileWinner !== prev.pileWinner || next.pileWonBySlap !== prev.pileWonBySlap)) events.wonPile(next.pileWinner, next.pileWonBySlap)
-    if (prev.pileWinner !== null && next.pileWinner === null && next.pile.length === 0) events.collected(prev.pileWinner, [...prev.burned, ...prev.pile])
+    if (prev.pileWinner !== null && next.pileWinner === null && next.pile.length === 0) events.collected(prev.pileWinner, { pile: prev.pile, burned: prev.burned })
     if (next.winner !== null && prev.winner === null) events.matchOver(next.winner)
   }, [])
 

@@ -77,7 +77,7 @@ describe('useRatSlapMatch', () => {
     expect(heard.played).toHaveBeenCalledTimes(1)
 
     await wait(SLAP_COLLECT_BEAT_MS)
-    expect(heard.collected).toHaveBeenCalledWith(2, expect.arrayContaining([expect.objectContaining({ id: 'diamonds-7-x' })]))
+    expect(heard.collected).toHaveBeenCalledWith(2, { pile: expect.arrayContaining([expect.objectContaining({ id: 'diamonds-7-x' })]), burned: [] })
     expect(result.current.state.hands[1]).toHaveLength(4)
   })
 
@@ -116,7 +116,7 @@ describe('useRatSlapMatch', () => {
     await act(() => {
       expect(result.current.slap(1)).toBe('burned')
     })
-    expect(heard.burned).toHaveBeenCalledWith(1, expect.objectContaining({ id: 'clubs-4-b', faceUp: false }))
+    expect(heard.burned).toHaveBeenCalledWith(1, expect.objectContaining({ id: 'clubs-4-b', faceUp: true }))
   })
 
   it('a pile won by a face card waits the longer beat, in which a double can still be slapped away', async () => {
@@ -135,7 +135,7 @@ describe('useRatSlapMatch', () => {
 
     // Not a double (the Jack sits between the 7s), so that pile can't be slapped: it is collected after the long beat.
     await wait(CHALLENGE_COLLECT_BEAT_MS)
-    expect(heard.collected).toHaveBeenCalledWith(2, expect.any(Array))
+    expect(heard.collected).toHaveBeenCalledWith(2, { pile: expect.any(Array), burned: expect.any(Array) })
   })
 
   it('nothing happens while paused, and the CPU looks again once play goes on', async () => {

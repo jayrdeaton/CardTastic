@@ -23,7 +23,7 @@ export function getRatSlapGuideSteps(input: RatSlapGuideInput, { touch }: { touc
     { title: 'Face Cards', body: 'A J, Q, K or A gives the other player 1 to 4 tries to answer.', art: <FaceCardArt /> }
   ]
   const slapOn = input.doubles && input.sandwiches ? 'a double or a sandwich' : input.doubles ? 'a double' : input.sandwiches ? 'a sandwich' : null
-  if (slapOn) steps.push({ title: 'Slap the Pile', body: `${press} away from your deck to slap ${slapOn}.`, art: <SlapArt /> })
+  if (slapOn) steps.push({ title: 'Slap the Pile', body: `${press} anywhere on your side to slap ${slapOn}.`, art: <SlapArt /> })
   if (input.jokers) steps.push({ title: 'Jokers', body: 'A joker cancels any face card’s challenge.', art: <JokerArt /> })
   return steps
 }

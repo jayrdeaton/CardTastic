@@ -5,7 +5,8 @@
 // Jay settled that day:
 // - Doubles, sandwiches and the jokers can each be switched off (RatSlapRules).
 // - A won pile goes under the winner's deck, not on top of it.
-// - Burned cards sit apart from the played ones and never make a double or a sandwich.
+// - Burned cards go face up under the pile, apart from the played ones, and never make a double or a
+//   sandwich.
 // - A slap still beats a face-card win while the pile waits to be collected.
 // - Out of cards, you can't play, but a good slap gets you back in. You lose when the other player
 //   collects a pile while you're out, or if you slap wrong with nothing to burn.
@@ -123,8 +124,8 @@ export function isSlappable(state: RatSlapState): boolean {
 }
 
 /** A slap. A good one wins the pile, even mid-challenge or from a face-card win still waiting to be
- * collected. A wrong one burns the slapper's top card under the pile, or loses the match for a
- * player with no card to burn. Null when the slap comes too late to count: the match is over, or
+ * collected. A wrong one burns the slapper's top card face up under the pile (so everyone sees what it
+ * cost), or loses the match for a player with no card to burn. Null when the slap comes too late to count: the match is over, or
  * the pile was already slapped. */
 export function slap(state: RatSlapState, player: PlayerIndex): RatSlapState | null {
   if (state.winner !== null || state.pileWonBySlap) return null
@@ -134,7 +135,7 @@ export function slap(state: RatSlapState, player: PlayerIndex): RatSlapState | n
   const hand = handOf(state, player)
   if (hand.length === 0) return { ...state, winner: otherPlayer(player) }
 
-  const burnedCard: AnyCard = { ...hand[hand.length - 1], faceUp: false }
+  const burnedCard: AnyCard = { ...hand[hand.length - 1], faceUp: true }
   const burned: RatSlapState = { ...state, hands: withHand(state.hands, player, hand.slice(0, -1)), burned: [burnedCard, ...state.burned] }
   return burned.pileWinner === null ? settle(burned) : burned
 }

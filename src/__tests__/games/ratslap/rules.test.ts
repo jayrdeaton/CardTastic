@@ -196,7 +196,7 @@ describe('slapPattern and isSlappable', () => {
   })
 
   it('never counts a burned card: one played card on burned cards is not a double', () => {
-    const state = makeState({ burned: [{ ...card(7, 'clubs', '-burned'), faceUp: false }], pile: [card(7, 'hearts')] })
+    const state = makeState({ burned: [card(7, 'clubs', '-burned')], pile: [card(7, 'hearts')] })
     expect(isSlappable(state)).toBe(false)
   })
 
@@ -236,7 +236,7 @@ describe('slap - a good slap', () => {
 })
 
 describe('slap - a wrong slap', () => {
-  it('burns the slapper’s top card face down under the pile, leaving the turn and the challenge alone', () => {
+  it('burns the slapper’s top card face up under the pile, so everyone sees what it cost, leaving the turn and the challenge alone', () => {
     const pile = [card(2, 'clubs'), card(9, 'hearts')]
     const burning = card(5, 'diamonds', '-burn')
     const remaining = card(6, 'diamonds', '-remain')
@@ -245,14 +245,14 @@ describe('slap - a wrong slap', () => {
     expect(result?.pileWinner).toBeNull()
     expect(result?.turn).toBe(1)
     expect(result?.pile).toBe(pile)
-    expect(result?.burned).toEqual([{ ...burning, faceUp: false }])
+    expect(result?.burned).toEqual([{ ...burning, faceUp: true }])
     expect(result?.hands[1]).toEqual([remaining])
   })
 
   it('puts each new burned card under the ones already there', () => {
-    const older = { ...card(8, 'spades', '-older'), faceUp: false }
+    const older = card(8, 'spades', '-older')
     const result = slap(makeState({ pile: [card(2), card(9)], burned: [older] }), 1)
-    expect(result?.burned).toEqual([{ ...P1_HAND[1], faceUp: false }, older])
+    expect(result?.burned).toEqual([{ ...P1_HAND[1], faceUp: true }, older])
   })
 
   it('burning a defender’s last card means they can’t answer: the attacker wins the pile', () => {
@@ -278,7 +278,7 @@ describe('collectPile', () => {
   })
 
   it('puts the pile, burned cards included, turned over and face down, under the winner’s deck; the winner plays next', () => {
-    const burnedCard = { ...card(4, 'spades', '-b'), faceUp: false }
+    const burnedCard = card(4, 'spades', '-b')
     const pile = [card(2, 'clubs'), card(9, 'hearts'), card(7, 'diamonds')]
     const existing = card(3, 'spades', '-existing')
     const result = collectPile(makeState({ pile, burned: [burnedCard], pileWinner: 2, turn: 1, hands: [P1_HAND, [existing]] }), 2)
