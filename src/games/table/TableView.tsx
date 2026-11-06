@@ -1,4 +1,4 @@
-// A two-player table's view (Six-Card Golf, Trash, War, Speed): the cards (TableCards: every card one view as it moves
+// A two-player table's view (Six-Card Golf, Trash, War, Speed, Gin Rummy): the cards (TableCards: every card one view as it moves
 // between piles, a hand and a grid), a ring round each card the player whose move it is can tap, a tap target over it
 // (or, where two people play at once, the game's own touch zones), each player's name row and prompt line facing them,
 // the notes beside the middle row, and the Home and Settings buttons. What the cards are, which can be tapped and what
@@ -36,12 +36,14 @@ export interface TableFrame {
   upsideDown: boolean
 }
 
-/** A card spot that can be tapped: a grid spot, the stock, the discard. */
+/** A card spot that can be tapped: a grid spot, the stock, the discard, a card in hand. */
 export interface TableTarget {
   key: string
   at: Point
   label: string
   onPress: () => void
+  /** False for a card with no ring round it: every card in a hand you pick from (Gin Rummy's). */
+  ring?: boolean
 }
 
 /** A player's name row: who they are, a muted subtitle (the CPU's level), their score on the right, and whether it's
@@ -126,7 +128,7 @@ export function TableView({
           </Text>
         </View>
       ))}
-      {[...targets.map((target) => target.at), ...rings].map((at) => (
+      {[...targets.filter((target) => target.ring !== false).map((target) => target.at), ...rings].map((at) => (
         <View key={`ring-${at.x}-${at.y}`} pointerEvents='none' style={[styles.ring, { borderColor: ringColor, height: cardHeight + RING_GAP * 2, left: at.x - cardWidth / 2 - RING_GAP, top: at.y - cardHeight / 2 - RING_GAP, width: cardWidth + RING_GAP * 2 }]} />
       ))}
       {([1, 2] as const).map((player) => (

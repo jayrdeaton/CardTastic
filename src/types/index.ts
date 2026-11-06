@@ -1,5 +1,6 @@
 import type { ViewRotation } from '@tastic/core'
 
+import type { GinTarget } from '@/games/ginrummy/engine/types'
 import type { CpuLevel } from '@/games/table/cpuLevel'
 import type { WarLength } from '@/games/war/engine/types'
 
@@ -49,6 +50,10 @@ export interface Settings {
   warLength: WarLength
   // How quick the CPU in Speed's seat 2 is (games/speed/engine/cpu.ts).
   speedCpu: CpuLevel
+  // Gin Rummy: the score a match plays to (100, or 50 for a shorter game), and how well its CPU plays
+  // (games/ginrummy/engine/cpu.ts).
+  ginTarget: GinTarget
+  ginCpu: CpuLevel
   // Global, not per-game (unlike every setting above): whether auto-play runs at all - the safe cards
   // that follow the player's own play of a card to a foundation (useAutoFoundationCascade), and the
   // finish that files a solved board away on its own (useAutoFinish; see engine/autoFoundation.ts). Applies

@@ -26,6 +26,8 @@ export const DEFAULT_SETTINGS: Settings = {
   trashCpu: 'medium',
   warLength: 'full',
   speedCpu: 'medium',
+  ginTarget: 100,
+  ginCpu: 'medium',
   autoMoveToFoundation: true,
   dimUnplayable: true,
   autoHintSeconds: 0,

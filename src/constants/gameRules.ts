@@ -42,3 +42,14 @@ export const WAR_RULES: string[] = ['The deck is split between the two players, 
 
 // Speed's (games/speed/engine/rules.ts): a race won by playing out, so no Scoring paragraph.
 export const SPEED_RULES: string[] = ['Also called Spit. Each player has a hand of five and a draw pile of fifteen. Two side piles of five sit either side of two center piles.', 'There are no turns. Play any card in your hand onto either center pile when it is one rank higher or lower, whatever the suit. Ranks wrap: a King goes on an Ace, and an Ace on a King or a 2.', 'Your hand refills from your draw pile by itself after every card you play.', 'When nobody can play, a card from each side pile turns over onto the center pile beside it. Once the side piles run out, the center piles (all but their top cards) are shuffled into new ones.', 'The first to play every card in their hand and draw pile wins.']
+
+// Gin Rummy's (games/ginrummy/engine/rules.ts): a two-player game scored by hands, so no Scoring paragraph.
+export const GIN_RUMMY_RULES: string[] = [
+  'Each player is dealt ten cards, and the next card is turned up to start the discard. The player who didn’t deal may take that card or pass; then the dealer may. If both pass, the first player draws from the stock.',
+  'On your turn, draw the top card of the stock or of the discard, then throw a card onto the discard. You can’t throw back the card you just took from the discard.',
+  'Melds are sets (three or four cards of a rank) and runs (three or more cards of a suit in a row, Aces low). Cards in no meld are deadwood: Aces count 1, number cards their number, and face cards 10.',
+  'Instead of throwing, you may knock once your deadwood after your throw is 10 or less. Both players lay down their melds, and the other player lays off any deadwood that fits your melds.',
+  'You score the difference in deadwood. With no deadwood at all you go gin: you score the other player’s deadwood plus 25, and nothing can be laid off. If the other player’s deadwood is as low as yours or lower, they undercut you, and score the difference plus 25.',
+  'If the stock is down to two cards and the player who drew throws without knocking, the hand is a draw. The winner of a hand deals the next.',
+  'The first to 100 wins the match (50 in a short game). With two players, pass the phone: your hand stays hidden until you tap Ready.'
+]

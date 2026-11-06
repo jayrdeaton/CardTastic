@@ -2,7 +2,7 @@ import { createSlice, type PayloadAction } from '@reduxjs/toolkit'
 
 import { CPU_LEVELS, type CpuLevel } from '@/games/table/cpuLevel'
 
-// The two-player games' results (RatSlap, Slapjack, Speed, War, Six-Card Golf, Trash), one entry per game: matches against the CPU
+// The two-player games' results (RatSlap, Slapjack, Speed, War, Six-Card Golf, Trash, Gin Rummy), one entry per game: matches against the CPU
 // by its level, and against people, with each game's own tallies (RatSlap's slaps, Golf's holes) and lows (Golf's best
 // hole). Kept for everyone (the phone's totals, from seat 1's side against the CPU) and per player (a profile id, or
 // GUEST_PLAYER_ID for seat 1's guest; a second guest in seat 2 isn't kept). A match left before its end isn't recorded.
@@ -10,7 +10,7 @@ import { CPU_LEVELS, type CpuLevel } from '@/games/table/cpuLevel'
 // profile's with it (redux/packReducers.ts).
 
 /** The two-player games, in Home's order. */
-export const MATCH_GAME_IDS = ['ratslap', 'slapjack', 'speed', 'war', 'sixcardgolf', 'trash'] as const
+export const MATCH_GAME_IDS = ['ratslap', 'slapjack', 'speed', 'war', 'sixcardgolf', 'trash', 'ginrummy'] as const
 export type MatchGameId = (typeof MATCH_GAME_IDS)[number]
 
 export type MatchOutcome = 'won' | 'lost' | 'tied'
