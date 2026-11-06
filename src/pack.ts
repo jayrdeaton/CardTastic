@@ -22,9 +22,11 @@ import { ratslap } from '@/games/ratslap/definition'
 import { scorpion } from '@/games/scorpion/definition'
 import { sixcardgolf } from '@/games/sixcardgolf/definition'
 import { slapjack } from '@/games/slapjack/definition'
+import { speed } from '@/games/speed/definition'
 import { spider } from '@/games/spider/definition'
 import { trash } from '@/games/trash/definition'
 import { tripeaks } from '@/games/tripeaks/definition'
+import { war } from '@/games/war/definition'
 import { yukon } from '@/games/yukon/definition'
 import { storeSource } from '@/redux/store'
 
@@ -34,8 +36,9 @@ import { storeSource } from '@/redux/store'
 // Home's order, grouped by mechanic: the build-down-to-foundations games first (Klondike, FreeCell, Yukon, Canfield and
 // Forty Thieves all end with ascending same-suit foundations), then Spider and Scorpion (tableau runs, no foundations),
 // then the clear-the-tableau games (Pyramid, Golf, TriPeaks discard cards outright), then Aces Up, the odd one out. The
-// games for two players come last: the slap games (RatSlap, the first, then Slapjack), then the turn-by-turn ones.
-export const games: readonly PackGameDefinition[] = [klondike, freecell, yukon, canfield, fortythieves, spider, scorpion, pyramid, golf, tripeaks, acesup, ratslap, slapjack, sixcardgolf, trash]
+// games for two players come last: the ones played at once (RatSlap, the first, Slapjack and Speed), then War, then the
+// turn-by-turn ones.
+export const games: readonly PackGameDefinition[] = [klondike, freecell, yukon, canfield, fortythieves, spider, scorpion, pyramid, golf, tripeaks, acesup, ratslap, slapjack, speed, war, sixcardgolf, trash]
 
 const solitaire = {
   // Seat 1's color, the theme it makes, and Solitaire's own store keys.

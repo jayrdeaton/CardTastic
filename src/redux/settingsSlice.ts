@@ -24,6 +24,8 @@ export const DEFAULT_SETTINGS: Settings = {
   sixCardGolfCpu: 'medium',
   trashCards: 10,
   trashCpu: 'medium',
+  warLength: 'full',
+  speedCpu: 'medium',
   autoMoveToFoundation: true,
   dimUnplayable: true,
   autoHintSeconds: 0,

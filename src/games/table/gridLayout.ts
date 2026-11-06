@@ -6,7 +6,7 @@
 
 import { CARD_ASPECT } from '@tastic/cards'
 
-import { cardRect, type Point, type Pose, type Rect } from './geometry'
+import { type Point, type Pose } from './geometry'
 import type { PlayerIndex } from './players'
 
 export interface GridTableLayout {
@@ -111,9 +111,4 @@ export function gridTableLayout(width: number, height: number, insets: { top: nu
     notes: { 1: oneNote, 2: { ...turned(oneNote, center), rotate: 180 } },
     upsideDown
   }
-}
-
-/** The area a tap on a card at `point` lands in. */
-export function targetRect(layout: GridTableLayout, point: Point): Rect {
-  return cardRect(point, layout.cardWidth, layout.cardHeight, 4)
 }

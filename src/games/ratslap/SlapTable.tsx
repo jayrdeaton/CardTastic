@@ -4,15 +4,13 @@
 // or the CPU, at the top. A tap on your own deck plays your top card; any other tap on your side is a slap, and against
 // the CPU the whole table is yours.
 
-import { callWorkletCallback, useKeepAwake, useWorkletCallback } from '@rific/core'
+import { useKeepAwake } from '@rific/core'
 import { type AnyCard, CardSizeProvider, isJoker, rankLabel } from '@tastic/cards'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { type LayoutChangeEvent, StyleSheet, useWindowDimensions, View, type ViewStyle } from 'react-native'
-import { Gesture, GestureDetector } from 'react-native-gesture-handler'
 import { Icon, Text } from 'react-native-paper'
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { scheduleOnRN } from 'react-native-worklets'
 import { useDispatch } from 'react-redux'
 
 import { EmptySlot, PlayingCard } from '@/components/PlayingCard'
@@ -26,6 +24,7 @@ import { inRect, type Point, type Pose } from '@/games/table/geometry'
 import { TWO_PLAYER_HUMANS, VS_CPU_HUMANS } from '@/games/table/players'
 import { TableCards, type TableCardSpec } from '@/games/table/TableCards'
 import { type Seat, SeatBadge, TableOverlay, TableSideButtons, useAppActive, useTableSeats } from '@/games/table/TableChrome'
+import { TouchZones } from '@/games/table/TouchZones'
 import { matchStatsActions } from '@/redux/matchStatsSlice'
 
 import { chancesFor, toPlay } from './engine/rules'
@@ -189,12 +188,10 @@ export function SlapTable({ game, twoPlayer, rules, cpu }: { game: 'ratslap' | '
   }, [matchOver])
 
   // With two people each half is one player's; alone against the CPU, the whole table is yours to slap on.
-  // A touch arrives in its zone's own coordinates: the whole table against the CPU, a half each with two players, so
-  // player 1's starts at the middle of the table.
   const handleTouch = useCallback(
-    (player: PlayerIndex, zoneX: number, zoneY: number) => {
+    (player: PlayerIndex, x: number, y: number) => {
       const table = layoutRef.current
-      const point = { x: zoneX, y: zoneY + (humans.length === 2 && player === 1 ? table.center.y : 0) }
+      const point = { x, y }
       if (humans.length === 2 && halfAt(point, table) !== player) return
       if (inRect(point, table.deckTargets[player])) {
         if (play(player)) hapticCard()
@@ -206,23 +203,7 @@ export function SlapTable({ game, twoPlayer, rules, cpu }: { game: 'ratslap' | '
     },
     [humans, play, slap, markSlap, hapticCard, hapticInvalid]
   )
-  const touchKey = useWorkletCallback(handleTouch)
   const enabled = !settingsOpen && !resultShown && state.winner === null
-  const zoneGesture = useCallback(
-    (player: PlayerIndex) =>
-      Gesture.Pan()
-        .minDistance(0)
-        .maxPointers(1)
-        .enabled(enabled)
-        // At touch-down, where in its zone the touch landed (handleTouch places it on the table). onBegin, not onStart: a pan
-        // only starts once the finger moves on iOS, so a still tap never reached onStart there.
-        .onBegin((e) => {
-          scheduleOnRN(callWorkletCallback, touchKey, player, e.x, e.y)
-        }),
-    [enabled, touchKey]
-  )
-  const p1Gesture = useMemo(() => zoneGesture(1), [zoneGesture])
-  const p2Gesture = useMemo(() => zoneGesture(2), [zoneGesture])
 
   const rematch = useCallback(() => {
     setResultShown(false)
@@ -252,20 +233,7 @@ export function SlapTable({ game, twoPlayer, rules, cpu }: { game: 'ratslap' | '
         ))}
         {call ? <CallText call={call} layout={layout} upsideDown={twoPlayer} /> : null}
 
-        {twoPlayer ? (
-          <>
-            <GestureDetector gesture={p1Gesture}>
-              <View collapsable={false} style={[styles.zone, { height: layout.height - layout.center.y, top: layout.center.y }]} testID={`${game}-zone-1`} />
-            </GestureDetector>
-            <GestureDetector gesture={p2Gesture}>
-              <View collapsable={false} style={[styles.zone, styles.zoneTop, { height: layout.center.y }]} testID={`${game}-zone-2`} />
-            </GestureDetector>
-          </>
-        ) : (
-          <GestureDetector gesture={p1Gesture}>
-            <View collapsable={false} style={styles.wholeTable} testID={`${game}-zone-1`} />
-          </GestureDetector>
-        )}
+        <TouchZones testID={game} twoPlayer={twoPlayer} splitY={layout.center.y} height={layout.height} enabled={enabled} onTouch={handleTouch} />
 
         <TableSideButtons y={layout.center.y} onSettings={() => setSettingsOpen(true)} />
 
@@ -416,8 +384,5 @@ const styles = StyleSheet.create({
   subtitle: { color: CHROME_FG_MUTED },
   turnRing: { borderRadius: 12, borderWidth: 3, position: 'absolute' },
   under1: { transform: [{ translateX: 2.5 }, { translateY: 2.5 }] },
-  under2: { transform: [{ translateX: 5 }, { translateY: 5 }] },
-  wholeTable: { bottom: 0, left: 0, position: 'absolute', right: 0, top: 0 },
-  zone: { left: 0, position: 'absolute', right: 0 },
-  zoneTop: { top: 0 }
+  under2: { transform: [{ translateX: 5 }, { translateY: 5 }] }
 })

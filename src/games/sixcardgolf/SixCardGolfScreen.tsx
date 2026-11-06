@@ -20,10 +20,10 @@ import { PipFireworks } from '@/components/winning/PipFireworks'
 import { CPU_LEVEL_LABELS } from '@/games/table/cpuLevel'
 import { cardTilt, type Pose } from '@/games/table/geometry'
 import { type GridTableLayout, gridTableLayout } from '@/games/table/gridLayout'
-import { type GridLabel, GridTable, type GridTarget } from '@/games/table/GridTable'
 import { otherPlayer, type PlayerIndex, TWO_PLAYER_HUMANS, VS_CPU_HUMANS } from '@/games/table/players'
 import { type TableCardSpec } from '@/games/table/TableCards'
 import { type Seat, type TableCardContent, TableOverlay, useAppActive, useTableSeats } from '@/games/table/TableChrome'
+import { type TableLabel, type TableTarget, TableView } from '@/games/table/TableView'
 import { useSettled, useTableSize } from '@/games/table/useTable'
 import { useSettings } from '@/hooks/useSettings'
 import { matchStatsActions } from '@/redux/matchStatsSlice'
@@ -96,7 +96,7 @@ export function SixCardGolfScreen() {
     [hapticCard]
   )
 
-  const targets: GridTarget[] = []
+  const targets: TableTarget[] = []
   if (ready) {
     for (const player of humans) {
       const grid = gridOf(state, player)
@@ -115,7 +115,7 @@ export function SixCardGolfScreen() {
   }
 
   const [one, two] = totals(state)
-  const label = (player: PlayerIndex): GridLabel => ({
+  const label = (player: PlayerIndex): TableLabel => ({
     seat: seats[player],
     subtitle: player === 2 && cpu ? CPU_LEVEL_LABELS[cpu] : null,
     // What the hole shows so far, then (in a match of several holes, once one is done) the match's total.
@@ -135,11 +135,11 @@ export function SixCardGolfScreen() {
   return (
     <CardSizeProvider width={layout.cardWidth}>
       <View style={styles.screen} onLayout={onLayout}>
-        <GridTable game='sixcardgolf' layout={layout} cards={cards} dealKey={match.deal} targets={targets} labels={{ 1: label(1), 2: label(2) }} prompts={prompts} notes={notes} call={null} emptyStock={state.stock.length === 0} emptyDiscard={state.discard.length === 0} onSettings={() => setSettingsOpen(true)}>
+        <TableView game='sixcardgolf' layout={layout} cards={cards} dealKey={match.deal} targets={targets} labels={{ 1: label(1), 2: label(2) }} prompts={prompts} notes={notes} call={null} emptySlots={[...(state.stock.length === 0 ? [layout.stock] : []), ...(state.discard.length === 0 ? [layout.discard] : [])]} onSettings={() => setSettingsOpen(true)}>
           {scoresShown && state.phase === 'holeOver' ? <TableOverlay humans={humans} content={(viewer) => holeContent(state, viewer, seats)} actionLabel='Next Hole' onAction={match.nextHole} testID='sixcardgolf-hole' /> : null}
           {scoresShown && state.phase === 'matchOver' ? <TableOverlay humans={humans} content={(viewer) => matchContent(state, viewer, seats)} actionLabel='Rematch' onAction={match.rematch} testID='sixcardgolf-result' /> : null}
           {scoresShown && state.phase === 'matchOver' && winner !== null && humans.includes(winner) ? <PipFireworks /> : null}
-        </GridTable>
+        </TableView>
       </View>
       <SettingsDialog visible={settingsOpen} onDismiss={() => setSettingsOpen(false)} rotation={0} />
     </CardSizeProvider>

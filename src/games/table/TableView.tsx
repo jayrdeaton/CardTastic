@@ -1,7 +1,8 @@
-// A grid table's view (Six-Card Golf, Trash): the cards (TableCards: every card one view as it moves between the stock,
-// a hand and a grid), a ring round each card the player whose move it is can tap, a tap target over it, each player's
-// name row and prompt line facing them, the notes beside the middle row, and the Home and Settings buttons. What the
-// cards are, which can be tapped and what the lines say is each game's own (its screen); this only draws them.
+// A two-player table's view (Six-Card Golf, Trash, War, Speed): the cards (TableCards: every card one view as it moves
+// between piles, a hand and a grid), a ring round each card the player whose move it is can tap, a tap target over it
+// (or, where two people play at once, the game's own touch zones), each player's name row and prompt line facing them,
+// the notes beside the middle row, and the Home and Settings buttons. What the cards are, which can be tapped and what
+// the lines say is each game's own (its screen); this only draws them.
 
 import { type ReactNode } from 'react'
 import { Pressable, StyleSheet, View } from 'react-native'
@@ -10,8 +11,7 @@ import { Text } from 'react-native-paper'
 import { EmptySlot } from '@/components/PlayingCard'
 import { CHROME_FG, CHROME_FG_MUTED, useTableColors } from '@/components/theme'
 
-import { type Point, type Pose } from './geometry'
-import { type GridTableLayout, targetRect } from './gridLayout'
+import { cardRect, type Point, type Pose } from './geometry'
 import type { PlayerIndex } from './players'
 import { TableCards, type TableCardSpec } from './TableCards'
 import { type Seat, SeatBadge, TableSideButtons, tableStyles } from './TableChrome'
@@ -20,8 +20,24 @@ import { type Seat, SeatBadge, TableSideButtons, tableStyles } from './TableChro
 const RING_GAP = 5
 const SPOT_LABEL_SIZE = 30
 
+/** Where a table's lines and buttons sit: each game's layout has these (gridLayout.ts, the War and Speed layouts). */
+export interface TableFrame {
+  cardWidth: number
+  cardHeight: number
+  /** The middle of the table: the Home and Settings buttons sit at the two ends of its row. */
+  center: Point
+  /** The middle of each player's name row, at their own edge. */
+  labelY: Record<PlayerIndex, number>
+  /** The middle of each player's prompt line, toward the middle. */
+  promptY: Record<PlayerIndex, number>
+  /** Where a note about the match sits for each person, turned to face them. */
+  notes: Record<PlayerIndex, Pose>
+  /** Whether player 2's side is turned to face them. */
+  upsideDown: boolean
+}
+
 /** A card spot that can be tapped: a grid spot, the stock, the discard. */
-export interface GridTarget {
+export interface TableTarget {
   key: string
   at: Point
   label: string
@@ -30,7 +46,7 @@ export interface GridTarget {
 
 /** A player's name row: who they are, a muted subtitle (the CPU's level), their score on the right, and whether it's
  * their move (a quiet player reads muted). */
-export interface GridLabel {
+export interface TableLabel {
   seat: Seat
   subtitle: string | null
   score: string | null
@@ -38,48 +54,57 @@ export interface GridLabel {
 }
 
 /** A small label over a face-down card's middle: which rank a Trash spot wants. */
-export interface GridSpotLabel {
+export interface TableSpotLabel {
   key: string
   at: Pose
   text: string
 }
 
 /** A short call over a player's prompt line. */
-export interface GridCall {
+export interface TableCall {
   player: PlayerIndex
   text: string
   key: number
 }
 
-export function GridTable({
+export function TableView({
   game,
   layout,
   cards,
   dealKey,
-  targets,
+  targets = [],
+  rings = [],
   labels,
   prompts,
   notes,
   call,
   spotLabels,
-  emptyStock,
-  emptyDiscard,
+  emptySlots,
+  overCards,
+  touch,
   onSettings,
   children
 }: {
   game: string
-  layout: GridTableLayout
+  layout: TableFrame
   cards: TableCardSpec[]
   /** Changes with every deal, so every card is drawn afresh and flies in from the stock. */
   dealKey: number
-  targets: GridTarget[]
-  labels: Record<PlayerIndex, GridLabel>
+  /** Cards that can be tapped, each ringed with a tap target over it. */
+  targets?: TableTarget[]
+  /** Cards ringed with no tap target of their own (a game whose touch zones take the taps). */
+  rings?: Point[]
+  labels: Record<PlayerIndex, TableLabel>
   prompts: Partial<Record<PlayerIndex, string | null>>
   notes: Partial<Record<PlayerIndex, string | null>>
-  call: GridCall | null
-  spotLabels?: GridSpotLabel[]
-  emptyStock: boolean
-  emptyDiscard: boolean
+  call: TableCall | null
+  spotLabels?: TableSpotLabel[]
+  /** Piles with no card left, drawn as an empty slot. */
+  emptySlots: Point[]
+  /** Drawn over the moving cards: a deck a card slides out from under (DeckStack). */
+  overCards?: ReactNode
+  /** The game's own touch zones (TouchZones), under the Home and Settings buttons. */
+  touch?: ReactNode
   onSettings: () => void
   /** Drawn over everything: a result card. */
   children?: ReactNode
@@ -89,9 +114,11 @@ export function GridTable({
   const slotStyle = (at: Point) => ({ left: at.x - cardWidth / 2, position: 'absolute' as const, top: at.y - cardHeight / 2 })
   return (
     <View style={StyleSheet.absoluteFill}>
-      {emptyStock ? <EmptySlot style={slotStyle(layout.stock)} /> : null}
-      {emptyDiscard ? <EmptySlot style={slotStyle(layout.discard)} /> : null}
+      {emptySlots.map((at) => (
+        <EmptySlot key={`${at.x}-${at.y}`} style={slotStyle(at)} />
+      ))}
       <TableCards key={dealKey} cards={cards} cardWidth={cardWidth} cardHeight={cardHeight} testID={`${game}-cards`} />
+      {overCards}
       {spotLabels?.map(({ key, at, text }) => (
         <View key={key} pointerEvents='none' style={[styles.spotLabel, { left: at.x - SPOT_LABEL_SIZE / 2, top: at.y - SPOT_LABEL_SIZE / 2, transform: [{ rotate: `${at.rotate}deg` }] }]}>
           <Text variant='labelLarge' style={styles.spotLabelText}>
@@ -99,16 +126,17 @@ export function GridTable({
           </Text>
         </View>
       ))}
-      {targets.map((target) => (
-        <View key={`ring-${target.key}`} pointerEvents='none' style={[styles.ring, { borderColor: ringColor, height: cardHeight + RING_GAP * 2, left: target.at.x - cardWidth / 2 - RING_GAP, top: target.at.y - cardHeight / 2 - RING_GAP, width: cardWidth + RING_GAP * 2 }]} />
+      {[...targets.map((target) => target.at), ...rings].map((at) => (
+        <View key={`ring-${at.x}-${at.y}`} pointerEvents='none' style={[styles.ring, { borderColor: ringColor, height: cardHeight + RING_GAP * 2, left: at.x - cardWidth / 2 - RING_GAP, top: at.y - cardHeight / 2 - RING_GAP, width: cardWidth + RING_GAP * 2 }]} />
       ))}
       {([1, 2] as const).map((player) => (
         <PlayerLines key={player} game={game} player={player} layout={layout} label={labels[player]} prompt={prompts[player] ?? null} note={notes[player] ?? null} call={call?.player === player ? call : null} />
       ))}
       {targets.map((target) => {
-        const rect = targetRect(layout, target.at)
+        const rect = cardRect(target.at, cardWidth, cardHeight, 4)
         return <Pressable key={target.key} accessibilityRole='button' accessibilityLabel={target.label} onPress={target.onPress} style={[styles.target, { height: rect.height, left: rect.x, top: rect.y, width: rect.width }]} testID={`${game}-${target.key}`} />
       })}
+      {touch}
       <TableSideButtons y={layout.center.y} onSettings={onSettings} />
       {children}
     </View>
@@ -116,7 +144,7 @@ export function GridTable({
 }
 
 /** A player's name row, prompt line and note, each turned to face them. */
-function PlayerLines({ game, player, layout, label, prompt, note, call }: { game: string; player: PlayerIndex; layout: GridTableLayout; label: GridLabel; prompt: string | null; note: string | null; call: GridCall | null }) {
+function PlayerLines({ game, player, layout, label, prompt, note, call }: { game: string; player: PlayerIndex; layout: TableFrame; label: TableLabel; prompt: string | null; note: string | null; call: TableCall | null }) {
   const flip = player === 2 && layout.upsideDown ? tableStyles.flipped : null
   const notePose: Pose = layout.notes[player]
   return (

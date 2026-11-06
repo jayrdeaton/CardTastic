@@ -1,6 +1,7 @@
 import type { ViewRotation } from '@tastic/core'
 
 import type { CpuLevel } from '@/games/table/cpuLevel'
+import type { WarLength } from '@/games/war/engine/types'
 
 // The persisted player settings (see redux/settingsSlice.ts for the defaults and hooks/useSettings.ts
 // for reading and writing them).
@@ -43,6 +44,11 @@ export interface Settings {
   // how well its CPU plays (games/trash/engine/cpu.ts).
   trashCards: TrashCards
   trashCpu: CpuLevel
+  // War: how a match ends, Full (until someone has every card) or Short (most cards after 26 battles; games/war). Its CPU
+  // has no levels.
+  warLength: WarLength
+  // How quick the CPU in Speed's seat 2 is (games/speed/engine/cpu.ts).
+  speedCpu: CpuLevel
   // Global, not per-game (unlike every setting above): whether auto-play runs at all - the safe cards
   // that follow the player's own play of a card to a foundation (useAutoFoundationCascade), and the
   // finish that files a solved board away on its own (useAutoFinish; see engine/autoFoundation.ts). Applies

@@ -8,7 +8,9 @@ import { SEAT_COLORS } from '@/constants/player'
 import { ratslapGuide } from '@/games/ratslap/guide'
 import { sixCardGolfGuide } from '@/games/sixcardgolf/guide'
 import { slapjackGuide } from '@/games/slapjack/guide'
+import { speedGuide } from '@/games/speed/guide'
 import { trashGuide } from '@/games/trash/guide'
+import { warGuide } from '@/games/war/guide'
 import { LEGACY_STORAGE_KEYS } from '@/redux/guideSlice'
 import { packReducers, type PackReducersState } from '@/redux/packReducers'
 import { playerSettingsMiddleware } from '@/redux/playerSettingsSlice'
@@ -26,6 +28,8 @@ import { SOLITAIRE_GAME_IDS } from '@/stores/statsTypes'
 const TABLE_GAME_STORES: { id: string; reducers: Record<string, Reducer>; resumable: boolean }[] = [
   { id: 'ratslap', reducers: { ratslapGuide: ratslapGuide.reducer }, resumable: false },
   { id: 'slapjack', reducers: { slapjackGuide: slapjackGuide.reducer }, resumable: false },
+  { id: 'speed', reducers: { speedGuide: speedGuide.reducer }, resumable: false },
+  { id: 'war', reducers: { warGuide: warGuide.reducer }, resumable: false },
   { id: 'sixcardgolf', reducers: { sixCardGolfGuide: sixCardGolfGuide.reducer }, resumable: false },
   { id: 'trash', reducers: { trashGuide: trashGuide.reducer }, resumable: false }
 ]

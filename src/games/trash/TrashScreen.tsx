@@ -19,10 +19,10 @@ import { PipFireworks } from '@/components/winning/PipFireworks'
 import { CPU_LEVEL_LABELS } from '@/games/table/cpuLevel'
 import { cardTilt, type Pose } from '@/games/table/geometry'
 import { type GridTableLayout, gridTableLayout } from '@/games/table/gridLayout'
-import { type GridLabel, type GridSpotLabel, GridTable, type GridTarget } from '@/games/table/GridTable'
 import { otherPlayer, type PlayerIndex, TWO_PLAYER_HUMANS, VS_CPU_HUMANS } from '@/games/table/players'
 import { type TableCardSpec } from '@/games/table/TableCards'
 import { type Seat, type TableCardContent, TableOverlay, useAppActive, useTableSeats } from '@/games/table/TableChrome'
+import { type TableLabel, type TableSpotLabel, type TableTarget, TableView } from '@/games/table/TableView'
 import { useSettled, useTableSize } from '@/games/table/useTable'
 import { useSettings } from '@/hooks/useSettings'
 import { matchStatsActions } from '@/redux/matchStatsSlice'
@@ -91,7 +91,7 @@ export function TrashScreen() {
     [hapticCard]
   )
 
-  const targets: GridTarget[] = []
+  const targets: TableTarget[] = []
   if (ready) {
     for (const player of humans) {
       if (toMove(state) !== player) continue
@@ -104,7 +104,7 @@ export function TrashScreen() {
     }
   }
 
-  const label = (player: PlayerIndex): GridLabel => {
+  const label = (player: PlayerIndex): TableLabel => {
     const spots = layoutOf(state, player)
     return { seat: seats[player], subtitle: player === 2 && cpu ? CPU_LEVEL_LABELS[cpu] : null, score: `${spotsLeft(spots)} of ${spots.length} left`, active: toMove(state) === player }
   }
@@ -114,18 +114,18 @@ export function TrashScreen() {
     prompts[player] = dealt ? promptFor(state, player, seats) : null
     notes[player] = `Round ${state.round}`
   }
-  const spotLabels: GridSpotLabel[] = dealt ? spotLabelsFor(state, layout) : []
+  const spotLabels: TableSpotLabel[] = dealt ? spotLabelsFor(state, layout) : []
 
   const cards = useMemo(() => trashCards(state, layout, !dealt, reduceMotion), [state, layout, dealt, reduceMotion])
 
   return (
     <CardSizeProvider width={layout.cardWidth}>
       <View style={styles.screen} onLayout={onLayout}>
-        <GridTable game='trash' layout={layout} cards={cards} dealKey={match.deal} targets={targets} labels={{ 1: label(1), 2: label(2) }} prompts={prompts} notes={notes} call={null} spotLabels={spotLabels} emptyStock={state.stock.length === 0} emptyDiscard={state.discard.length === 0} onSettings={() => setSettingsOpen(true)}>
+        <TableView game='trash' layout={layout} cards={cards} dealKey={match.deal} targets={targets} labels={{ 1: label(1), 2: label(2) }} prompts={prompts} notes={notes} call={null} spotLabels={spotLabels} emptySlots={[...(state.stock.length === 0 ? [layout.stock] : []), ...(state.discard.length === 0 ? [layout.discard] : [])]} onSettings={() => setSettingsOpen(true)}>
           {resultShown && state.phase === 'roundOver' ? <TableOverlay humans={humans} content={(viewer) => roundContent(state, viewer, seats)} actionLabel='Next Round' onAction={match.nextRound} testID='trash-round' /> : null}
           {resultShown && state.phase === 'matchOver' ? <TableOverlay humans={humans} content={(viewer) => matchContent(state, viewer, seats)} actionLabel='Rematch' onAction={match.rematch} testID='trash-result' /> : null}
           {resultShown && state.phase === 'matchOver' && state.winner !== null && humans.includes(state.winner) ? <PipFireworks /> : null}
-        </GridTable>
+        </TableView>
       </View>
       <SettingsDialog visible={settingsOpen} onDismiss={() => setSettingsOpen(false)} rotation={0} />
     </CardSizeProvider>
@@ -162,8 +162,8 @@ function trashCards(state: TrashState, layout: GridTableLayout, dealing: boolean
 }
 
 /** Each face-down spot says which rank it wants, turned to face its player. */
-function spotLabelsFor(state: TrashState, layout: GridTableLayout): GridSpotLabel[] {
-  const labels: GridSpotLabel[] = []
+function spotLabelsFor(state: TrashState, layout: GridTableLayout): TableSpotLabel[] {
+  const labels: TableSpotLabel[] = []
   for (const player of [1, 2] as const)
     layoutOf(state, player).forEach((card, i) => {
       if (!card.faceUp) labels.push({ key: `${player}-${i}`, at: layout.slots[player][i], text: i === 0 ? 'A' : String(i + 1) })
