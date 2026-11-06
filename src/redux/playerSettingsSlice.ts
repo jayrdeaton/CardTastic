@@ -3,7 +3,7 @@ import { themeActions, type ThemeSettings } from '@rific/auto-paper'
 import { keepAwakeActions, type KeepAwakeSettings } from '@rific/core'
 import { hapticActions, type HapticSettings, soundActions, type SoundSettings } from '@rific/feedback-press'
 import { createProfileExtensionSlice, type Profile, type ProfileExtensionState } from '@tastic/profile'
-import { type AppSettings, appSettingsActions, type ProfileSelectionState } from '@tastic/shell'
+import type { ProfileSelectionState } from '@tastic/shell'
 import { REHYDRATE } from 'redux-persist'
 
 import { GUEST_PLAYER_ID } from '@/constants/player'
@@ -13,22 +13,21 @@ import { settingsActions } from './settingsSlice'
 
 // Every setting follows the player (2026-10-15, Jay: his kids want sounds and hints, he doesn't, and
 // any line between "the player's" and "the phone's" would be invisible to the people using it). That is
-// the whole Settings sheet: the `settings` slice (rules, play aids, card looks, Reduce Motion), Lock
-// Orientation with its angle (the shell's `appSettings` since the CardTastic move, 2026-10-29), `sound`,
+// the whole Settings sheet: the `settings` slice (rules, play aids, card looks, Reduce Motion), `sound`,
 // `haptic`, `keepAwake` (@rific/core's Keep Awake), and the theme's appearance and Blur. The theme's color
 // is already the player's (ProfileThemeSync). Sound can follow the player safely: the iPhone's ring/silent
 // switch still mutes every game sound (@rific/feedback-press plays them as ambient audio).
 //
 // The live slices always hold the SELECTED player's values, so nothing that reads them changes (each
-// provider bridged from them - FeedbackPressProvider, auto-paper's, the orientation lock - adopts a
+// provider bridged from them - FeedbackPressProvider, auto-paper's, Keep Awake - adopts a
 // changed value, see @rific/core's createSettingsContext). This slice keeps everyone else's:
 // playerSettingsMiddleware files the outgoing player's live values here and loads the incoming player's
 // whenever seat 1 changes. A player with nothing filed (new, from a sibling app, or anyone before
 // this existed) starts with the settings on screen, so picking them changes nothing. Within Solitaire
 // only: these settings don't exist in the other games.
 export interface PlayerSettings {
-  // The lock is filed with the rest of the settings, as it was before it moved to `appSettings`, so an
-  // entry filed by 1.2.8 and one filed since read the same.
+  // An entry filed before Lock Orientation went (2026-11-06, the OS turns the screen) may still carry its lock
+  // (LegacySettingsLock); it's never loaded.
   settings: Settings & LegacySettingsLock
   sound: SoundSettings
   haptic: HapticSettings
@@ -45,7 +44,6 @@ export interface PlayerSettingsState {
   profileSelection: ProfileSelectionState
   profiles: Profile[]
   settings: Settings
-  appSettings: AppSettings
   sound: SoundSettings
   haptic: HapticSettings
   keepAwake: KeepAwakeSettings
@@ -56,8 +54,13 @@ export interface PlayerSettingsState {
 const seatOnePlayer = (state: PlayerSettingsState) => state.profileSelection[1] ?? GUEST_PLAYER_ID
 
 function livePlayerSettings(state: PlayerSettingsState): PlayerSettings {
-  const { lockOrientation, lockedRotation } = state.appSettings
-  return { settings: { ...state.settings, lockOrientation, lockedRotation }, sound: state.sound, haptic: state.haptic, keepAwake: state.keepAwake, theme: { appearance: state.theme.appearance, blur: state.theme.blur } }
+  return { settings: state.settings, sound: state.sound, haptic: state.haptic, keepAwake: state.keepAwake, theme: { appearance: state.theme.appearance, blur: state.theme.blur } }
+}
+
+// A lock filed with the settings (by 1.2.8, or since the CardTastic move) isn't loaded: nothing reads it since the OS
+// turns the screen. A store 1.2.8 saved keeps its own lock in `settings` for one release; a merge never removes it.
+function withoutLock({ lockOrientation: _locked, lockedRotation: _angle, ...settings }: Settings & LegacySettingsLock): Settings {
+  return settings
 }
 
 const isRehydrate = (action: unknown) => typeof action === 'object' && action !== null && (action as { type?: unknown }).type === REHYDRATE
@@ -85,12 +88,7 @@ export const playerSettingsMiddleware: Middleware<object, PlayerSettingsState, D
   const after = api.getState()
   const stored = after.playerSettings[to]
   if (!stored) return result
-  // The lock goes to `appSettings`; `settings` keeps whatever lock a 1.2.8 store left in it, untouched. `lockedRotation`
-  // is absent while unlocked, and a merge never removes a key: name it, or the last player's locked angle would stay
-  // behind.
-  const { lockOrientation, lockedRotation, ...settings } = stored.settings
-  api.dispatch(settingsActions.initialize(settings))
-  api.dispatch(appSettingsActions.initialize({ lockOrientation: lockOrientation ?? after.appSettings.lockOrientation, lockedRotation }))
+  api.dispatch(settingsActions.initialize(withoutLock(stored.settings)))
   api.dispatch(soundActions.initialize({ ...after.sound, ...stored.sound }))
   api.dispatch(hapticActions.initialize({ ...after.haptic, ...stored.haptic }))
   api.dispatch(keepAwakeActions.initialize({ ...after.keepAwake, ...stored.keepAwake }))

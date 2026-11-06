@@ -632,7 +632,7 @@ export function GameChrome({ title, subtitle, onNewGame, onUndo: undoMove, onUnd
         </Animated.View>
       )}
 
-      <SettingsDialog visible={settingsOpen} onDismiss={() => setSettingsOpen(false)} rotation={0}>
+      <SettingsDialog visible={settingsOpen} onDismiss={() => setSettingsOpen(false)}>
         {settingsContent}
       </SettingsDialog>
 

@@ -2,8 +2,8 @@ import { readdirSync, readFileSync, statSync } from 'fs'
 import { join, relative } from 'path'
 
 // The status bar is set per screen: the root Stack's screen options (@tastic/shell's RootLayout and the pack's
-// useScreenOptions in _layout.tsx, both from @tastic/core's useRotationAwareStatusBar) hide it while the content is
-// turned. That needs UIViewControllerBasedStatusBarAppearance on (@tastic/core's config plugin), and with it on, every
+// useScreenOptions, components/packRoot.tsx). That needs UIViewControllerBasedStatusBarAppearance on (app.json's
+// ios.infoPlist; @tastic/core's config plugin set it until 0.15), and with it on, every
 // React Native StatusBar logs an error (a red box in a dev build). An app linked against the iOS 27 SDK can't set the
 // bar app-wide anyway, which is the only way that component works on iOS. So nothing in the app may mount one: not a
 // component here, and not auto-paper's own (the shell's Theme turns that off, tested in the package).

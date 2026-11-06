@@ -23,7 +23,6 @@ export const sixcardgolf: GameDefinition = {
   blurb: 'Swap low, pair up, score least.',
   reducers: { sixCardGolfGuide: sixCardGolfGuide.reducer },
   seatTwo: ['cpu', 'person'],
-  twoPlayerSeats: { faceToFaceOnWeb: true, followUpsideDown: false },
   useLoadout: useSixCardGolfLoadout,
   resumable: false,
   keepStatusBar: false,

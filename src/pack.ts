@@ -86,8 +86,6 @@ const solitaire = {
   useFeedbackSounds,
   // Stacked from the top between the corner buttons (see ThemedToaster).
   Toaster: ThemedToaster,
-  // A profile's name can be typed with the phone sideways.
-  portraitWhileKeyboard: true,
   // No edge controls and no Edge Guard plugin.
   edgeGuard: false,
   // Every profile color drawn muted, as the card backs are.

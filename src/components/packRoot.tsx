@@ -1,5 +1,4 @@
 import { useAutoPaperTheme, useThemeSettings } from '@rific/auto-paper'
-import { useRotationAwareStatusBar } from '@tastic/core'
 import type { FeedbackSounds, PackGuide, StackScreenOptions } from '@tastic/shell'
 import { type ReactNode, useEffect } from 'react'
 
@@ -64,16 +63,17 @@ export function SolitaireProvider({ children }: { children: ReactNode }) {
   )
 }
 
+const LIGHT_STATUS_BAR: StackScreenOptions = { statusBarStyle: 'light' }
+const LIGHT_STATUS_BAR_FADE: StackScreenOptions = { statusBarStyle: 'light', animation: 'fade' }
+
 /** Merged into the stack's screen options after the shell's own. The status bar is always light: every screen sits on
- * the dark felt in every appearance mode (the shell's default `auto` gives dark text in a light-mode system). It still
- * hides while the content is turned, as the shell's does, and it's set through screen options because an app linked
- * against the iOS 27 SDK can't set it app-wide (CLAUDE.md, "The status bar is set by the root Stack's screen options").
- * Under Reduce Motion (see reducedMotion.tsx) iOS crossfades too, instead of sliding the new screen in. Without it the
- * animation is left out, not set: the shell crossfades on Android over a backdrop, and a later key would undo that. */
+ * the dark felt in every appearance mode (the shell's follows the app's theme, so a light theme would give dark text).
+ * It's set through screen options because an app linked against the iOS 27 SDK can't set it app-wide (CLAUDE.md, "The
+ * status bar is set by the root Stack's screen options"). Under Reduce Motion (see reducedMotion.tsx) iOS crossfades
+ * too, instead of sliding the new screen in. Without it the animation is left out, not set: the shell crossfades on
+ * Android over a backdrop, and a later key would undo that. */
 export function useScreenOptions(): StackScreenOptions {
-  const statusBar = useRotationAwareStatusBar({ style: 'light' })
-  const reduced = useMotionReduced()
-  return reduced ? { ...statusBar, animation: 'fade' } : statusBar
+  return useMotionReduced() ? LIGHT_STATUS_BAR_FADE : LIGHT_STATUS_BAR
 }
 
 /** Every button's press plays the card sound, and a refused or notifying press the invalid-move sound, in place of the

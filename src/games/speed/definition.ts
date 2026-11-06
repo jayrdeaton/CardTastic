@@ -22,7 +22,6 @@ export const speed: GameDefinition = {
   blurb: 'No turns. One up or down, fast.',
   reducers: { speedGuide: speedGuide.reducer },
   seatTwo: ['cpu', 'person'],
-  twoPlayerSeats: { faceToFaceOnWeb: true, followUpsideDown: false },
   useLoadout: useSpeedLoadout,
   resumable: false,
   keepStatusBar: false,

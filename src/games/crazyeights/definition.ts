@@ -24,8 +24,8 @@ export const crazyeights: GameDefinition = {
   blurb: 'Match the pile, 8s are wild, first out wins.',
   reducers: { crazyEightsGuide: crazyEightsGuide.reducer },
   seatTwo: ['cpu', 'person'],
-  // Nobody sits across from anyone (the phone is passed), so on the web the setup screen seats them side by side.
-  twoPlayerSeats: { faceToFaceOnWeb: false, followUpsideDown: false },
+  // Nobody sits across from anyone (the phone is passed), so in a wide window the setup screen seats them side by side.
+  sideBySideWhenWide: true,
   useLoadout: useEightsLoadout,
   resumable: false,
   keepStatusBar: false,

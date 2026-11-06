@@ -141,7 +141,7 @@ export function SixCardGolfScreen() {
           {scoresShown && state.phase === 'matchOver' && winner !== null && humans.includes(winner) ? <PipFireworks /> : null}
         </TableView>
       </View>
-      <SettingsDialog visible={settingsOpen} onDismiss={() => setSettingsOpen(false)} rotation={0} />
+      <SettingsDialog visible={settingsOpen} onDismiss={() => setSettingsOpen(false)} />
     </CardSizeProvider>
   )
 }

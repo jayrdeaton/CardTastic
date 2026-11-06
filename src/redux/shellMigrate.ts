@@ -1,9 +1,6 @@
-import type { ViewRotation } from '@tastic/core'
 import type { Profile, ProfileColorPick } from '@tastic/profile'
-import type { AppSettings, ProfileSelectionState, SeatColorsState } from '@tastic/shell'
+import type { ProfileSelectionState, SeatColorsState } from '@tastic/shell'
 import type { PersistedState } from 'redux-persist'
-
-import type { LegacySettingsLock } from '@/types'
 
 import type { ActiveProfileState } from './activeProfileSlice'
 import type { TableColorState } from './tableColorSlice'
@@ -14,11 +11,9 @@ type Migrate = (state: PersistedState, version: number) => Promise<PersistedStat
 interface SavedRoot {
   activeProfile?: ActiveProfileState
   tableColor?: Partial<TableColorState> | null
-  settings?: LegacySettingsLock | null
   profiles?: unknown
   profileSelection?: ProfileSelectionState
   seatColors?: SeatColorsState
-  appSettings?: AppSettings
 }
 
 /** A saved root from before the CardTastic move: it has Solitaire's own player keys and not yet the shell's. */
@@ -45,8 +40,8 @@ function picksFor(saved: TableColorState['profileColors'], profiles: unknown): R
 /**
  * Reshapes a 1.2.8 save for @tastic/shell, in place under the same `solitaire:` prefix (Decisions for Jay 1 in
  * TODO.md's CardTastic plan): `activeProfile` becomes seat 1 of `profileSelection`, `tableColor` becomes `seatColors`
- * (guest's pick as seat 1's guest color, each profile's pick by id), and Lock Orientation with its angle is copied
- * from `settings` into `appSettings`. The old keys stay as they are (Jay, 2026-10-29: for one release, so an OTA
+ * (guest's pick as seat 1's guest color, each profile's pick by id). Lock Orientation isn't carried over: it went
+ * with @tastic/shell 0.5 (2026-11-06, the OS turns the screen). The old keys stay as they are (Jay, 2026-10-29: for one release, so an OTA
  * rolled back to 1.2.8 finds each player, color pick and lock as they were at the move; activeProfileSlice.ts and
  * tableColorSlice.ts only keep what they rehydrate). There's no persist version, so this runs on every launch and
  * acts only while the save has Solitaire's keys and not the shell's (needsShellReshape): once, and again after a
@@ -57,8 +52,6 @@ export function reshapeForShell(state: PersistedState, seatColors: Record<1 | 2,
   if (state === undefined || state === null || typeof state !== 'object' || !needsShellReshape(state)) return state
   const saved = state as PersistedState & SavedRoot
   const tableColor = saved.tableColor ?? {}
-  const lock = saved.settings ?? {}
-  const lockedRotation: ViewRotation | undefined = lock.lockedRotation
   return {
     ...saved,
     profileSelection: { 1: typeof saved.activeProfile === 'string' ? saved.activeProfile : null, 2: null },
@@ -66,8 +59,7 @@ export function reshapeForShell(state: PersistedState, seatColors: Record<1 | 2,
       lastGuestColor: { 1: typeof tableColor.guestColor === 'string' ? tableColor.guestColor : seatColors[1], 2: seatColors[2] },
       lastCpuColor: seatColors[2],
       profileColors: picksFor(tableColor.profileColors, saved.profiles)
-    },
-    appSettings: { lockOrientation: lock.lockOrientation === true, ...(lockedRotation === undefined ? {} : { lockedRotation }), deferBottomEdgeGestures: false }
+    }
   } as PersistedState
 }
 

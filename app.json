@@ -7,7 +7,7 @@
     "runtimeVersion": {
       "policy": "fingerprint"
     },
-    "orientation": "portrait",
+    "orientation": "default",
     "icon": "./assets/images/icon-dark.png",
     "userInterfaceStyle": "automatic",
     "experiments": {
@@ -26,7 +26,8 @@
         ]
       },
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "UIViewControllerBasedStatusBarAppearance": true
       }
     },
     "android": {
@@ -61,8 +62,7 @@
           "enableBackgroundPlayback": false
         }
       ],
-      "expo-asset",
-      "@tastic/core"
+      "expo-asset"
     ],
     "extra": {
       "router": {},

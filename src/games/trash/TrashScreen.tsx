@@ -127,7 +127,7 @@ export function TrashScreen() {
           {resultShown && state.phase === 'matchOver' && state.winner !== null && humans.includes(state.winner) ? <PipFireworks /> : null}
         </TableView>
       </View>
-      <SettingsDialog visible={settingsOpen} onDismiss={() => setSettingsOpen(false)} rotation={0} />
+      <SettingsDialog visible={settingsOpen} onDismiss={() => setSettingsOpen(false)} />
     </CardSizeProvider>
   )
 }

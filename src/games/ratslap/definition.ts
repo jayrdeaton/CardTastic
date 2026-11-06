@@ -24,7 +24,6 @@ export const ratslap: GameDefinition = {
   blurb: 'Slap doubles and sandwiches.',
   reducers: { ratslapGuide: ratslapGuide.reducer },
   seatTwo: ['cpu', 'person'],
-  twoPlayerSeats: { faceToFaceOnWeb: true, followUpsideDown: false },
   useLoadout: useRatSlapLoadout,
   resumable: false,
   keepStatusBar: false,

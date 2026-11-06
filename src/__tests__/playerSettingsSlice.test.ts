@@ -3,7 +3,7 @@ import { themeActions, themeReducer } from '@rific/auto-paper'
 import { keepAwakeActions, keepAwakeReducer } from '@rific/core'
 import { hapticActions, hapticReducer, soundActions, soundReducer } from '@rific/feedback-press'
 import { type Profile, profilesActions, profilesReducer } from '@tastic/profile'
-import { appSettingsActions, appSettingsReducer, profileSelectionActions, profileSelectionReducer } from '@tastic/shell'
+import { profileSelectionActions, profileSelectionReducer } from '@tastic/shell'
 
 import { GUEST_PLAYER_ID } from '@/constants/player'
 import playerSettings, { type PlayerSettings, playerSettingsActions, playerSettingsMiddleware } from '@/redux/playerSettingsSlice'
@@ -16,7 +16,7 @@ const kid: Profile = { id: 'profile-kid', name: 'Kid', color: '#ff0000', tag: 'K
 function makeStore(preloaded: { player?: string | null; profiles?: Profile[]; playerSettings?: Record<string, PlayerSettings> } = {}) {
   const store = configureStore({
     preloadedState: { profileSelection: { 1: preloaded.player ?? null, 2: null }, profiles: preloaded.profiles ?? [dad, kid], playerSettings: preloaded.playerSettings ?? {} },
-    reducer: { profileSelection: profileSelectionReducer, profiles: profilesReducer, settings, appSettings: appSettingsReducer, sound: soundReducer, haptic: hapticReducer, keepAwake: keepAwakeReducer, theme: themeReducer, playerSettings },
+    reducer: { profileSelection: profileSelectionReducer, profiles: profilesReducer, settings, sound: soundReducer, haptic: hapticReducer, keepAwake: keepAwakeReducer, theme: themeReducer, playerSettings },
     middleware: (getDefaultMiddleware) => getDefaultMiddleware({ serializableCheck: false }).concat(playerSettingsMiddleware)
   })
   // @tastic/profile's action creators type their actions without RTK's index signature.
@@ -54,33 +54,6 @@ describe('settings follow the player', () => {
     expect(store.getState().haptic.vibrate).toBe(true)
     expect(store.getState().keepAwake.enabled).toBe(true)
     expect(store.getState().theme).toMatchObject({ appearance: 'light', blur: true })
-  })
-
-  it("a lock comes back at the player's own angle, and an unlocked player doesn't inherit the last one's", () => {
-    const store = makeStore()
-    store.pick(kid.id)
-    store.dispatch(appSettingsActions.initialize({ lockOrientation: true, lockedRotation: 90 }))
-
-    store.pick(dad.id)
-    store.dispatch(appSettingsActions.initialize({ lockOrientation: false, lockedRotation: undefined }))
-    store.pick(kid.id)
-    expect(store.getState().appSettings).toMatchObject({ lockOrientation: true, lockedRotation: 90 })
-
-    store.pick(dad.id)
-    expect(store.getState().appSettings.lockOrientation).toBe(false)
-    expect(store.getState().appSettings.lockedRotation).toBeUndefined()
-  })
-
-  it('an unlocked player read back after a relaunch (no lockedRotation key at all) clears the last angle too', () => {
-    // JSON drops an undefined key, so that is how an unlocked player's entry comes back from storage.
-    const filed = JSON.parse(JSON.stringify({ settings: { ...DEFAULT_SETTINGS, lockOrientation: false, lockedRotation: undefined }, sound: { enabled: true }, haptic: { vibrate: true }, keepAwake: { enabled: true }, theme: { appearance: 'system', blur: true } })) as PlayerSettings
-    const store = makeStore({ player: kid.id, playerSettings: { [dad.id]: filed } })
-    store.dispatch(appSettingsActions.initialize({ lockOrientation: true, lockedRotation: 90 }))
-
-    store.pick(dad.id)
-
-    expect(store.getState().appSettings.lockOrientation).toBe(false)
-    expect(store.getState().appSettings.lockedRotation).toBeUndefined()
   })
 
   it('a player with nothing filed starts with the settings on screen, so picking them changes nothing', () => {
@@ -179,30 +152,19 @@ describe('every way seat 1 changes hands', () => {
   })
 })
 
-// Lock Orientation moved from `settings` to the shell's `appSettings` in the CardTastic move, and is still filed with a
-// player's settings, as before.
-describe('the lock, filed with the settings', () => {
-  it("files the live lock (appSettings) with the player's settings", () => {
-    const store = makeStore()
-    store.pick(kid.id)
-    store.dispatch(appSettingsActions.initialize({ lockOrientation: true, lockedRotation: -90 }))
-
-    store.pick(dad.id)
-
-    expect(store.getState().playerSettings[kid.id]?.settings).toMatchObject({ lockOrientation: true, lockedRotation: -90 })
-  })
-
-  it("loads a lock 1.2.8 filed in a player's settings into appSettings, and leaves a 1.2.8 lock in `settings` as it was", () => {
+// Lock Orientation went with @tastic/shell 0.5 (2026-11-06, the OS turns the screen). A lock filed with a player's
+// settings (by 1.2.8, or since the CardTastic move) is never loaded, and a 1.2.8 lock left in `settings` stays as it was.
+describe('a lock filed before Lock Orientation went', () => {
+  it("isn't loaded with the player's settings, and leaves a 1.2.8 lock in `settings` as it was", () => {
     // As 1.2.8 filed it: the lock inside the settings.
-    const filed = JSON.parse(JSON.stringify({ settings: { ...DEFAULT_SETTINGS, lockOrientation: true, lockedRotation: 180 }, sound: { enabled: true }, haptic: { vibrate: true }, keepAwake: { enabled: true }, theme: { appearance: 'system', blur: true } })) as PlayerSettings
+    const filed = JSON.parse(JSON.stringify({ settings: { ...DEFAULT_SETTINGS, klondikeDraw: 3, lockOrientation: true, lockedRotation: 180 }, sound: { enabled: true }, haptic: { vibrate: true }, keepAwake: { enabled: true }, theme: { appearance: 'system', blur: true } })) as PlayerSettings
     const store = makeStore({ playerSettings: { [kid.id]: filed } })
     // The lock a 1.2.8 store left in `settings`, kept for a rollback.
     store.send({ type: 'persist/REHYDRATE', key: 'root', payload: { settings: { ...DEFAULT_SETTINGS, lockOrientation: false } } } as Action)
 
     store.pick(kid.id)
 
-    expect(store.getState().appSettings).toMatchObject({ lockOrientation: true, lockedRotation: 180 })
-    expect(store.getState().settings).toMatchObject({ lockOrientation: false })
+    expect(store.getState().settings).toMatchObject({ klondikeDraw: 3, lockOrientation: false })
     expect(store.getState().settings).not.toHaveProperty('lockedRotation')
   })
 })

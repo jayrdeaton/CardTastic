@@ -34,25 +34,24 @@ export function rulePickerIds(game: string, keys: readonly string[]): string[] {
 
 /** The rules as a wrapping row of dropdown pills, centered. One parent for every pill, so an open menu stacks over the
  * pills after it. */
-export function RulePickers({ game, rules, host, rotation, accentColor, dark }: Pick<LoadoutOptionsProps, 'host' | 'rotation' | 'accentColor' | 'dark'> & { game: string; rules: TableRule[] }) {
+export function RulePickers({ game, rules, host, accentColor, dark }: Pick<LoadoutOptionsProps, 'host' | 'accentColor' | 'dark'> & { game: string; rules: TableRule[] }) {
   // Against the CPU the setup screen stacks this row over the seat buttons, a later sibling it only lifts for its own
   // menus: an open rule menu lifts the row itself, or the seat buttons draw over the menu.
   const open = host.openId?.startsWith(`${game}-rule-`) ?? false
   return (
     <View style={[styles.row, open && styles.rowOpen]} testID={`${game}-rules`}>
       {rules.map((rule) => (
-        <RulePicker key={rule.key} game={game} rule={rule} host={host} rotation={rotation} color={accentColor} dark={dark} />
+        <RulePicker key={rule.key} game={game} rule={rule} host={host} color={accentColor} dark={dark} />
       ))}
     </View>
   )
 }
 
-function RulePicker({ game, rule, host, rotation, color, dark }: { game: string; rule: TableRule; host: LoadoutOptionsProps['host']; rotation: LoadoutOptionsProps['rotation']; color: string; dark: boolean }) {
+function RulePicker({ game, rule, host, color, dark }: { game: string; rule: TableRule; host: LoadoutOptionsProps['host']; color: string; dark: boolean }) {
   const { colors } = useAutoPaperTheme()
   const id = rulePickerId(game, rule.key)
   const size = getOptionPickerContentSize(rule.choices.length)
-  // Placed in the setup screen's own turned frame (its two-player halves stay upright however the phone is held).
-  const align = useFrameAutoAlign(host.openId === id, size.width, size.height, { rotation })
+  const align = useFrameAutoAlign(host.openId === id, size.width, size.height)
   return <OptionPicker id={id} host={host} options={rule.choices} value={rule.value} onChange={rule.onChange} color={color} dark={dark} icon={rule.icon} alignOverride={align} triggerStyle={[styles.pill, { backgroundColor: colors.surface }]} />
 }
 

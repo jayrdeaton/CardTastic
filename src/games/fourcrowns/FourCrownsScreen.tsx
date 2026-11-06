@@ -199,7 +199,7 @@ export function FourCrownsScreen() {
           {resultShown && state.phase === 'matchOver' && celebrate ? <PipFireworks /> : null}
         </TableView>
       </View>
-      <SettingsDialog visible={settingsOpen} onDismiss={() => setSettingsOpen(false)} rotation={0} />
+      <SettingsDialog visible={settingsOpen} onDismiss={() => setSettingsOpen(false)} />
     </CardSizeProvider>
   )
 }

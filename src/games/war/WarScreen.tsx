@@ -142,7 +142,7 @@ export function WarScreen() {
           {resultShown && winner !== null && winner !== 'tie' && humans.includes(winner) ? <PipFireworks /> : null}
         </TableView>
       </View>
-      <SettingsDialog visible={settingsOpen} onDismiss={() => setSettingsOpen(false)} rotation={0} />
+      <SettingsDialog visible={settingsOpen} onDismiss={() => setSettingsOpen(false)} />
     </CardSizeProvider>
   )
 }

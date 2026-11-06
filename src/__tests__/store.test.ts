@@ -117,7 +117,8 @@ describe('the store (pack.ts)', () => {
     // Seat 1 starts as guest on the pack's seat color, the theme on what that color makes.
     expect(store.getState().profileSelection).toEqual({ 1: null, 2: null })
     expect(store.getState().seatColors.lastGuestColor[1]).toBe(SEAT_COLORS[1])
-    expect(store.getState().appSettings.lockOrientation).toBe(false)
+    // No Lock Orientation since the OS turns the screen (@tastic/shell 0.5).
+    expect(store.getState().appSettings).toEqual({ deferBottomEdgeGestures: false })
     expect(store.getState().theme.harmony).toBe('triadic')
   })
 
@@ -132,13 +133,14 @@ describe('the store (pack.ts)', () => {
 })
 
 describe('a 1.2.8 save, reshaped in place', () => {
-  it('opens with the same player, color picks, lock, settings, stats and saved games', async () => {
+  it('opens with the same player, color picks, settings, stats and saved games, and no lock', async () => {
     const { store } = await launch(disk128)
     const state = store.getState()
 
     expect(state.profileSelection).toEqual({ 1: dad.id, 2: null })
     expect(state.seatColors).toEqual({ lastGuestColor: { 1: '#009688', 2: SEAT_COLORS[2] }, lastCpuColor: SEAT_COLORS[2], profileColors: { [dad.id]: { color: '#e91e63', profileColor: dad.color } } })
-    expect(state.appSettings).toEqual({ lockOrientation: true, lockedRotation: 90, deferBottomEdgeGestures: false })
+    // Lock Orientation isn't carried over: it went with @tastic/shell 0.5 (the OS turns the screen).
+    expect(state.appSettings).toEqual({ deferBottomEdgeGestures: false })
     expect(state.settings.klondikeDraw).toBe(3)
     expect(state.playerSettings[kid.id]).toEqual(filed(1, false))
     expect(state.sound.enabled).toBe(false)
@@ -186,7 +188,7 @@ describe('a 1.2.8 save, reshaped in place', () => {
 
     expect(reshaped.profileSelection).toEqual({ 1: null, 2: null })
     expect(reshaped.seatColors).toEqual({ lastGuestColor: { ...SEAT_COLORS }, lastCpuColor: SEAT_COLORS[2], profileColors: {} })
-    expect(reshaped.appSettings).toEqual({ lockOrientation: false, deferBottomEdgeGestures: false })
+    expect(reshaped).not.toHaveProperty('appSettings')
   })
 })
 
@@ -195,9 +197,8 @@ describe('a 1.2.8 save, reshaped in place', () => {
 describe('a rollback to 1.2.8', () => {
   it("finds the player, the color picks and the lock in what the move left behind, loaded by 1.2.8's own store", async () => {
     const moved = await launch(disk128)
-    // A pick and a lock made after the move are the new keys' alone, so a rollback finds the move's.
+    // A pick made after the move is the new keys' alone, so a rollback finds the move's.
     send(moved.store, shell.profileSelectionActions.select({ seat: 1, profileId: kid.id }))
-    send(moved.store, shell.appSettingsActions.initialize({ lockOrientation: false, lockedRotation: undefined }))
     await moved.persistor.flush()
 
     const { store } = await launch128(moved.storage)

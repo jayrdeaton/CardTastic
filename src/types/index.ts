@@ -129,17 +129,16 @@ export interface Settings {
   // red/black ink as light mode) stays the default look; this is an opt-in alternative, not a
   // replacement.
   invertDarkModeColors: boolean
-  // Lock Orientation and its angle aren't here any more: they're @tastic/shell's `appSettings` (since the
-  // CardTastic move, 2026-10-29), still following the player (redux/playerSettingsSlice.ts). A store saved
-  // before keeps them in `settings` for one release (LegacySettingsLock), for a rollback to 1.2.8.
+  // Lock Orientation is gone (2026-11-06: @tastic/core 0.15 and @tastic/shell 0.5, the OS turns the screen and its own
+  // rotation lock replaces it). A store saved by 1.2.8 keeps it in `settings` for one release (LegacySettingsLock).
   // The Settings row's own Reduce Motion. Applied together with the device's setting (either one turns it on), see
   // components/reducedMotion.tsx for what it does. Defaults false.
   reduceMotion: boolean
 }
 
 /** Lock Orientation as Settings held it until the CardTastic move (2026-10-29): what a store saved by 1.2.8 has in
- * `settings`, kept there untouched for one release so an OTA rolled back to 1.2.8 finds the lock (redux/shellMigrate.ts
- * copies it into the shell's `appSettings`), and what a player's filed settings carry (redux/playerSettingsSlice.ts). */
+ * `settings`, kept there untouched for one release so an OTA rolled back to 1.2.8 finds the lock, and what a player's
+ * filed settings may carry (redux/playerSettingsSlice.ts, which never loads it). Nothing reads it since 2026-11-06. */
 export interface LegacySettingsLock {
   lockOrientation?: boolean
   lockedRotation?: ViewRotation

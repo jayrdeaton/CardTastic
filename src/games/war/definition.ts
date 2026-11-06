@@ -22,7 +22,6 @@ export const war: GameDefinition = {
   blurb: 'Higher card wins. Ties go to war.',
   reducers: { warGuide: warGuide.reducer },
   seatTwo: ['cpu', 'person'],
-  twoPlayerSeats: { faceToFaceOnWeb: true, followUpsideDown: false },
   useLoadout: useWarLoadout,
   resumable: false,
   keepStatusBar: false,

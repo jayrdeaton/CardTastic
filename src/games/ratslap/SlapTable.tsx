@@ -250,7 +250,7 @@ export function SlapTable({ game, twoPlayer, rules, cpu }: { game: 'ratslap' | '
         {resultShown && state.winner !== null ? <TableOverlay humans={humans} content={(viewer) => resultContent(viewer, state.winner!, seats)} actionLabel='Rematch' onAction={rematch} testID={`${game}-result`} /> : null}
         {resultShown && state.winner !== null && humans.includes(state.winner) ? <PipFireworks /> : null}
       </View>
-      <SettingsDialog visible={settingsOpen} onDismiss={() => setSettingsOpen(false)} rotation={0} />
+      <SettingsDialog visible={settingsOpen} onDismiss={() => setSettingsOpen(false)} />
     </CardSizeProvider>
   )
 }

@@ -197,7 +197,7 @@ export function CrazyEightsScreen() {
           {resultShown && over && celebrate ? <PipFireworks /> : null}
         </TableView>
       </View>
-      <SettingsDialog visible={settingsOpen} onDismiss={() => setSettingsOpen(false)} rotation={0} />
+      <SettingsDialog visible={settingsOpen} onDismiss={() => setSettingsOpen(false)} />
     </CardSizeProvider>
   )
 }

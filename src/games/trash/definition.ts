@@ -22,7 +22,6 @@ export const trash: GameDefinition = {
   blurb: 'Fill your spots, Ace to 10.',
   reducers: { trashGuide: trashGuide.reducer },
   seatTwo: ['cpu', 'person'],
-  twoPlayerSeats: { faceToFaceOnWeb: true, followUpsideDown: false },
   useLoadout: useTrashLoadout,
   resumable: false,
   keepStatusBar: false,

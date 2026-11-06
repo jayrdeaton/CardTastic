@@ -26,7 +26,6 @@ export const slapjack: GameDefinition = {
   blurb: 'Slap every Jack.',
   reducers: { slapjackGuide: slapjackGuide.reducer },
   seatTwo: ['cpu', 'person'],
-  twoPlayerSeats: { faceToFaceOnWeb: true, followUpsideDown: false },
   useLoadout: useSlapjackLoadout,
   resumable: false,
   keepStatusBar: false,
