@@ -2,7 +2,7 @@ import { act, renderHook } from '@testing-library/react-native'
 
 import { CROWNS_CPU_STEP_MS } from '@/games/fourcrowns/engine/cpu'
 import { createCrownsMatch, toMove } from '@/games/fourcrowns/engine/rules'
-import { type CrownsState } from '@/games/fourcrowns/engine/types'
+import { type CrownsState, DEFAULT_CROWNS_RULES } from '@/games/fourcrowns/engine/types'
 import { useCrownsMatch } from '@/games/fourcrowns/useCrownsMatch'
 
 // One Four Crowns match as the screen runs it: the people's moves, and each CPU one step at a time on its own timer,
@@ -20,7 +20,7 @@ const noDeal = () => 0
 describe('useCrownsMatch', () => {
   it('a person’s moves are applied and told to the screen; then each CPU after them takes its turn a step at a time', async () => {
     const changed = jest.fn()
-    const { result } = await renderHook(() => useCrownsMatch({ cpus: [null, 'medium', 'easy'], paused: false, dealMs: noDeal, changed, rng: dice(0.99), initialState: createCrownsMatch(7, 3) }))
+    const { result } = await renderHook(() => useCrownsMatch({ rules: DEFAULT_CROWNS_RULES, cpus: [null, 'medium', 'easy'], paused: false, dealMs: noDeal, changed, rng: dice(0.99), initialState: createCrownsMatch(7, 3) }))
     await wait(1)
     expect(toMove(result.current.state)).toBe(0)
     await act(async () => {
@@ -43,7 +43,7 @@ describe('useCrownsMatch', () => {
 
   it('the CPUs wait while paused, and while the deal is landing', async () => {
     const start: CrownsState = { ...createCrownsMatch(7, 2), turn: 1 }
-    const { result, rerender } = await renderHook(({ paused }: { paused: boolean }) => useCrownsMatch({ cpus: [null, 'hard'], paused, dealMs: () => 2000, changed: jest.fn(), rng: dice(0.5), initialState: start }), { initialProps: { paused: true } })
+    const { result, rerender } = await renderHook(({ paused }: { paused: boolean }) => useCrownsMatch({ rules: DEFAULT_CROWNS_RULES, cpus: [null, 'hard'], paused, dealMs: () => 2000, changed: jest.fn(), rng: dice(0.5), initialState: start }), { initialProps: { paused: true } })
     await wait(5000)
     expect(result.current.state).toBe(start)
     await rerender({ paused: false })
@@ -52,7 +52,7 @@ describe('useCrownsMatch', () => {
   })
 
   it('a throw of the card just taken from the discard is refused, and Next Round only follows a finished round', async () => {
-    const { result } = await renderHook(() => useCrownsMatch({ cpus: [null, null], paused: false, dealMs: noDeal, changed: jest.fn(), initialState: createCrownsMatch(7, 2) }))
+    const { result } = await renderHook(() => useCrownsMatch({ rules: DEFAULT_CROWNS_RULES, cpus: [null, null], paused: false, dealMs: noDeal, changed: jest.fn(), initialState: createCrownsMatch(7, 2) }))
     const top = result.current.state.discard[0]
     await act(async () => {
       expect(result.current.take(0)).toBe(true)

@@ -1,4 +1,4 @@
-import { rotateInsets, useRotatedWindowDimensions, useRotation } from '@tastic/core'
+import { rotateDimensions, rotateInsets, useRotation, type ViewRotation } from '@tastic/core'
 import type { AlignResult, PopoverAlign, PopoverVerticalAlign } from '@tastic/hud/chrome'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useWindowDimensions, View } from 'react-native'
@@ -78,12 +78,15 @@ export function columnInsets(insets: LayoutInsets, frameWidth: number, frameHeig
  * Re-measures whenever `open` flips true, and again if the frame changes under an open popover (a rotation
  * or resize) - `measured` only resets on a genuine (re)open, via the render-phase edge check, so an
  * already-open popover never flickers hidden just because the window changed. */
-export function useFrameAutoAlign(open: boolean, contentWidth: number, contentHeight: number, options?: { maxContentWidth?: number }): AlignResult {
+export function useFrameAutoAlign(open: boolean, contentWidth: number, contentHeight: number, options?: { maxContentWidth?: number; rotation?: ViewRotation }): AlignResult {
   const maxContentWidth = options?.maxContentWidth
   const triggerRef = useRef<View>(null)
-  const rotation = useRotation()
+  // A frame turned by something other than the phone's own reading (the setup screen's two-player halves stay upright
+  // however the phone is held) says how it's turned.
+  const liveRotation = useRotation()
+  const rotation = options?.rotation ?? liveRotation
   const { width: windowWidth, height: windowHeight } = useWindowDimensions()
-  const { width: frameWidth, height: frameHeight } = useRotatedWindowDimensions()
+  const { width: frameWidth, height: frameHeight } = rotateDimensions(windowWidth, windowHeight, rotation)
   const rawInsets = useSafeAreaInsets()
   const { top, right, bottom, left } = rotateInsets(rawInsets, rotation)
   const [placement, setPlacement] = useState<FramePlacement>({ align: 'center', verticalAlign: 'below', maxHeight: contentHeight })

@@ -2,37 +2,40 @@
 // the fewest points in hand. Pure functions over plain cards.
 //
 // A book is three or more cards of a rank (with two decks, a suit can repeat); a run is three or more cards of a suit in
-// a row, Aces low (A-2-3, never Q-K-A). Every card of the round's wild rank stands in for any card in either. A card
-// counts once, and the hand is arranged whichever way leaves the fewest points: wilds left over once there is a meld go
+// a row, Aces low (A-2-3, never Q-K-A). Every card of the round's wild rank, and every joker, stands in for any card in
+// either. A card counts once, and the hand is arranged whichever way leaves the fewest points: wilds left over once there is a meld go
 // on it (a book takes any number), so only a hand with no meld at all, and one or two wilds, pays for them.
 
-import { type Card, SUITS } from '@tastic/cards'
+import { type AnyCard, type Card, isJoker, SUITS } from '@tastic/cards'
 
-import { WILD_POINTS } from './types'
+import { type CrownsFaces, JOKER_POINTS, WILD_POINTS } from './types'
 
-export function isWild(card: Card, wildRank: number): boolean {
-  return card.rank === wildRank
+export function isWild(card: AnyCard, wildRank: number): boolean {
+  return isJoker(card) || card.rank === wildRank
 }
 
-/** What a card left in hand costs: Aces 1, number cards their number, Jack 11, Queen 12, King 13, a wild 20. */
-export function cardPoints(card: Card, wildRank: number): number {
-  return isWild(card, wildRank) ? WILD_POINTS : card.rank
+/** What a card left in hand costs: Aces 1, number cards their number, Jack 11, Queen 12 and King 13 (or 10 each), a wild
+ * 20, a joker 50. */
+export function cardPoints(card: AnyCard, wildRank: number, faces: CrownsFaces = 'ranked'): number {
+  if (isJoker(card)) return JOKER_POINTS
+  if (card.rank === wildRank) return WILD_POINTS
+  return faces === 'ten' ? Math.min(card.rank, 10) : card.rank
 }
 
-export function handPoints(cards: readonly Card[], wildRank: number): number {
-  return cards.reduce((sum, card) => sum + cardPoints(card, wildRank), 0)
+export function handPoints(cards: readonly AnyCard[], wildRank: number, faces: CrownsFaces = 'ranked'): number {
+  return cards.reduce((sum, card) => sum + cardPoints(card, wildRank, faces), 0)
 }
 
 export interface CrownsMeld {
   kind: 'book' | 'run'
   /** A run low to high, each wild in the place it fills; a book's own cards by suit, then its wilds. */
-  cards: Card[]
+  cards: AnyCard[]
 }
 
-/** A hand laid out: its melds, low to high, and what's left over, by rank. */
+/** A hand laid out: its melds, low to high, and what's left over, by rank (wilds last). */
 export interface CrownsArrangement {
   melds: CrownsMeld[]
-  loose: Card[]
+  loose: AnyCard[]
   /** What the loose cards cost. */
   points: number
 }
@@ -45,10 +48,11 @@ type Choice = { kind: 'loose' } | { kind: 'book'; take: number[]; wilds: number 
 const LOOSE: Choice = { kind: 'loose' }
 
 /** The arrangement that leaves the fewest points in hand. */
-export function bestArrangement(cards: readonly Card[], wildRank: number): CrownsArrangement {
-  const wilds = cards.filter((card) => isWild(card, wildRank))
-  const naturals = cards.filter((card) => !isWild(card, wildRank)).sort(byCard)
-  const points = naturals.map((card) => card.rank)
+export function bestArrangement(cards: readonly AnyCard[], wildRank: number, faces: CrownsFaces = 'ranked'): CrownsArrangement {
+  // The round's wilds first, so a meld takes those before a joker (both meld alike, and a joker left over costs more).
+  const wilds = cards.filter((card) => isWild(card, wildRank)).sort((a, b) => Number(isJoker(a)) - Number(isJoker(b)))
+  const naturals = cards.filter((card): card is Card => !isWild(card, wildRank)).sort(byCard)
+  const points = naturals.map((card) => cardPoints(card, wildRank, faces))
   // A card with a twin before it (the same rank and suit from the other deck): the search takes the first of the two,
   // so it never tries the same meld twice.
   const twinBefore = naturals.map((card, i) => (i > 0 && naturals[i - 1].rank === card.rank && naturals[i - 1].suit === card.suit ? i - 1 : -1))
@@ -146,7 +150,7 @@ export function bestArrangement(cards: readonly Card[], wildRank: number): Crown
   // Lay the hand out along the choices made.
   const spare = [...wilds]
   const melds: CrownsMeld[] = []
-  const loose: Card[] = []
+  const loose: AnyCard[] = []
   let mask = all
   let w = wilds.length
   while (mask !== 0) {
@@ -161,7 +165,7 @@ export function bestArrangement(cards: readonly Card[], wildRank: number): Crown
       melds.push({ kind: 'book', cards: [...choice.take.map((j) => naturals[j]), ...spare.splice(0, choice.wilds)] })
       w -= choice.wilds
     } else {
-      const run: Card[] = []
+      const run: AnyCard[] = []
       for (const j of choice.slots) {
         if (j === null) run.push(spare.shift()!)
         else {
@@ -192,7 +196,7 @@ export function bestArrangement(cards: readonly Card[], wildRank: number): Crown
     else if (melds.length > 0) {
       for (const meld of melds) {
         const first = meld.cards.findIndex((card) => !isWild(card, wildRank))
-        let low = meld.cards[first].rank - first
+        let low = (meld.cards[first] as Card).rank - first
         while (spare.length > 0 && meld.cards.length < 13) {
           if (low + meld.cards.length <= 13) meld.cards.push(spare.shift()!)
           else {
@@ -206,17 +210,20 @@ export function bestArrangement(cards: readonly Card[], wildRank: number): Crown
   loose.push(...spare)
 
   melds.sort((a, b) => firstNaturalRank(a, wildRank) - firstNaturalRank(b, wildRank))
-  return { melds, loose: loose.sort(byCard), points: handPoints(loose, wildRank) }
+  const looseNaturals = loose.filter((card): card is Card => !isWild(card, wildRank)).sort(byCard)
+  return { melds, loose: [...looseNaturals, ...loose.filter((card) => isWild(card, wildRank))], points: handPoints(loose, wildRank, faces) }
 }
 
 function firstNaturalRank(meld: CrownsMeld, wildRank: number): number {
-  return meld.cards.find((card) => !isWild(card, wildRank))?.rank ?? 14
+  const natural = meld.cards.find((card): card is Card => !isWild(card, wildRank))
+  return natural?.rank ?? 14
 }
 
 /** The points a hand would leave without one of its cards (the card thrown). */
-export function pointsWithout(cards: readonly Card[], cardId: string, wildRank: number): number {
+export function pointsWithout(cards: readonly AnyCard[], cardId: string, wildRank: number, faces: CrownsFaces = 'ranked'): number {
   return bestArrangement(
     cards.filter((card) => card.id !== cardId),
-    wildRank
+    wildRank,
+    faces
   ).points
 }

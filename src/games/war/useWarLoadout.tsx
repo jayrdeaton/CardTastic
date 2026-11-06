@@ -4,7 +4,7 @@
 
 import type { GameLoadout, LoadoutOptionsProps, RoundMode } from '@tastic/shell'
 
-import { LoadoutPills } from '@/games/table/LoadoutPills'
+import { rulePickerIds, RulePickers } from '@/games/table/RulePickers'
 import { useSettings } from '@/hooks/useSettings'
 import type { Settings } from '@/types'
 
@@ -23,8 +23,8 @@ export function useWarLoadout(_mode: RoundMode): GameLoadout {
   const roundSettings: WarRoundSettings = { warLength: settings.warLength }
   return {
     roundSettings,
-    options: (props: LoadoutOptionsProps) => <LoadoutPills {...props} kind='choice' testID='war-length' pills={LENGTHS.map(({ value, label }) => ({ key: value, label, on: settings.warLength === value, onPress: () => setSettings({ warLength: value }) }))} />,
-    optionIds: [],
+    options: (props: LoadoutOptionsProps) => <RulePickers {...props} game='war' rules={[{ key: 'length', icon: 'timer-sand', value: settings.warLength, choices: LENGTHS, onChange: (value) => setSettings({ warLength: value as WarLength }) }]} />,
+    optionIds: rulePickerIds('war', ['length']),
     randomize: () => setSettings({ warLength: Math.random() < 0.5 ? 'full' : 'short' }),
     reset: () => setSettings({ warLength: 'full' }),
     seatControl: () => undefined

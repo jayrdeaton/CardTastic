@@ -1,8 +1,10 @@
 import type { ViewRotation } from '@tastic/core'
 
-import type { CrownsSeatKind } from '@/games/fourcrowns/engine/types'
-import type { GinTarget } from '@/games/ginrummy/engine/types'
+import type { EightsDrawRule, EightsHandRule, EightsSpecials } from '@/games/crazyeights/engine/types'
+import type { CrownsDeck, CrownsFaces, CrownsLastTurns } from '@/games/fourcrowns/engine/types'
+import type { GinBonusRule, GinHelp, GinKnockRule, GinTarget } from '@/games/ginrummy/engine/types'
 import type { CpuLevel } from '@/games/table/cpuLevel'
+import type { ExtraSeatKind } from '@/games/table/extraSeats'
 import type { WarLength } from '@/games/war/engine/types'
 
 // The persisted player settings (see redux/settingsSlice.ts for the defaults and hooks/useSettings.ts
@@ -51,15 +53,30 @@ export interface Settings {
   warLength: WarLength
   // How quick the CPU in Speed's seat 2 is (games/speed/engine/cpu.ts).
   speedCpu: CpuLevel
-  // Gin Rummy: the score a match plays to (100, or 50 for a shorter game), and how well its CPU plays
-  // (games/ginrummy/engine/cpu.ts).
+  // Gin Rummy: the score a match plays to (100, 50, or one hand), when a player may knock, the bonuses, how much the table
+  // helps with melds (games/ginrummy/engine/types.ts), and how well its CPU plays (games/ginrummy/engine/cpu.ts).
   ginTarget: GinTarget
+  ginKnock: GinKnockRule
+  ginBonus: GinBonusRule
+  ginHelp: GinHelp
   ginCpu: CpuLevel
-  // Four Crowns: how well its CPUs play (seat 2's and any in seats 3 and 4; games/fourcrowns/engine/cpu.ts), and who sits
-  // in seats 3 and 4 (nobody, a person or a CPU; seat 4 only counts while seat 3 is taken).
+  // Four Crowns: how well its CPUs play (seat 2's and any in seats 3 and 4; games/fourcrowns/engine/cpu.ts), who sits in
+  // seats 3 and 4 (nobody, a person or a CPU; seat 4 only counts while seat 3 is taken; games/table/extraSeats.ts), and
+  // its rules: the deck, what face cards cost, and whether everyone gets a last turn (games/fourcrowns/engine/types.ts).
   crownsCpu: CpuLevel
-  crownsSeat3: CrownsSeatKind
-  crownsSeat4: CrownsSeatKind
+  crownsSeat3: ExtraSeatKind
+  crownsSeat4: ExtraSeatKind
+  crownsDeck: CrownsDeck
+  crownsFaces: CrownsFaces
+  crownsLastTurns: CrownsLastTurns
+  // Crazy Eights: the same seats and CPU level as Four Crowns, and its rules: what a player does when nothing fits, which
+  // cards do something besides the 8s, and how many cards each starts with (games/crazyeights/engine/types.ts).
+  eightsCpu: CpuLevel
+  eightsSeat3: ExtraSeatKind
+  eightsSeat4: ExtraSeatKind
+  eightsDraw: EightsDrawRule
+  eightsSpecials: EightsSpecials
+  eightsHand: EightsHandRule
   // Global, not per-game (unlike every setting above): whether auto-play runs at all - the safe cards
   // that follow the player's own play of a card to a foundation (useAutoFoundationCascade), and the
   // finish that files a solved board away on its own (useAutoFinish; see engine/autoFoundation.ts). Applies

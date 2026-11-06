@@ -51,7 +51,8 @@ export const GIN_RUMMY_RULES: string[] = [
   'Instead of throwing, you may knock once your deadwood after your throw is 10 or less. Both players lay down their melds, and the other player lays off any deadwood that fits your melds.',
   'You score the difference in deadwood. With no deadwood at all you go gin: you score the other player’s deadwood plus 25, and nothing can be laid off. If the other player’s deadwood is as low as yours or lower, they undercut you, and score the difference plus 25.',
   'If the stock is down to two cards and the player who drew throws without knocking, the hand is a draw. The winner of a hand deals the next.',
-  'The first to 100 wins the match (50 in a short game). With two players, pass the phone: your hand stays hidden until you tap Ready.'
+  'The first to 100 wins the match. With two players, pass the phone: your hand stays hidden until you tap Ready.',
+  'The setup screen can change the rules. A match can be to 50, or one hand. Oklahoma: the first upcard sets the knock limit for the hand (its value, face cards 10, an Ace gin only), and a spade upcard doubles the hand. Gin Only: no knocking. Big Gin: meld all eleven cards right after a draw for 31 more. The older bonuses are 20 for gin and 10 for an undercut. The table can also hide the melds, or the count too.'
 ]
 
 // Four Crowns' (games/fourcrowns/engine/rules.ts): scored by what's left in hand over eleven rounds, so no Scoring
@@ -63,5 +64,9 @@ export const FOUR_CROWNS_RULES: string[] = [
   'Melds are books (three or more cards of a rank, suits can repeat) and runs (three or more cards of a suit in a row, Aces low).',
   'When every card but the one you throw is in a meld, you can go out. Everyone else then has one last turn, and the round ends.',
   'Cards left out of melds count against you: Aces 1, number cards their number, Jacks 11, Queens 12, Kings 13, and a wild 20. After the eleventh round, the lowest total wins.',
-  'With more than one person playing, pass the phone: your hand stays hidden until you tap Ready.'
+  'With more than one person playing, pass the phone: your hand stays hidden until you tap Ready.',
+  'The setup screen can change the rules: four jokers in the deck, always wild and 50 left in hand, with or without the Aces and 2s; face cards 10 each; and the round ending at once when someone goes out.'
 ]
+
+// Crazy Eights' (games/crazyeights/engine/rules.ts): first out wins, so no Scoring paragraph of the solitaire kind.
+export const CRAZY_EIGHTS_RULES: string[] = ['Two to four players, one deck. With two players each is dealt 7 cards, with three or four, 5. The next card is turned up to start the pile.', 'On your turn, play a card that matches the top card’s suit or rank. An 8 goes on anything, and you name the suit the next player must follow.', 'If nothing fits, draw from the stock until a card fits, then play it. You can’t draw while you have a card to play. When the stock runs out, the pile but its top card is shuffled into a new one.', 'The first to play their last card wins. If nobody can play or draw, the fewest cards win.', 'With more than one person playing, pass the phone: your hand stays hidden until you tap Ready.', 'The setup screen can change the rules: draw one card, or up to three, and pass if none fits; 2s that make the next player draw two and miss a turn, with Queens that skip and Aces that turn play around; and 7 or 5 cards each whatever the number of players.']

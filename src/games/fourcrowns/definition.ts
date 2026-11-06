@@ -3,12 +3,13 @@ import { createElement } from 'react'
 
 import { RulesDialog } from '@/components/RulesDialog'
 import { FOUR_CROWNS_RULES } from '@/constants/gameRules'
+import type { RootState } from '@/redux/store'
 
 import { FourCrownsPreview } from './FourCrownsPreview'
 import { FourCrownsScreen } from './FourCrownsScreen'
 import { FourCrownsStatsSections } from './FourCrownsStats'
 import { CROWNS_GUIDE_VERSION, fourCrownsGuide } from './guide'
-import { getCrownsGuideSteps } from './guideSteps'
+import { type CrownsGuideInput, getCrownsGuideSteps } from './guideSteps'
 import { useCrownsLoadout } from './useCrownsLoadout'
 
 export const FOUR_CROWNS_TITLE = 'Four Crowns'
@@ -36,7 +37,10 @@ export const fourcrowns: GameDefinition = {
     version: CROWNS_GUIDE_VERSION,
     selectVersionSeen: fourCrownsGuide.selectVersionSeen,
     markSeen: fourCrownsGuide.actions.markSeen,
-    selectInput: () => ({}),
-    getSteps: (_input, context) => getCrownsGuideSteps(context)
+    selectInput: (state): CrownsGuideInput => {
+      const { crownsDeck, crownsLastTurns } = (state as unknown as RootState).settings
+      return { jokers: crownsDeck !== 'plain', lastTurns: crownsLastTurns }
+    },
+    getSteps: (input, context) => getCrownsGuideSteps(context, input as CrownsGuideInput)
   }
 }

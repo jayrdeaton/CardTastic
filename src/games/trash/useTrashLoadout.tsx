@@ -5,7 +5,7 @@
 import type { GameLoadout, LoadoutOptionsProps, RoundMode } from '@tastic/shell'
 
 import { CPU_OPTIONS, type CpuLevel } from '@/games/table/cpuLevel'
-import { LoadoutPills } from '@/games/table/LoadoutPills'
+import { rulePickerIds, RulePickers } from '@/games/table/RulePickers'
 import { useSettings } from '@/hooks/useSettings'
 import { type Settings, TRASH_CARDS } from '@/types'
 
@@ -17,8 +17,8 @@ export function useTrashLoadout(_mode: RoundMode): GameLoadout {
   const roundSettings: TrashRoundSettings = { trashCards: settings.trashCards, trashCpu: settings.trashCpu }
   return {
     roundSettings,
-    options: (props: LoadoutOptionsProps) => <LoadoutPills {...props} kind='choice' testID='trash-cards' pills={TRASH_CARDS.map((cards) => ({ key: String(cards), label: `Ace to ${cards}`, on: settings.trashCards === cards, onPress: () => setSettings({ trashCards: cards }) }))} />,
-    optionIds: [],
+    options: (props: LoadoutOptionsProps) => <RulePickers {...props} game='trash' rules={[{ key: 'cards', icon: 'cards-outline', value: String(settings.trashCards), choices: TRASH_CARDS.map((cards) => ({ value: String(cards), label: `Ace to ${cards}` })), onChange: (value) => setSettings({ trashCards: Number(value) as Settings['trashCards'] }) }]} />,
+    optionIds: rulePickerIds('trash', ['cards']),
     randomize: () => setSettings({ trashCards: TRASH_CARDS[Math.floor(Math.random() * TRASH_CARDS.length)] }),
     reset: () => setSettings({ trashCards: 10 }),
     seatControl: () => undefined,

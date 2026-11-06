@@ -4,8 +4,8 @@ import { makeDeck } from '@/engine/deck'
 import { mulberry32 } from '@/engine/rng'
 import { cpuKnocks, cpuTakesDiscard, cpuThrow } from '@/games/ginrummy/engine/cpu'
 import { bestArrangement, bestDefence, candidateMelds, deadwoodPoints } from '@/games/ginrummy/engine/melds'
-import { canKnock, canTakeDiscard, canThrow, cardCount, createGinMatch, drawStock, handOf, knock, nextHand, passUpcard, takeDiscard, throwCard, toMove } from '@/games/ginrummy/engine/rules'
-import { type GinState, type GinTarget, type PlayerIndex } from '@/games/ginrummy/engine/types'
+import { bigGin, canBigGin, canKnock, canTakeDiscard, canThrow, cardCount, createGinMatch, drawStock, handOf, isDoubled, knock, knockLimit, nextHand, passUpcard, takeDiscard, throwCard, toMove } from '@/games/ginrummy/engine/rules'
+import { DEFAULT_GIN_RULES, type GinRules, type GinState, type GinTarget, type PlayerIndex } from '@/games/ginrummy/engine/types'
 import { type CpuLevel } from '@/games/table/cpuLevel'
 
 const SUIT_OF: Record<string, Suit> = { c: 'clubs', d: 'diamonds', h: 'hearts', s: 'spades' }
@@ -28,6 +28,11 @@ function throwing(hand: Card[], other: Card[], stockLeft = 20): GinState {
   const used = new Set([...hand, ...other].map((card) => card.id))
   const rest = makeDeck().filter((card) => !used.has(card.id))
   return { ...createGinMatch(1), hands: [hand, other], stock: rest.slice(0, stockLeft), discard: rest.slice(stockLeft).map((card) => ({ ...card, faceUp: true })), phase: 'discard', turn: 1, drawnFrom: 'stock', taken: null }
+}
+
+/** The same, under other rules, with this first upcard. */
+function under(state: GinState, rules: Partial<GinRules>, upcard?: string): GinState {
+  return { ...state, rules: { ...state.rules, ...rules }, ...(upcard ? { upcard: cards(upcard)[0] } : {}) }
 }
 
 describe('melds', () => {
@@ -151,7 +156,7 @@ describe('knocking', () => {
     const close = knock({ ...state, scores: [80, 0] }, 1, knocker[10].id)!
     expect(close.phase).toBe('matchOver')
     expect(close.winner).toBe(1)
-    const short = knock({ ...state, target: 50 as GinTarget, scores: [30, 0] }, 1, knocker[10].id)!
+    const short = knock({ ...state, rules: { ...state.rules, target: 50 as GinTarget }, scores: [30, 0] }, 1, knocker[10].id)!
     expect(short.phase).toBe('matchOver')
     const early = knock(state, 1, knocker[10].id)!
     expect(early.phase).toBe('handOver')
@@ -167,6 +172,70 @@ describe('knocking', () => {
     const defence = bestDefence(cards('5c', '5d', '5h', '6c'), [{ kind: 'run', cards: cards('2c', '3c', '4c') }])
     expect(defence.points).toBe(6)
     expect(defence.laidOff).toEqual([])
+  })
+})
+
+describe('the rule choices', () => {
+  const knocker = cards('2c', '3c', '4c', '8d', '8h', '8s', '10h', 'Jh', 'Qh', 'As', 'Kc')
+  const other = cards('5c', '6c', '9h', 'Kh', 'Ks', 'Kd', '4s', '5s', '6d', '7d')
+
+  it('with Oklahoma, the first upcard sets the knock limit: its value, face cards 10, an Ace gin only', () => {
+    const state = throwing(knocker, other)
+    expect(knockLimit(under(state, { knock: 'oklahoma' }, '7d'))).toBe(7)
+    expect(knockLimit(under(state, { knock: 'oklahoma' }, 'Qd'))).toBe(10)
+    expect(knockLimit(under(state, { knock: 'oklahoma' }, 'Ad'))).toBe(0)
+    expect(canKnock(under(state, { knock: 'oklahoma' }, 'Ad'), 1, knocker[10].id)).toBe(false)
+    expect(canKnock(under(state, { knock: 'oklahoma' }, '2d'), 1, knocker[10].id)).toBe(true)
+  })
+
+  it('with Oklahoma, a spade upcard doubles the hand', () => {
+    const state = under(throwing(knocker, other), { knock: 'oklahoma' }, '9s')
+    expect(isDoubled(state)).toBe(true)
+    const done = knock(state, 1, knocker[10].id)!
+    expect(done.result).toMatchObject({ ending: 'knock', points: (22 - 1) * 2, doubled: true })
+    expect(isDoubled(under(state, {}, '9h'))).toBe(false)
+  })
+
+  it('with gin only, nobody knocks until every card melds', () => {
+    const state = under(throwing(knocker, other), { knock: 'ginOnly' })
+    expect(knockLimit(state)).toBe(0)
+    expect(canKnock(state, 1, knocker[10].id)).toBe(false)
+    const ginHand = cards('2c', '3c', '4c', '8d', '8h', '8s', '10h', 'Jh', 'Qh', 'Kh', 'Kc')
+    expect(canKnock(under(throwing(ginHand, other), { knock: 'ginOnly' }), 1, ginHand[10].id)).toBe(true)
+  })
+
+  it('with Big Gin on, all eleven cards melded end the hand with no throw, for 31', () => {
+    const big = cards('2c', '3c', '4c', '8d', '8h', '8s', '8c', 'Ah', '2h', '3h', '4h')
+    const plain = throwing(big, other)
+    expect(canBigGin(plain, 1)).toBe(false)
+    const state = under(plain, { bonus: 'bigGin' })
+    expect(canBigGin(state, 1)).toBe(true)
+    expect(canBigGin(under(throwing(knocker, other), { bonus: 'bigGin' }), 1)).toBe(false)
+    const done = bigGin(state, 1)!
+    expect(done.result).toMatchObject({ ending: 'bigGin', knocker: 1, scorer: 1, points: done.result!.shown![1].points + 31 })
+    expect(done.result!.shown![0].melds.flatMap((meld) => meld.cards)).toHaveLength(11)
+    expect(done.gins).toEqual([1, 0])
+    expect(cardCount(done)).toBe(52)
+  })
+
+  it('with the older bonuses, gin is 20 and an undercut 10', () => {
+    const ginHand = cards('2c', '3c', '4c', '8d', '8h', '8s', '10h', 'Jh', 'Qh', 'Kh', 'Kc')
+    const gin = knock(under(throwing(ginHand, cards('5c', '6c', '9h', '7h', 'Ks', 'Kd', '4s', '5s', '6d', '7d')), { bonus: 'hoyle' }), 1, ginHand[10].id)!
+    expect(gin.result!.points).toBe(gin.result!.shown![1].points + 20)
+    const knockingHand = cards('2c', '3c', '4c', '8d', '8h', '8s', '10h', 'Jh', 'Qh', '9s', 'Kc')
+    const undercut = knock(under(throwing(knockingHand, cards('5d', '6d', '7d', 'Ks', 'Kd', 'Kh', '9c', '10c', 'Jc', '3s')), { bonus: 'hoyle' }), 1, knockingHand[10].id)!
+    expect(undercut.result).toMatchObject({ ending: 'undercut', points: 9 - 3 + 10 })
+  })
+
+  it('in a one-hand match, the first hand scored wins', () => {
+    const done = knock(under(throwing(knocker, other), { target: 1 }), 1, knocker[10].id)!
+    expect(done.phase).toBe('matchOver')
+    expect(done.winner).toBe(1)
+  })
+
+  it('the CPU never knocks over the limit', () => {
+    const state = under(throwing(knocker, other), { knock: 'oklahoma' }, 'Ad')
+    expect(cpuKnocks(state, 1, 'medium', knocker[10].id)).toBe(false)
   })
 })
 
@@ -196,7 +265,7 @@ describe('the CPU', () => {
   // Two CPUs playing whole matches: every match ends, with every card accounted for after every move.
   function simulate(seed: number, levels: Record<PlayerIndex, CpuLevel>, target: GinTarget): { winner: PlayerIndex | null; hands: number } {
     const rng = mulberry32(seed ^ 0x5bd1e995)
-    let state = createGinMatch(seed, target, ((seed % 2) + 1) as PlayerIndex)
+    let state = createGinMatch(seed, { ...DEFAULT_GIN_RULES, target }, ((seed % 2) + 1) as PlayerIndex)
     let steps = 0
     while (state.phase !== 'matchOver' && steps < 20000) {
       steps++

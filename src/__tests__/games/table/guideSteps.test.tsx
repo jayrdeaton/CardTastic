@@ -1,5 +1,6 @@
 import type { GuideStep } from '@tastic/hud/guide'
 
+import { getEightsGuideSteps } from '@/games/crazyeights/guideSteps'
 import { getCrownsGuideSteps } from '@/games/fourcrowns/guideSteps'
 import { getGinGuideSteps } from '@/games/ginrummy/guideSteps'
 import { getSixCardGolfGuideSteps } from '@/games/sixcardgolf/guideSteps'
@@ -81,9 +82,18 @@ describe('Gin Rummy', () => {
     expect(getGinGuideSteps({ target: 100 }, { touch: false })[4].body).toMatch(/click Ready/)
   })
 
+  it('follows the rules picked: the knock rule, the bonuses and a one-hand match', () => {
+    expect(getGinGuideSteps({ target: 100, knock: 'ginOnly' }, { touch: true })[2].title).toBe('Gin Ends the Hand')
+    expect(getGinGuideSteps({ target: 100, knock: 'oklahoma' }, { touch: true })[2].body).toMatch(/upcard/)
+    expect(getGinGuideSteps({ target: 1, bonus: 'hoyle' }, { touch: true })[3].body).toBe('Meld every card for gin, worth 20 more. One hand wins.')
+    expect(getGinGuideSteps({ target: 100, bonus: 'bigGin' }, { touch: true }).map((s) => s.title)).toEqual(['Make Melds', 'Draw, Then Throw', 'Knock to End the Hand', 'Go Gin', 'Big Gin', 'Pass the Phone'])
+  })
+
   it.each([true, false])('touch %s: follows the copy rules', (touch) => {
     expectCopyRules(getGinGuideSteps({ target: 100 }, { touch }), touch)
     expectCopyRules(getGinGuideSteps({ target: 50 }, { touch }), touch)
+    expectCopyRules(getGinGuideSteps({ target: 1, knock: 'oklahoma', bonus: 'bigGin' }, { touch }), touch)
+    expectCopyRules(getGinGuideSteps({ target: 100, knock: 'ginOnly', bonus: 'hoyle' }, { touch }), touch)
   })
 })
 
@@ -93,5 +103,30 @@ describe('Four Crowns', () => {
     expect(getCrownsGuideSteps({ touch: false })[5].body).toMatch(/click Ready/)
   })
 
-  it.each([true, false])('touch %s: follows the copy rules', (touch) => expectCopyRules(getCrownsGuideSteps({ touch }), touch))
+  it('follows the rules picked: jokers, and no last turns', () => {
+    expect(getCrownsGuideSteps({ touch: true }, { jokers: true })[1].body).toMatch(/jokers are wild/)
+    expect(getCrownsGuideSteps({ touch: true }, { lastTurns: 'none' })[3].body).toMatch(/The round ends\.$/)
+  })
+
+  it.each([true, false])('touch %s: follows the copy rules', (touch) => {
+    expectCopyRules(getCrownsGuideSteps({ touch }), touch)
+    expectCopyRules(getCrownsGuideSteps({ touch }, { jokers: true, lastTurns: 'none' }), touch)
+  })
+})
+
+describe('Crazy Eights', () => {
+  it('teaches matching, the wild 8s, what to do when nothing fits, winning, and passing the phone', () => {
+    expect(getEightsGuideSteps({ touch: true }).map((s) => s.title)).toEqual(['Match the Pile', 'Eights Are Wild', 'Nothing Fits', 'First Out Wins', 'Pass the Phone'])
+    expect(getEightsGuideSteps({ touch: false })[4].body).toMatch(/click Ready/)
+  })
+
+  it('follows the rules picked: the draw rule and the special cards', () => {
+    expect(getEightsGuideSteps({ touch: true }, { draw: 'one' })[2].body).toMatch(/Draw one card/)
+    expect(getEightsGuideSteps({ touch: true }, { specials: 'twos' }).map((s) => s.title)).toContain('Twos Draw Two')
+    expect(getEightsGuideSteps({ touch: true }, { specials: 'action' }).map((s) => s.title)).toEqual(['Match the Pile', 'Eights Are Wild', 'Nothing Fits', 'Action Cards', 'Aces Turn It Around', 'First Out Wins', 'Pass the Phone'])
+  })
+
+  it.each([true, false])('touch %s: follows the copy rules', (touch) => {
+    for (const draw of ['untilPlayable', 'one', 'three'] as const) for (const specials of ['eights', 'twos', 'action'] as const) expectCopyRules(getEightsGuideSteps({ touch }, { draw, specials }), touch)
+  })
 })

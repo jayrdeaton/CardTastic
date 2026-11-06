@@ -10,7 +10,7 @@
 
 import { useAutoPaperTheme } from '@rific/auto-paper'
 import { useKeepAwake } from '@rific/core'
-import { type Card, CardSizeProvider } from '@tastic/cards'
+import { type AnyCard, CardSizeProvider } from '@tastic/cards'
 import { useOverlayCardColors } from '@tastic/hud/chrome'
 import { useActiveRound } from '@tastic/shell'
 import { useCallback, useMemo, useState } from 'react'
@@ -21,16 +21,17 @@ import { useDispatch } from 'react-redux'
 
 import { useMotionReduced } from '@/components/reducedMotion'
 import { SettingsDialog } from '@/components/SettingsDialog'
-import { CHROME_FG, CHROME_FG_MUTED, previewCardBack } from '@/components/theme'
+import { CHROME_FG, CHROME_FG_MUTED } from '@/components/theme'
 import { useCardSoundEffects } from '@/components/useCardSounds'
 import { PipFireworks } from '@/components/winning/PipFireworks'
 import { type CpuLevel } from '@/games/table/cpuLevel'
+import { type TablePlayer, tablePlayers } from '@/games/table/extraSeats'
 import { cardTilt, type Pose } from '@/games/table/geometry'
-import { ActionRow, cardName, type HandAction, type HandGroup, handRowPoses, type MeldLine, MeldLines } from '@/games/table/HandRow'
+import { ActionRow, cardName, type HandAction, type HandGroup, handRowPoses, HandSuitMarks, type MeldLine, MeldLines, suitMarkSpots } from '@/games/table/HandRow'
 import { PassCover } from '@/games/table/PassCover'
 import { VS_CPU_HUMANS } from '@/games/table/players'
 import { type TableCardSpec } from '@/games/table/TableCards'
-import { type Seat, SeatBadge, type TableCardContent, TableOverlay, useAppActive, useTableSeats } from '@/games/table/TableChrome'
+import { SeatBadge, type TableCardContent, TableOverlay, useAppActive, useTableSeats } from '@/games/table/TableChrome'
 import { type TableLabel, type TableTarget, TableView } from '@/games/table/TableView'
 import { useSettled, useTableSize } from '@/games/table/useTable'
 import { useSettings } from '@/hooks/useSettings'
@@ -40,7 +41,7 @@ import { bestArrangement, isWild } from './engine/melds'
 import { canDrawStock, canGoOut, canTakeDiscard, canThrow, discardTop, handSizeFor, pointsAfterThrow, toMove, wildRank } from './engine/rules'
 import { type CrownsState, type CrownsTurn, ROUNDS } from './engine/types'
 import { type CrownsLayout, crownsLayout, fanPoses } from './layout'
-import { type CrownsRoundSettings } from './useCrownsLoadout'
+import { type CrownsRoundSettings, crownsRules } from './useCrownsLoadout'
 import { useCrownsMatch } from './useCrownsMatch'
 
 /** A card's move between two places. */
@@ -52,15 +53,9 @@ const DEAL_MOST_MS = 1800
 const RESULT_MS = 2200
 /** How many of the stock's and the discard's top cards are drawn. */
 const PILE_DRAWN = 3
-/** Seats 3 and 4's colors (seat 2's is the shell's Material Blue). */
-const SEAT_COLORS = ['#4CAF50', '#FF9800']
 const WILD_BADGE = 18
 
-/** Someone at the table: a person or a CPU, and how they're shown. */
-interface CrownsPlayer {
-  kind: 'person' | 'cpu'
-  seat: Seat
-}
+type CrownsPlayer = TablePlayer
 
 export function FourCrownsScreen() {
   useKeepAwake('game')
@@ -72,12 +67,13 @@ export function FourCrownsScreen() {
   const reduceMotion = useMotionReduced()
   const { playCardSound, hapticCard } = useCardSoundEffects()
 
-  // The round the setup screen committed (seat 2, seats 3 and 4, the CPUs' level); a direct link plays the player's own
-  // settings, seat 2 the CPU.
-  const { mode, settings: round } = useActiveRound<CrownsRoundSettings>('fourcrowns', { crownsCpu: settings.crownsCpu, crownsSeat3: settings.crownsSeat3, crownsSeat4: settings.crownsSeat4 })
+  // The round the setup screen committed (seat 2, seats 3 and 4, the CPUs' level, the rules); a direct link plays the
+  // player's own settings, seat 2 the CPU.
+  const { mode, settings: round } = useActiveRound<CrownsRoundSettings>('fourcrowns', { crownsCpu: settings.crownsCpu, crownsSeat3: settings.crownsSeat3, crownsSeat4: settings.crownsSeat4, crownsDeck: settings.crownsDeck, crownsFaces: settings.crownsFaces, crownsLastTurns: settings.crownsLastTurns })
   const seat2Person = mode === 'twoPlayer'
   const { seats, statsIds } = useTableSeats(seat2Person)
-  const players = useMemo(() => crownsPlayers(seats, seat2Person, round, dark), [seats, seat2Person, round, dark])
+  const players = useMemo(() => tablePlayers(seats, seat2Person, round.crownsSeat3, round.crownsSeat4, dark), [seats, seat2Person, round.crownsSeat3, round.crownsSeat4, dark])
+  const rules = useMemo(() => crownsRules(round), [round])
   const cpus = useMemo(() => players.map((player): CpuLevel | null => (player.kind === 'cpu' ? round.crownsCpu : null)), [players, round.crownsCpu])
   const people = players.flatMap((player, i) => (player.kind === 'person' ? [i] : []))
   const passAndPlay = people.length > 1
@@ -100,7 +96,7 @@ export function FourCrownsScreen() {
   )
 
   const dealMs = useCallback((current: CrownsState) => (reduceMotion ? 0 : dealCount(current) * dealStagger(current) + MOVE_MS + 100), [reduceMotion])
-  const match = useCrownsMatch({ cpus, paused: settingsOpen || !appActive, dealMs, changed })
+  const match = useCrownsMatch({ cpus, rules, paused: settingsOpen || !appActive, dealMs, changed })
   const { state, dealt } = match
   const roundEnded = state.phase === 'roundOver' || state.phase === 'matchOver'
   const resultShown = useSettled(state.phase === 'matchOver' ? match.deal : null, reduceMotion ? 300 : RESULT_MS)
@@ -149,7 +145,7 @@ export function FourCrownsScreen() {
   const name = (player: number) => (!passAndPlay && player === 0 ? 'You' : players[player].seat.name)
   const pointsNow = (player: number): number => {
     if (picked && player === seated && canThrow(state, player, picked)) return pointsAfterThrow(state, player, picked)
-    return bestArrangement(state.hands[player], wildRank(state)).points
+    return bestArrangement(state.hands[player], wildRank(state), state.rules.faces).points
   }
   const seatedLabel: TableLabel = {
     seat: players[seated].seat,
@@ -189,6 +185,7 @@ export function FourCrownsScreen() {
           overCards={
             <>
               <MeldLines game='fourcrowns' lines={lines} />
+              {dealt ? <HandSuitMarks game='fourcrowns' spots={suitMarkSpots(cards, layout.cardWidth, layout.cardHeight)} cardWidth={layout.cardWidth} /> : null}
               <WildBadges at={wilds} />
               <RoundBanner state={state} layout={layout} name={name} />
               {roundEnded ? <RowLabels state={state} layout={layout} others={others} players={players} /> : <SlotLabels state={state} layout={layout} others={others} players={players} moving={moving} />}
@@ -217,27 +214,9 @@ function dealStagger(state: CrownsState): number {
   return Math.min(DEAL_STAGGER_MS, DEAL_MOST_MS / dealCount(state))
 }
 
-/** Who sits at the table, in turn order: seat 1's player, seat 2's (a person or a CPU), then seats 3 and 4 if taken. A
- * lone CPU is CPU; several are numbered. */
-function crownsPlayers(seats: Record<1 | 2, Seat>, seat2Person: boolean, round: CrownsRoundSettings, dark: boolean): CrownsPlayer[] {
-  const kinds: ('person' | 'cpu')[] = ['person', seat2Person ? 'person' : 'cpu']
-  if (round.crownsSeat3 !== 'off') {
-    kinds.push(round.crownsSeat3)
-    if (round.crownsSeat4 !== 'off') kinds.push(round.crownsSeat4)
-  }
-  const cpuCount = kinds.filter((kind) => kind === 'cpu').length
-  let cpuNumber = 0
-  return kinds.map((kind, i) => {
-    const base: Seat = i < 2 ? seats[(i + 1) as 1 | 2] : { name: `Player ${i + 1}`, tag: null, icon: 'account', color: previewCardBack(SEAT_COLORS[i - 2], dark) }
-    if (kind === 'person') return { kind, seat: base }
-    cpuNumber++
-    return { kind, seat: { ...base, name: cpuCount > 1 ? `CPU ${cpuNumber}` : 'CPU', tag: null, icon: 'robot-outline' } }
-  })
-}
-
 /** A hand's groups as it's laid out: its melds, then the rest. */
 function handGroups(state: CrownsState, player: number): HandGroup[] {
-  const arrangement = state.result?.shown[player] ?? bestArrangement(state.hands[player], wildRank(state))
+  const arrangement = state.result?.shown[player] ?? bestArrangement(state.hands[player], wildRank(state), state.rules.faces)
   return [...arrangement.melds.map((meld): HandGroup => ({ cards: meld.cards, kind: 'meld' })), { cards: arrangement.loose, kind: 'loose' }]
 }
 
@@ -256,7 +235,7 @@ function crownsCards(state: CrownsState, layout: CrownsLayout, seated: number, o
     const seat = (player - state.dealer - 1 + state.players * 2) % state.players
     state.hands[player].forEach((card, i) => dealOrder.set(card.id, i * state.players + seat))
   }
-  const dealt = (card: Card, fallback: number) => (dealing && !reduceMotion ? { from: stockPose, delayMs: (dealOrder.get(card.id) ?? fallback) * stagger } : {})
+  const dealt = (card: AnyCard, fallback: number) => (dealing && !reduceMotion ? { from: stockPose, delayMs: (dealOrder.get(card.id) ?? fallback) * stagger } : {})
 
   const cards: TableCardSpec[] = []
   const lines: (MeldLine & { y: number })[] = []
@@ -321,10 +300,10 @@ function WildBadges({ at }: { at: Pose[] }) {
   )
 }
 
-/** The rank that's wild, as the banner says it: 3s to 10s, then Jacks, Queens and Kings. */
-export function wildLabel(rank: number): string {
-  if (rank <= 10) return `${rank}s Wild`
-  return `${rank === 11 ? 'Jacks' : rank === 12 ? 'Queens' : 'Kings'} Wild`
+/** The rank that's wild, as the banner says it: 3s to 10s, then Jacks, Queens and Kings; with the jokers in, them too. */
+export function wildLabel(rank: number, jokers = false): string {
+  const ranks = rank <= 10 ? `${rank}s` : rank === 11 ? 'Jacks' : rank === 12 ? 'Queens' : 'Kings'
+  return jokers ? `${ranks} and Jokers Wild` : `${ranks} Wild`
 }
 
 /** Under the piles: the round (or who went out), and the rank that's wild. */
@@ -340,7 +319,7 @@ function RoundBanner({ state, layout, name }: { state: CrownsState; layout: Crow
       <View pointerEvents='none' style={[styles.bannerLine, { top: layout.wildY - 12 }]}>
         <Icon source='crown' size={18} color={CHROME_FG} />
         <Text variant='titleMedium' style={styles.strong} testID='fourcrowns-wild-rank'>
-          {wildLabel(wildRank(state))}
+          {wildLabel(wildRank(state), state.rules.deck !== 'plain')}
         </Text>
       </View>
     </>
@@ -443,7 +422,7 @@ function passMessage(state: CrownsState, next: number, players: CrownsPlayer[]):
   let since = state.turns.length
   while (since > 0 && state.turns[since - 1].player !== next) since--
   const turns = state.turns.slice(since)
-  if (turns.length === 0) return `Round ${state.round}: ${wildLabel(wildRank(state)).replace(' Wild', ' are wild')}. ${players[next].seat.name} plays first.`
+  if (turns.length === 0) return `Round ${state.round}: ${wildLabel(wildRank(state), state.rules.deck !== 'plain').replace(' Wild', ' are wild')}. ${players[next].seat.name} plays first.`
   const told = turns.map((turn) => turnSentence(turn, players))
   if (state.out !== null) told.push('This is your last turn.')
   return told.join('\n')

@@ -10,11 +10,11 @@ import { otherPlayer } from '@/games/table/players'
 import { useSettled } from '@/games/table/useTable'
 
 import { cpuKnocks, cpuStepDelayMs, cpuTakesDiscard, cpuThrow } from './engine/cpu'
-import { canTakeDiscard, createGinMatch, drawStock, knock, nextHand, passUpcard, takeDiscard, throwCard, toMove } from './engine/rules'
-import { type GinState, type GinTarget, type PlayerIndex } from './engine/types'
+import { bigGin, canBigGin, canTakeDiscard, createGinMatch, drawStock, knock, nextHand, passUpcard, takeDiscard, throwCard, toMove } from './engine/rules'
+import { type GinRules, type GinState, type PlayerIndex } from './engine/types'
 
 export interface GinMatchOptions {
-  target: GinTarget
+  rules: GinRules
   /** The CPU in seat 2, or null for a person. */
   cpu: CpuLevel | null
   /** Holds the CPU: a dialog is open, the app is in the background. */
@@ -28,15 +28,15 @@ export interface GinMatchOptions {
   initialState?: GinState
 }
 
-export function useGinMatch({ target, cpu, paused, dealMs, changed, seed = randomSeed, rng = Math.random, initialState }: GinMatchOptions) {
-  const [state, setState] = useState(() => initialState ?? createGinMatch(seed(), target))
+export function useGinMatch({ rules, cpu, paused, dealMs, changed, seed = randomSeed, rng = Math.random, initialState }: GinMatchOptions) {
+  const [state, setState] = useState(() => initialState ?? createGinMatch(seed(), rules))
   // Counts deals (a new hand, a rematch), so the table deals the cards afresh, and nothing is played until they've landed.
   const [deal, setDeal] = useState(0)
   const dealt = useSettled(deal, dealMs)
   const stateRef = useRef(state)
-  const latest = useRef({ changed, target, seed, rng })
+  const latest = useRef({ changed, seed, rng })
   useEffect(() => {
-    latest.current = { changed, target, seed, rng }
+    latest.current = { changed, seed, rng }
   })
 
   const apply = useCallback((next: GinState | null): boolean => {
@@ -53,6 +53,7 @@ export function useGinMatch({ target, cpu, paused, dealMs, changed, seed = rando
   const draw = useCallback((player: PlayerIndex) => apply(drawStock(stateRef.current, player)), [apply])
   const toss = useCallback((player: PlayerIndex, cardId: string) => apply(throwCard(stateRef.current, player, cardId)), [apply])
   const knockWith = useCallback((player: PlayerIndex, cardId: string) => apply(knock(stateRef.current, player, cardId)), [apply])
+  const goBigGin = useCallback((player: PlayerIndex) => apply(bigGin(stateRef.current, player)), [apply])
 
   const advance = useCallback(() => {
     if (apply(nextHand(stateRef.current))) setDeal((n) => n + 1)
@@ -61,7 +62,7 @@ export function useGinMatch({ target, cpu, paused, dealMs, changed, seed = rando
   /** A new match, the last one's loser playing first. */
   const rematch = useCallback(() => {
     const { winner } = stateRef.current
-    const next = createGinMatch(latest.current.seed(), latest.current.target, winner ? otherPlayer(winner) : 1)
+    const next = createGinMatch(latest.current.seed(), stateRef.current.rules, winner ? otherPlayer(winner) : 1)
     stateRef.current = next
     setState(next)
     setDeal((n) => n + 1)
@@ -77,6 +78,7 @@ export function useGinMatch({ target, cpu, paused, dealMs, changed, seed = rando
       const dice = latest.current.rng
       if (seen.phase === 'upcard') apply(cpuTakesDiscard(seen, 2, cpu, dice) ? takeDiscard(seen, 2) : passUpcard(seen, 2))
       else if (seen.phase === 'draw') apply(canTakeDiscard(seen, 2) && cpuTakesDiscard(seen, 2, cpu, dice) ? takeDiscard(seen, 2) : drawStock(seen, 2))
+      else if (canBigGin(seen, 2)) apply(bigGin(seen, 2))
       else {
         const cardId = cpuThrow(seen, 2, cpu, dice)
         apply(cpuKnocks(seen, 2, cpu, cardId) ? knock(seen, 2, cardId) : throwCard(seen, 2, cardId))
@@ -85,5 +87,5 @@ export function useGinMatch({ target, cpu, paused, dealMs, changed, seed = rando
     return () => clearTimeout(timer)
   }, [state, paused, dealt, cpu, apply])
 
-  return { state, deal, dealt, take, pass, draw, toss, knock: knockWith, nextHand: advance, rematch }
+  return { state, deal, dealt, take, pass, draw, toss, knock: knockWith, bigGin: goBigGin, nextHand: advance, rematch }
 }

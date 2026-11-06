@@ -13,6 +13,7 @@ import { release } from '@/constants/release'
 import { DEFAULT_SEED_COLOR } from '@/constants/theme'
 import { acesup } from '@/games/acesup/definition'
 import { canfield } from '@/games/canfield/definition'
+import { crazyeights } from '@/games/crazyeights/definition'
 import { fortythieves } from '@/games/fortythieves/definition'
 import { fourcrowns } from '@/games/fourcrowns/definition'
 import { freecell } from '@/games/freecell/definition'
@@ -40,7 +41,7 @@ import { storeSource } from '@/redux/store'
 // then the clear-the-tableau games (Pyramid, Golf, TriPeaks discard cards outright), then Aces Up, the odd one out. The
 // games for two players come last: the ones played at once (RatSlap, the first, Slapjack and Speed), then War, then the
 // turn-by-turn ones with nothing hidden, then Gin Rummy, whose hands are kept hidden (the phone is passed).
-export const games: readonly PackGameDefinition[] = [klondike, freecell, yukon, canfield, fortythieves, spider, scorpion, pyramid, golf, tripeaks, acesup, ratslap, slapjack, speed, war, sixcardgolf, trash, ginrummy, fourcrowns]
+export const games: readonly PackGameDefinition[] = [klondike, freecell, yukon, canfield, fortythieves, spider, scorpion, pyramid, golf, tripeaks, acesup, ratslap, slapjack, speed, war, sixcardgolf, trash, ginrummy, fourcrowns, crazyeights]
 
 const solitaire = {
   // Seat 1's color, the theme it makes, and Solitaire's own store keys.

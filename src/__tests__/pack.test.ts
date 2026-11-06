@@ -5,15 +5,15 @@ import { storeSource } from '@/redux/store'
 import { GAME_TITLES, SOLITAIRE_GAME_IDS } from '@/stores/statsTypes'
 
 // Solitaire as @tastic/shell's pack (pack.ts): the eleven solitaire games Home lists, each a game with no seats, no loadout
-// and no How to Play of its own, every one resumable, with a preview and a rules sheet; then the eight table games (Four Crowns for two to four).
+// and no How to Play of its own, every one resumable, with a preview and a rules sheet; then the nine table games (Four Crowns and Crazy Eights for two to four).
 // Home shows them on two tabs, Solitaire and Two Player.
 
 const SOLITAIRE_ORDER = ['klondike', 'freecell', 'yukon', 'canfield', 'fortythieves', 'spider', 'scorpion', 'pyramid', 'golf', 'tripeaks', 'acesup']
-const TABLE_GAMES = ['ratslap', 'slapjack', 'speed', 'war', 'sixcardgolf', 'trash', 'ginrummy', 'fourcrowns']
+const TABLE_GAMES = ['ratslap', 'slapjack', 'speed', 'war', 'sixcardgolf', 'trash', 'ginrummy', 'fourcrowns', 'crazyeights']
 const HOME_ORDER = [...SOLITAIRE_ORDER, ...TABLE_GAMES]
 
 describe('the pack', () => {
-  it("lists the eleven solitaire games and the eight table games in Home's order", () => {
+  it("lists the eleven solitaire games and the nine table games in Home's order", () => {
     expect(games.map((g) => g.id)).toEqual(HOME_ORDER)
     expect(pack.games).toBe(games)
   })
@@ -55,7 +55,8 @@ describe('the pack', () => {
     ['sixcardgolf', 'Six-Card Golf', 'sixCardGolfGuide'],
     ['trash', 'Trash', 'trashGuide'],
     ['ginrummy', 'Gin Rummy', 'ginRummyGuide'],
-    ['fourcrowns', 'Four Crowns', 'fourCrownsGuide']
+    ['fourcrowns', 'Four Crowns', 'fourCrownsGuide'],
+    ['crazyeights', 'Crazy Eights', 'crazyEightsGuide']
   ])('%s: seat 2 the CPU or a person, a setup screen and its own How to Play, not resumable, the status bar hidden', (id, title, guideKey) => {
     const game = games.find((g) => g.id === id)!
     expect(game.title).toBe(title)

@@ -36,7 +36,10 @@ export const ginrummy: GameDefinition = {
     version: GIN_GUIDE_VERSION,
     selectVersionSeen: ginRummyGuide.selectVersionSeen,
     markSeen: ginRummyGuide.actions.markSeen,
-    selectInput: (state): GinGuideInput => ({ target: (state as unknown as RootState).settings.ginTarget }),
+    selectInput: (state): GinGuideInput => {
+      const { ginTarget, ginKnock, ginBonus } = (state as unknown as RootState).settings
+      return { target: ginTarget, knock: ginKnock, bonus: ginBonus }
+    },
     getSteps: (input, context) => getGinGuideSteps(input as GinGuideInput, context)
   }
 }

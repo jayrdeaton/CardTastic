@@ -5,6 +5,7 @@ import { createPackStore, type PackStoreConfig, type PackStoreSource, type Seat,
 
 import { playerTheme } from '@/components/theme'
 import { SEAT_COLORS } from '@/constants/player'
+import { crazyEightsGuide } from '@/games/crazyeights/guide'
 import { fourCrownsGuide } from '@/games/fourcrowns/guide'
 import { ginRummyGuide } from '@/games/ginrummy/guide'
 import { ratslapGuide } from '@/games/ratslap/guide'
@@ -35,7 +36,8 @@ const TABLE_GAME_STORES: { id: string; reducers: Record<string, Reducer>; resuma
   { id: 'sixcardgolf', reducers: { sixCardGolfGuide: sixCardGolfGuide.reducer }, resumable: false },
   { id: 'trash', reducers: { trashGuide: trashGuide.reducer }, resumable: false },
   { id: 'ginrummy', reducers: { ginRummyGuide: ginRummyGuide.reducer }, resumable: false },
-  { id: 'fourcrowns', reducers: { fourCrownsGuide: fourCrownsGuide.reducer }, resumable: false }
+  { id: 'fourcrowns', reducers: { fourCrownsGuide: fourCrownsGuide.reducer }, resumable: false },
+  { id: 'crazyeights', reducers: { crazyEightsGuide: crazyEightsGuide.reducer }, resumable: false }
 ]
 
 export const storeSource = {

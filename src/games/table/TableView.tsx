@@ -19,6 +19,8 @@ import { type Seat, SeatBadge, TableSideButtons, tableStyles } from './TableChro
 /** The ring round a card that can be tapped sits this far outside it (a card has a white frame of its own). */
 const RING_GAP = 5
 const SPOT_LABEL_SIZE = 30
+/** A note's box, centered on its pose: room for Gin Rummy's "Hand 2 · Knock at 7 · Spades double". */
+const NOTE_WIDTH = 260
 
 /** Where a table's lines and buttons sit: each game's layout has these (gridLayout.ts, the War and Speed layouts). */
 export interface TableFrame {
@@ -173,7 +175,7 @@ function PlayerLines({ game, player, layout, label, prompt, note, call }: { game
         </View>
       ) : null}
       {note ? (
-        <View pointerEvents='none' style={[styles.note, { left: notePose.x - 60, top: notePose.y - 10, transform: [{ rotate: `${notePose.rotate}deg` }] }]}>
+        <View pointerEvents='none' style={[styles.note, { left: notePose.x - NOTE_WIDTH / 2, top: notePose.y - 10, transform: [{ rotate: `${notePose.rotate}deg` }] }]}>
           <Text variant='labelMedium' style={styles.muted} numberOfLines={1}>
             {note}
           </Text>
@@ -188,7 +190,7 @@ const styles = StyleSheet.create({
   line: { alignItems: 'center', flexDirection: 'row', gap: 8, height: 28, justifyContent: 'center', left: 0, paddingHorizontal: 24, position: 'absolute', right: 0 },
   muted: { color: CHROME_FG_MUTED },
   name: { flexShrink: 1 },
-  note: { alignItems: 'center', height: 20, position: 'absolute', width: 120 },
+  note: { alignItems: 'center', height: 20, position: 'absolute', width: NOTE_WIDTH },
   prompt: { color: CHROME_FG, flexShrink: 1, opacity: 0.85 },
   ring: { borderRadius: 12, borderWidth: 3, position: 'absolute' },
   spotLabel: { alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.55)', borderRadius: SPOT_LABEL_SIZE / 2, height: SPOT_LABEL_SIZE, justifyContent: 'center', position: 'absolute', width: SPOT_LABEL_SIZE },

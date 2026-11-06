@@ -10,11 +10,12 @@ import { useSettled } from '@/games/table/useTable'
 
 import { cpuOutCard, cpuStepDelayMs, cpuTakesDiscard, cpuThrow } from './engine/cpu'
 import { canTakeDiscard, createCrownsMatch, drawStock, goOut, nextRound, takeDiscard, throwCard, toMove } from './engine/rules'
-import { type CrownsState } from './engine/types'
+import { type CrownsRules, type CrownsState } from './engine/types'
 
 export interface CrownsMatchOptions {
   /** Each player's CPU level, in seat order, or null for a person. */
   cpus: readonly (CpuLevel | null)[]
+  rules: CrownsRules
   /** Holds the CPUs: a dialog is open, the app is in the background. */
   paused: boolean
   /** How long a round's deal takes to land (it grows with the hands): nothing is played meanwhile. */
@@ -26,8 +27,8 @@ export interface CrownsMatchOptions {
   initialState?: CrownsState
 }
 
-export function useCrownsMatch({ cpus, paused, dealMs, changed, seed = randomSeed, rng = Math.random, initialState }: CrownsMatchOptions) {
-  const [state, setState] = useState(() => initialState ?? createCrownsMatch(seed(), cpus.length))
+export function useCrownsMatch({ cpus, rules, paused, dealMs, changed, seed = randomSeed, rng = Math.random, initialState }: CrownsMatchOptions) {
+  const [state, setState] = useState(() => initialState ?? createCrownsMatch(seed(), cpus.length, 0, rules))
   // Counts deals (a new round, a rematch), so the table deals the cards afresh, and nothing is played until they've landed.
   const [deal, setDeal] = useState(0)
   const dealt = useSettled(deal, dealMs(state))
@@ -58,7 +59,7 @@ export function useCrownsMatch({ cpus, paused, dealMs, changed, seed = randomSee
   /** A new match, the last one's highest total playing first. */
   const rematch = useCallback(() => {
     const { totals } = stateRef.current
-    const next = createCrownsMatch(latest.current.seed(), totals.length, totals.indexOf(Math.max(...totals)))
+    const next = createCrownsMatch(latest.current.seed(), totals.length, totals.indexOf(Math.max(...totals)), stateRef.current.rules)
     stateRef.current = next
     setState(next)
     setDeal((n) => n + 1)

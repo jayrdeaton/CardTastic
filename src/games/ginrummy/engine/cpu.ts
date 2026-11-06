@@ -14,8 +14,8 @@ import { type RandomFn } from '@/engine/rng'
 import { type CpuLevel } from '@/games/table/cpuLevel'
 
 import { bestArrangement, cardPoints } from './melds'
-import { canKnock, canThrow, discardTop, handOf } from './rules'
-import { type GinState, KNOCK_LIMIT, type PlayerIndex } from './types'
+import { canKnock, canThrow, discardTop, handOf, knockLimit } from './rules'
+import { type GinState, type PlayerIndex } from './types'
 
 interface CpuStyle {
   /** How often it draws from the stock when the discard would have gone into a meld. */
@@ -137,11 +137,12 @@ function throwsBetter(option: ThrowOption, best: ThrowOption): boolean {
 }
 
 /** Whether to knock throwing `cardId`: always for gin; once its deadwood is at the knock limit or less, with Hard
- * holding out for less as the stock runs down. */
+ * holding out for less as the stock runs down. (Big Gin, when it's on and all eleven cards meld, comes first: the
+ * match hook checks it before asking for a throw.) */
 export function cpuKnocks(state: GinState, player: PlayerIndex, level: CpuLevel, cardId: string): boolean {
   if (!canKnock(state, player, cardId)) return false
   const points = bestArrangement(handOf(state, player).filter((c) => c.id !== cardId)).points
   if (points === 0 || !GIN_CPU_STYLES[level].careful) return true
-  const limit = state.stock.length > 18 ? KNOCK_LIMIT : state.stock.length > 10 ? 7 : 4
-  return points <= limit
+  const limit = state.stock.length > 18 ? 10 : state.stock.length > 10 ? 7 : 4
+  return points <= Math.min(limit, knockLimit(state))
 }

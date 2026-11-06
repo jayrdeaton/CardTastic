@@ -2,7 +2,7 @@ import { act, renderHook } from '@testing-library/react-native'
 
 import { GIN_CPU_STEP_MS } from '@/games/ginrummy/engine/cpu'
 import { createGinMatch, handOf, toMove } from '@/games/ginrummy/engine/rules'
-import { type GinState } from '@/games/ginrummy/engine/types'
+import { DEFAULT_GIN_RULES, type GinState } from '@/games/ginrummy/engine/types'
 import { useGinMatch } from '@/games/ginrummy/useGinMatch'
 
 // One Gin Rummy match as the screen runs it: the players' moves, and the CPU in seat 2 one step at a time on its own
@@ -20,7 +20,7 @@ const STEP = GIN_CPU_STEP_MS[1] + 10
 describe('useGinMatch', () => {
   it('player 1’s moves are applied and told to the screen; then the CPU takes its turn a step at a time', async () => {
     const changed = jest.fn()
-    const { result } = await renderHook(() => useGinMatch({ target: 100, cpu: 'medium', paused: false, dealMs: 0, changed, rng: dice(0.99), initialState: createGinMatch(7) }))
+    const { result } = await renderHook(() => useGinMatch({ rules: DEFAULT_GIN_RULES, cpu: 'medium', paused: false, dealMs: 0, changed, rng: dice(0.99), initialState: createGinMatch(7) }))
     await wait(1)
     expect(toMove(result.current.state)).toBe(1)
     await act(async () => {
@@ -42,7 +42,7 @@ describe('useGinMatch', () => {
 
   it('the CPU waits while paused, and while the deal is landing', async () => {
     const start: GinState = { ...createGinMatch(7), turn: 2 }
-    const { result, rerender } = await renderHook(({ paused }: { paused: boolean }) => useGinMatch({ target: 100, cpu: 'hard', paused, dealMs: 2000, changed: jest.fn(), rng: dice(0.5), initialState: start }), { initialProps: { paused: true } })
+    const { result, rerender } = await renderHook(({ paused }: { paused: boolean }) => useGinMatch({ rules: DEFAULT_GIN_RULES, cpu: 'hard', paused, dealMs: 2000, changed: jest.fn(), rng: dice(0.5), initialState: start }), { initialProps: { paused: true } })
     await wait(5000)
     expect(result.current.state).toBe(start)
     await rerender({ paused: false })
@@ -51,7 +51,7 @@ describe('useGinMatch', () => {
   })
 
   it('a throw of the card just taken from the discard is refused', async () => {
-    const { result } = await renderHook(() => useGinMatch({ target: 100, cpu: null, paused: false, dealMs: 0, changed: jest.fn(), initialState: createGinMatch(7) }))
+    const { result } = await renderHook(() => useGinMatch({ rules: DEFAULT_GIN_RULES, cpu: null, paused: false, dealMs: 0, changed: jest.fn(), initialState: createGinMatch(7) }))
     const upcard = result.current.state.discard[0]
     await act(async () => {
       expect(result.current.take(1)).toBe(true)

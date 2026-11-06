@@ -2,8 +2,8 @@ import { type Card, type Rank, type Suit } from '@tastic/cards'
 
 import { mulberry32 } from '@/engine/rng'
 import { cpuGoesOut, cpuOutCard, cpuTakesDiscard, cpuThrow } from '@/games/fourcrowns/engine/cpu'
-import { canGoOut, canThrow, cardCount, createCrownsMatch, discardTop, drawStock, goOut, handSizeFor, nextRound, pointsAfterThrow, takeDiscard, throwCard, toMove, wildRankFor } from '@/games/fourcrowns/engine/rules'
-import { type CrownsState, ROUNDS } from '@/games/fourcrowns/engine/types'
+import { canGoOut, canThrow, cardCount, createCrownsMatch, crownsDeck, discardTop, drawStock, goOut, handSizeFor, nextRound, pointsAfterThrow, takeDiscard, throwCard, toMove, wildRankFor } from '@/games/fourcrowns/engine/rules'
+import { type CrownsRules, type CrownsState, DEFAULT_CROWNS_RULES, ROUNDS } from '@/games/fourcrowns/engine/types'
 import { type CpuLevel } from '@/games/table/cpuLevel'
 
 // Four Crowns' rules: eleven rounds of 3 to 13 cards with that rank wild, draw and throw, going out, everyone else's
@@ -241,6 +241,17 @@ describe('the CPU', () => {
     }
   })
 
+  it.each([
+    { deck: 'jokers', faces: 'ten', lastTurns: 'everyone' },
+    { deck: 'short', faces: 'ranked', lastTurns: 'none' }
+  ] as CrownsRules[])('CPU matches under other rules all end, every card accounted for: %o', (rules) => {
+    for (let game = 0; game < 3; game++) {
+      const result = playMatch(500 + game, ['medium', 'hard', 'easy'], rules)
+      expect(result.phase).toBe('matchOver')
+      expect(result.history).toHaveLength(ROUNDS)
+    }
+  })
+
   it('Hard beats Easy far more often than not', () => {
     let hardWins = 0
     const games = 40
@@ -255,9 +266,10 @@ describe('the CPU', () => {
 })
 
 /** A whole match of CPUs at these levels, checking every card is in play after every move. */
-function playMatch(seed: number, levels: CpuLevel[]): CrownsState {
+function playMatch(seed: number, levels: CpuLevel[], rules: CrownsRules = DEFAULT_CROWNS_RULES): CrownsState {
   const rng = mulberry32(seed)
-  let state = createCrownsMatch(seed, levels.length)
+  const deckSize = crownsDeck(rules).length
+  let state = createCrownsMatch(seed, levels.length, 0, rules)
   for (let step = 0; step < 20000 && state.phase !== 'matchOver'; step++) {
     if (state.phase === 'roundOver') {
       state = nextRound(state)!
@@ -270,7 +282,52 @@ function playMatch(seed: number, levels: CpuLevel[]): CrownsState {
       const out = cpuOutCard(state, player)
       state = (out ? goOut(state, player, out) : throwCard(state, player, cpuThrow(state, player, level, rng)))!
     }
-    expect(cardCount(state)).toBe(104)
+    expect(cardCount(state)).toBe(deckSize)
   }
   return state
 }
+
+describe('the rule choices', () => {
+  it('plays with two decks, or with four jokers, or with the jokers and no Aces or 2s', () => {
+    expect(crownsDeck(DEFAULT_CROWNS_RULES)).toHaveLength(104)
+    const jokers = crownsDeck({ ...DEFAULT_CROWNS_RULES, deck: 'jokers' })
+    expect(jokers).toHaveLength(108)
+    expect(jokers.filter((card) => card.rank === null).map((card) => card.id)).toEqual(['joker-0-0', 'joker-0-1', 'joker-1-0', 'joker-1-1'])
+    const short = crownsDeck({ ...DEFAULT_CROWNS_RULES, deck: 'short' })
+    expect(short).toHaveLength(92)
+    expect(short.every((card) => card.rank === null || card.rank >= 3)).toBe(true)
+    expect(cardCount(createCrownsMatch(3, 4, 0, { ...DEFAULT_CROWNS_RULES, deck: 'short' }))).toBe(92)
+  })
+
+  it('ends the round at once when someone goes out, with no last turns', () => {
+    let state = withHands(
+      3,
+      [
+        [c(7, 'hearts'), c(8, 'hearts'), c(3, 'clubs')],
+        [c(5, 'spades'), c(5, 'diamonds'), c(12, 'clubs')],
+        [c(1, 'clubs'), c(9, 'diamonds'), c(10, 'spades')]
+      ],
+      c(13, 'spades')
+    )
+    state = { ...state, rules: { ...state.rules, lastTurns: 'none' } }
+    state = drawStock(state, 0)!
+    state = goOut(state, 0, state.hands[0].find((card) => card.rank === 13 || !['hearts-7-0', 'hearts-8-0', 'clubs-3-0'].includes(card.id))!.id)!
+    expect(state.phase).toBe('roundOver')
+    expect(state.result!.out).toBe(0)
+    expect(state.result!.points[1]).toBe(5 + 5 + 12)
+  })
+
+  it('counts face cards 10 each when the rules say so', () => {
+    const state = withHands(
+      2,
+      [
+        [c(13, 'spades'), c(12, 'clubs'), c(5, 'hearts')],
+        [c(11, 'diamonds'), c(9, 'clubs'), c(4, 'hearts')]
+      ],
+      c(2, 'spades')
+    )
+    const tens = { ...state, rules: { ...state.rules, faces: 'ten' as const } }
+    expect(pointsAfterThrow(tens, 0, 'hearts-5-0')).toBe(20)
+    expect(pointsAfterThrow(state, 0, 'hearts-5-0')).toBe(25)
+  })
+})

@@ -1,69 +1,77 @@
-// Four Crowns' part of the shell's setup screen (GameDefinition.useLoadout). Seats 1 and 2 are the shell's (seat 2 a CPU,
-// Player 2 or a profile); under them, who sits in seats 3 and 4: nobody, a person passing the phone, or a CPU (seat 4's
-// row shows once seat 3 is taken). Every CPU plays at seat 2's level, picked on its menu; with a person in seat 2 that
-// menu has no level to pick, so a row of levels shows while a CPU sits in seat 3 or 4. All of it is Settings, so it
-// follows the player; the match plays on the snapshot taken when everyone readies up.
+// Four Crowns' part of the shell's setup screen (GameDefinition.useLoadout). Seats 1 and 2 are the shell's; under them a
+// row of pills: who sits in seats 3 and 4 (games/table/extraSeats.ts), the CPUs' level when seat 2's menu can't set it,
+// and the house rules (Jay, 2026-11-06: each a setting): the deck, what face cards cost, and whether everyone gets a last
+// turn after someone goes out. All of it is Settings, so it follows the player; the match plays on the snapshot taken
+// when everyone readies up.
 
 import type { GameLoadout, LoadoutOptionsProps, RoundMode } from '@tastic/shell'
-import { StyleSheet, View } from 'react-native'
-import { Text } from 'react-native-paper'
 
-import { CPU_LEVEL_LABELS, CPU_LEVELS, CPU_OPTIONS, type CpuLevel } from '@/games/table/cpuLevel'
-import { LoadoutPills } from '@/games/table/LoadoutPills'
+import { CPU_LEVELS, CPU_OPTIONS, type CpuLevel } from '@/games/table/cpuLevel'
+import { EXTRA_SEAT_RULE_KEYS, extraSeatRules } from '@/games/table/extraSeats'
+import { rulePickerIds, RulePickers, type TableRule } from '@/games/table/RulePickers'
 import { useSettings } from '@/hooks/useSettings'
 import type { Settings } from '@/types'
 
-import { CROWNS_SEAT_KINDS, type CrownsSeatKind } from './engine/types'
+import { type CrownsDeck, type CrownsFaces, type CrownsLastTurns, type CrownsRules } from './engine/types'
 
 /** The settings a Four Crowns match runs on. */
-export type CrownsRoundSettings = Pick<Settings, 'crownsCpu' | 'crownsSeat3' | 'crownsSeat4'>
+export type CrownsRoundSettings = Pick<Settings, 'crownsCpu' | 'crownsSeat3' | 'crownsSeat4' | 'crownsDeck' | 'crownsFaces' | 'crownsLastTurns'>
 
-const SEAT_KIND_LABELS: Record<CrownsSeatKind, string> = { off: 'None', person: 'Person', cpu: 'CPU' }
+export function crownsRules(settings: CrownsRoundSettings): CrownsRules {
+  return { deck: settings.crownsDeck, faces: settings.crownsFaces, lastTurns: settings.crownsLastTurns }
+}
+
+/** The house rules' pills, each choice saying the rule on its own. */
+export function crownsRulePills(settings: CrownsRoundSettings, setSettings: (patch: Partial<Settings>) => void): TableRule[] {
+  return [
+    {
+      key: 'deck',
+      icon: 'cards-outline',
+      value: settings.crownsDeck,
+      choices: [
+        { value: 'plain', label: 'No Jokers' },
+        { value: 'jokers', label: 'With 4 Jokers' },
+        { value: 'short', label: '3s Up, 4 Jokers' }
+      ],
+      onChange: (value) => setSettings({ crownsDeck: value as CrownsDeck })
+    },
+    {
+      key: 'faces',
+      icon: 'counter',
+      value: settings.crownsFaces,
+      choices: [
+        { value: 'ranked', label: 'J 11, Q 12, K 13' },
+        { value: 'ten', label: 'Face Cards 10' }
+      ],
+      onChange: (value) => setSettings({ crownsFaces: value as CrownsFaces })
+    },
+    {
+      key: 'lastTurns',
+      icon: 'timer-sand',
+      value: settings.crownsLastTurns,
+      choices: [
+        { value: 'everyone', label: 'Last Turn Each' },
+        { value: 'none', label: 'Ends at Once' }
+      ],
+      onChange: (value) => setSettings({ crownsLastTurns: value as CrownsLastTurns })
+    }
+  ]
+}
+
+const RULE_KEYS = [...EXTRA_SEAT_RULE_KEYS, 'deck', 'faces', 'lastTurns']
 
 export function useCrownsLoadout(mode: RoundMode): GameLoadout {
   const { settings, setSettings } = useSettings()
-  const roundSettings: CrownsRoundSettings = { crownsCpu: settings.crownsCpu, crownsSeat3: settings.crownsSeat3, crownsSeat4: settings.crownsSeat4 }
+  const roundSettings: CrownsRoundSettings = { crownsCpu: settings.crownsCpu, crownsSeat3: settings.crownsSeat3, crownsSeat4: settings.crownsSeat4, crownsDeck: settings.crownsDeck, crownsFaces: settings.crownsFaces, crownsLastTurns: settings.crownsLastTurns }
+  const rules = [...extraSeatRules({ seat3: settings.crownsSeat3, seat4: settings.crownsSeat4, cpu: settings.crownsCpu, seat2Person: mode === 'twoPlayer', onSeat3: (kind) => setSettings({ crownsSeat3: kind }), onSeat4: (kind) => setSettings({ crownsSeat4: kind }), onCpu: (level) => setSettings({ crownsCpu: level }) }), ...crownsRulePills(roundSettings, setSettings)]
   return {
     roundSettings,
-    options: (props: LoadoutOptionsProps) => <CrownsOptions {...props} mode={mode} settings={roundSettings} onChange={setSettings} />,
-    optionIds: [],
+    options: (props: LoadoutOptionsProps) => <RulePickers {...props} game='fourcrowns' rules={rules} />,
+    optionIds: rulePickerIds('fourcrowns', RULE_KEYS),
     // The seats are who's playing, so the dice only roll the CPUs' level.
     randomize: () => setSettings({ crownsCpu: CPU_LEVELS[Math.floor(Math.random() * CPU_LEVELS.length)] }),
-    reset: () => setSettings({ crownsCpu: 'medium', crownsSeat3: 'off', crownsSeat4: 'off' }),
+    reset: () => setSettings({ crownsCpu: 'medium', crownsSeat3: 'off', crownsSeat4: 'off', crownsDeck: 'plain', crownsFaces: 'ranked', crownsLastTurns: 'everyone' }),
     seatControl: () => undefined,
     cpuDifficulty: { value: settings.crownsCpu, options: CPU_OPTIONS, onChange: (value) => setSettings({ crownsCpu: value as CpuLevel }) }
   }
 }
-
-function CrownsOptions({ mode, settings, onChange, ...look }: LoadoutOptionsProps & { mode: RoundMode; settings: CrownsRoundSettings; onChange: (patch: Partial<Settings>) => void }) {
-  const seatRow = (seat: 3 | 4, value: CrownsSeatKind) => (
-    <View style={styles.row}>
-      <Text variant='labelLarge' style={[styles.label, { color: look.mutedColor }]}>
-        {`Player ${seat}`}
-      </Text>
-      <LoadoutPills {...look} kind='choice' testID={`fourcrowns-seat${seat}`} pills={CROWNS_SEAT_KINDS.map((kind) => ({ key: kind, label: SEAT_KIND_LABELS[kind], on: value === kind, onPress: () => onChange(seat === 3 ? { crownsSeat3: kind } : { crownsSeat4: kind }) }))} />
-    </View>
-  )
-  const extraCpu = settings.crownsSeat3 === 'cpu' || (settings.crownsSeat3 !== 'off' && settings.crownsSeat4 === 'cpu')
-  return (
-    <View style={styles.rows}>
-      {seatRow(3, settings.crownsSeat3)}
-      {settings.crownsSeat3 !== 'off' ? seatRow(4, settings.crownsSeat4) : null}
-      {mode === 'twoPlayer' && extraCpu ? (
-        <View style={styles.row}>
-          <Text variant='labelLarge' style={[styles.label, { color: look.mutedColor }]}>
-            CPU
-          </Text>
-          <LoadoutPills {...look} kind='choice' testID='fourcrowns-cpu' pills={CPU_LEVELS.map((level) => ({ key: level, label: CPU_LEVEL_LABELS[level], on: settings.crownsCpu === level, onPress: () => onChange({ crownsCpu: level }) }))} />
-        </View>
-      ) : null}
-    </View>
-  )
-}
-
-// The rows share one centered column, each left-aligned in it, so their labels line up.
-const styles = StyleSheet.create({
-  label: { minWidth: 64 },
-  row: { alignItems: 'center', flexDirection: 'row', gap: 8 },
-  rows: { alignSelf: 'center', gap: 10 }
-})

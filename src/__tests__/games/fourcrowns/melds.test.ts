@@ -1,4 +1,4 @@
-import { type Card, type Rank, type Suit } from '@tastic/cards'
+import { type AnyCard, type Card, type Joker, type Rank, type Suit } from '@tastic/cards'
 
 import { makeDeck } from '@/engine/deck'
 import { mulberry32, shuffle } from '@/engine/rng'
@@ -8,7 +8,8 @@ import { bestArrangement, cardPoints, pointsWithout } from '@/games/fourcrowns/e
 // fewest points in hand.
 
 const c = (rank: number, suit: Suit, deck = 0): Card => ({ id: `${suit}-${rank}-${deck}`, suit, rank: rank as Rank, faceUp: true })
-const ids = (cards: readonly Card[]) => cards.map((card) => card.id)
+const ids = (cards: readonly AnyCard[]) => cards.map((card) => card.id)
+const joker = (n: number): Joker => ({ id: `joker-${n}`, suit: 'joker', rank: null, faceUp: true })
 
 describe('cardPoints', () => {
   it('an Ace is 1, a number card its number, J 11, Q 12, K 13, and a wild 20', () => {
@@ -56,6 +57,30 @@ describe('bestArrangement', () => {
     const result = bestArrangement([c(13, 'spades'), c(12, 'diamonds'), c(3, 'clubs')], 3)
     expect(result.melds).toEqual([])
     expect(result.points).toBe(13 + 12 + 20)
+  })
+
+  it('a joker is always wild, and costs 50 left in hand', () => {
+    expect(bestArrangement([c(9, 'spades'), c(9, 'diamonds'), joker(0)], 4).points).toBe(0)
+    const run = bestArrangement([c(4, 'hearts'), joker(1), c(6, 'hearts')], 10)
+    expect(run.points).toBe(0)
+    expect(ids(run.melds[0].cards)).toEqual(['hearts-4-0', 'joker-1', 'hearts-6-0'])
+    const lone = bestArrangement([c(13, 'spades'), joker(0), c(3, 'clubs')], 5)
+    expect(lone.melds).toEqual([])
+    expect(lone.points).toBe(13 + 50 + 3)
+    expect(ids(lone.loose)).toEqual(['clubs-3-0', 'spades-13-0', 'joker-0'])
+  })
+
+  it('a meld takes the round’s wild before a joker', () => {
+    const result = bestArrangement([c(9, 'spades'), c(9, 'diamonds'), c(3, 'clubs'), joker(0), c(13, 'hearts'), c(12, 'hearts')], 3)
+    expect(result.points).toBe(0)
+    expect(result.melds.flatMap((meld) => ids(meld.cards))).toContain('joker-0')
+  })
+
+  it('counts face cards 10 each when the rules say so', () => {
+    expect(bestArrangement([c(13, 'spades'), c(12, 'diamonds'), c(11, 'clubs')], 3, 'ten').points).toBe(30)
+    expect(cardPoints(c(13, 'spades'), 3, 'ten')).toBe(10)
+    expect(cardPoints(c(3, 'spades'), 3, 'ten')).toBe(20)
+    expect(pointsWithout([c(13, 'spades'), c(12, 'diamonds')], 'spades-13-0', 5, 'ten')).toBe(10)
   })
 
   it('wilds left over go on a meld, and three wilds alone are a book', () => {
@@ -180,12 +205,14 @@ function bruteForcePoints(hand: Card[], wild: number): number {
 }
 
 /** Whether laid-out cards are a meld: a book of one rank, or a run of one suit in a row with each wild in a place. */
-function validMeld(kind: 'book' | 'run', cards: Card[], wild: number): boolean {
+function validMeld(kind: 'book' | 'run', cards: AnyCard[], wild: number): boolean {
   if (cards.length < 3) return false
-  const naturals = cards.filter((card) => card.rank !== wild)
+  const isWild = (card: AnyCard) => card.rank === null || card.rank === wild
+  const naturals = cards.filter((card): card is Card => !isWild(card))
   if (kind === 'book') return naturals.every((card) => card.rank === naturals[0]?.rank)
-  const first = cards.findIndex((card) => card.rank !== wild)
-  const low = cards[first].rank - first
+  const first = cards.findIndex((card) => !isWild(card))
+  const head = cards[first] as Card
+  const low = head.rank - first
   if (low < 1 || low + cards.length - 1 > 13) return false
-  return cards.every((card, k) => card.rank === wild || (card.suit === cards[first].suit && card.rank === low + k))
+  return cards.every((card, k) => isWild(card) || (card.suit === head.suit && card.rank === low + k))
 }
