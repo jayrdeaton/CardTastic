@@ -1,4 +1,4 @@
-// A two-player table's view (Six-Card Golf, Trash, War, Speed, Gin Rummy): the cards (TableCards: every card one view as it moves
+// A card table's view (Six-Card Golf, Trash, War, Speed, Gin Rummy, Four Crowns): the cards (TableCards: every card one view as it moves
 // between piles, a hand and a grid), a ring round each card the player whose move it is can tap, a tap target over it
 // (or, where two people play at once, the game's own touch zones), each player's name row and prompt line facing them,
 // the notes beside the middle row, and the Home and Settings buttons. What the cards are, which can be tapped and what
@@ -96,7 +96,8 @@ export function TableView({
   targets?: TableTarget[]
   /** Cards ringed with no tap target of their own (a game whose touch zones take the taps). */
   rings?: Point[]
-  labels: Record<PlayerIndex, TableLabel>
+  /** Each seat's name row; a seat left out has no row, prompt or note (Four Crowns draws its other players' own). */
+  labels: Partial<Record<PlayerIndex, TableLabel>>
   prompts: Partial<Record<PlayerIndex, string | null>>
   notes: Partial<Record<PlayerIndex, string | null>>
   call: TableCall | null
@@ -131,9 +132,10 @@ export function TableView({
       {[...targets.filter((target) => target.ring !== false).map((target) => target.at), ...rings].map((at) => (
         <View key={`ring-${at.x}-${at.y}`} pointerEvents='none' style={[styles.ring, { borderColor: ringColor, height: cardHeight + RING_GAP * 2, left: at.x - cardWidth / 2 - RING_GAP, top: at.y - cardHeight / 2 - RING_GAP, width: cardWidth + RING_GAP * 2 }]} />
       ))}
-      {([1, 2] as const).map((player) => (
-        <PlayerLines key={player} game={game} player={player} layout={layout} label={labels[player]} prompt={prompts[player] ?? null} note={notes[player] ?? null} call={call?.player === player ? call : null} />
-      ))}
+      {([1, 2] as const).map((player) => {
+        const label = labels[player]
+        return label ? <PlayerLines key={player} game={game} player={player} layout={layout} label={label} prompt={prompts[player] ?? null} note={notes[player] ?? null} call={call?.player === player ? call : null} /> : null
+      })}
       {targets.map((target) => {
         const rect = cardRect(target.at, cardWidth, cardHeight, 4)
         return <Pressable key={target.key} accessibilityRole='button' accessibilityLabel={target.label} onPress={target.onPress} style={[styles.target, { height: rect.height, left: rect.x, top: rect.y, width: rect.width }]} testID={`${game}-${target.key}`} />

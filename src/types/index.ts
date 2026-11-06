@@ -1,5 +1,6 @@
 import type { ViewRotation } from '@tastic/core'
 
+import type { CrownsSeatKind } from '@/games/fourcrowns/engine/types'
 import type { GinTarget } from '@/games/ginrummy/engine/types'
 import type { CpuLevel } from '@/games/table/cpuLevel'
 import type { WarLength } from '@/games/war/engine/types'
@@ -54,6 +55,11 @@ export interface Settings {
   // (games/ginrummy/engine/cpu.ts).
   ginTarget: GinTarget
   ginCpu: CpuLevel
+  // Four Crowns: how well its CPUs play (seat 2's and any in seats 3 and 4; games/fourcrowns/engine/cpu.ts), and who sits
+  // in seats 3 and 4 (nobody, a person or a CPU; seat 4 only counts while seat 3 is taken).
+  crownsCpu: CpuLevel
+  crownsSeat3: CrownsSeatKind
+  crownsSeat4: CrownsSeatKind
   // Global, not per-game (unlike every setting above): whether auto-play runs at all - the safe cards
   // that follow the player's own play of a card to a foundation (useAutoFoundationCascade), and the
   // finish that files a solved board away on its own (useAutoFinish; see engine/autoFoundation.ts). Applies

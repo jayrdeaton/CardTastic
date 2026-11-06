@@ -5,10 +5,8 @@
 // who to hand it to and what was just played; Ready shows the new player their hand. Every card is one view the whole
 // time it's on the table (games/table/TableCards.tsx), so a card visibly goes from the stock to a hand to the discard.
 
-import { useAutoPaperTheme } from '@rific/auto-paper'
 import { useKeepAwake } from '@rific/core'
-import { Button } from '@rific/feedback-press'
-import { type Card, CardSizeProvider, rankLabel, SUIT_SYMBOLS } from '@tastic/cards'
+import { type Card, CardSizeProvider } from '@tastic/cards'
 import { useOverlayCardColors } from '@tastic/hud/chrome'
 import { useActiveRound } from '@tastic/shell'
 import { useCallback, useMemo, useState } from 'react'
@@ -19,11 +17,11 @@ import { useDispatch } from 'react-redux'
 
 import { useMotionReduced } from '@/components/reducedMotion'
 import { SettingsDialog } from '@/components/SettingsDialog'
-import { CHROME_FG_MUTED, useTableColors } from '@/components/theme'
 import { useCardSoundEffects } from '@/components/useCardSounds'
 import { PipFireworks } from '@/components/winning/PipFireworks'
 import { CPU_LEVEL_LABELS } from '@/games/table/cpuLevel'
 import { cardTilt, type Pose } from '@/games/table/geometry'
+import { ActionRow, cardName, type HandAction, type HandGroup, type MeldLine, MeldLines } from '@/games/table/HandRow'
 import { PassCover } from '@/games/table/PassCover'
 import { otherPlayer, type PlayerIndex, VS_CPU_HUMANS } from '@/games/table/players'
 import { type TableCardSpec } from '@/games/table/TableCards'
@@ -36,7 +34,7 @@ import { matchStatsActions } from '@/redux/matchStatsSlice'
 import { bestArrangement } from './engine/melds'
 import { canDrawStock, canKnock, canTakeDiscard, canThrow, deadwoodAfterThrow, discardTop, handOf, toMove } from './engine/rules'
 import { type GinState, type GinTurn } from './engine/types'
-import { type GinLayout, ginLayout, type HandGroup, handPoses, type MeldLine } from './layout'
+import { type GinLayout, ginLayout, handPoses } from './layout'
 import { type GinRoundSettings } from './useGinLoadout'
 import { useGinMatch } from './useGinMatch'
 
@@ -48,7 +46,6 @@ const DEAL_STAGGER_MS = 45
 const RESULT_MS = 1600
 /** How many of the stock's and the discard's top cards are drawn. */
 const PILE_DRAWN = 3
-const MELD_LINE_HEIGHT = 3
 
 export function GinRummyScreen() {
   useKeepAwake('game')
@@ -150,7 +147,7 @@ export function GinRummyScreen() {
   }
 
   // The buttons over the hand: Pass on the first upcard; Throw, and Knock or Gin, once a card is picked.
-  const actions: { key: string; label: string; primary: boolean; disabled?: boolean; onPress: () => void }[] = []
+  const actions: HandAction[] = []
   if (yourMove && state.phase === 'upcard') actions.push({ key: 'pass', label: 'Pass', primary: false, onPress: () => act(match.pass(seated)) })
   if (yourMove && state.phase === 'discard' && picked) {
     const throwable = canThrow(state, seated, picked)
@@ -164,8 +161,8 @@ export function GinRummyScreen() {
   return (
     <CardSizeProvider width={layout.cardWidth}>
       <View style={styles.screen} onLayout={onLayout}>
-        <TableView game='ginrummy' layout={layout} cards={cards} dealKey={match.deal} targets={targets} labels={{ 1: label(1), 2: label(2) }} prompts={prompts} notes={notes} call={null} emptySlots={emptySlots} overCards={<MeldLines lines={lines} />} onSettings={() => setSettingsOpen(true)}>
-          {actions.length > 0 ? <ActionRow actions={actions} y={layout.actionY} /> : null}
+        <TableView game='ginrummy' layout={layout} cards={cards} dealKey={match.deal} targets={targets} labels={{ 1: label(1), 2: label(2) }} prompts={prompts} notes={notes} call={null} emptySlots={emptySlots} overCards={<MeldLines game='ginrummy' lines={lines} />} onSettings={() => setSettingsOpen(true)}>
+          {actions.length > 0 ? <ActionRow game='ginrummy' actions={actions} y={layout.actionY} /> : null}
           {covered ? <PassCover seat={seats[moving!]} message={passMessage(state, moving!, seats)} onReady={() => setHolder(moving!)} testID='ginrummy-pass' /> : null}
           {resultShown && state.phase === 'handOver' ? <TableOverlay humans={VS_CPU_HUMANS} content={() => handContent(state, you, seats)} actionLabel='Next Hand' onAction={match.nextHand} testID='ginrummy-hand' /> : null}
           {resultShown && state.phase === 'matchOver' ? <TableOverlay humans={VS_CPU_HUMANS} content={() => matchContent(state, you, seats)} actionLabel='Rematch' onAction={match.rematch} testID='ginrummy-result' /> : null}
@@ -175,11 +172,6 @@ export function GinRummyScreen() {
       <SettingsDialog visible={settingsOpen} onDismiss={() => setSettingsOpen(false)} rotation={0} />
     </CardSizeProvider>
   )
-}
-
-/** A card as a prompt names it: 7♦, Q♠. */
-function cardName(card: Card): string {
-  return `${rankLabel(card.rank)}${SUIT_SYMBOLS[card.suit]}`
 }
 
 /** A hand's groups as it's laid out: its melds, then (once the hand is over) the cards laid off, then the rest. */
@@ -221,33 +213,6 @@ function ginCards(state: GinState, layout: GinLayout, seated: PlayerIndex, cover
     if (faceUp) for (const line of handLines) lines.push({ ...line, y: layout.meldLineY[player] })
   }
   return { cards, lines }
-}
-
-/** The line under each meld of a hand showing its face: the hint ring's color under a meld, muted under the cards laid
- * off on the knocker's melds. */
-function MeldLines({ lines }: { lines: (MeldLine & { y: number })[] }) {
-  const ringColor = useTableColors().hintGreen
-  return (
-    <>
-      {lines.map(({ kind, left, right, y }) => (
-        <View key={`${kind}-${left}-${y}`} pointerEvents='none' style={[styles.meldLine, { backgroundColor: kind === 'meld' ? ringColor : CHROME_FG_MUTED, left: left + 2, top: y - MELD_LINE_HEIGHT / 2, width: Math.max(0, right - left - 4) }]} testID={`ginrummy-${kind}-line`} />
-      ))}
-    </>
-  )
-}
-
-/** The buttons over the hand: centered in a row. */
-function ActionRow({ actions, y }: { actions: { key: string; label: string; primary: boolean; disabled?: boolean; onPress: () => void }[]; y: number }) {
-  const { colors } = useAutoPaperTheme()
-  return (
-    <View pointerEvents='box-none' style={[styles.actions, { top: y - 20 }]}>
-      {actions.map(({ key, label, primary, disabled, onPress }) => (
-        <Button key={key} mode='contained' compact disabled={disabled} onPress={onPress} buttonColor={primary ? colors.primary : colors.surface} textColor={primary ? colors.onPrimary : colors.onSurface} style={styles.action} testID={`ginrummy-${key}`}>
-          {label}
-        </Button>
-      ))}
-    </View>
-  )
 }
 
 /** What the prompt over the hand says on the player's own turn. */
@@ -330,10 +295,7 @@ function matchContent(state: GinState, you: PlayerIndex | null, seats: Record<Pl
 }
 
 const styles = StyleSheet.create({
-  action: { minWidth: 96 },
-  actions: { flexDirection: 'row', gap: 12, height: 40, justifyContent: 'center', left: 0, position: 'absolute', right: 0 },
   center: { textAlign: 'center' },
-  meldLine: { borderRadius: MELD_LINE_HEIGHT / 2, height: MELD_LINE_HEIGHT, position: 'absolute' },
   scores: { alignItems: 'center', gap: 2 },
   screen: { flex: 1 }
 })

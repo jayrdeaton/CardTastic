@@ -3,9 +3,10 @@
 // across the bottom, its rank and suit showing on every card, with the buttons above it; the other player's hand lies
 // face down across the top; the stock and the discard sit in a row between.
 
-import { type Card, CARD_ASPECT } from '@tastic/cards'
+import { CARD_ASPECT } from '@tastic/cards'
 
 import { type Point, type Pose } from '@/games/table/geometry'
+import { type HandGroup, handRowPoses, type MeldLine } from '@/games/table/HandRow'
 import type { PlayerIndex } from '@/games/table/players'
 import { type TableFrame } from '@/games/table/TableView'
 
@@ -91,41 +92,8 @@ export function ginLayout(width: number, height: number, insets: { top: number; 
   }
 }
 
-/** A hand laid out in groups (its melds, then the rest), left to right. */
-export interface HandGroup {
-  cards: Card[]
-  /** Marked with a line under it: a meld (or, once a hand is over, the cards laid off). */
-  kind: 'meld' | 'laidOff' | 'loose'
-}
-
-/** A line under a marked group of a hand, from its first card's left edge to as far as its last card shows. */
-export interface MeldLine {
-  kind: HandGroup['kind']
-  left: number
-  right: number
-}
-
-/** Where each card of a hand lies: in a row centered across the table, a group's cards `step` apart and each group
- * `gap` further on, the picked card risen. Also the stretch of each marked group, for its line. */
+/** Where each card of a hand lies: in a row centered across the table, the picked card risen. Also the stretch of each
+ * marked group, for its line. */
 export function handPoses(groups: HandGroup[], layout: GinLayout, player: PlayerIndex, { step, gap }: { step: number; gap: number }, picked: string | null): { poses: Map<string, Pose>; lines: MeldLine[] } {
-  const filled = groups.filter((group) => group.cards.length > 0)
-  const count = filled.reduce((sum, group) => sum + group.cards.length, 0)
-  const span = count === 0 ? 0 : layout.cardWidth + (count - 1) * step + (filled.length - 1) * gap
-  let x = layout.width / 2 - span / 2 + layout.cardWidth / 2
-  const y = layout.handY[player]
-  const poses = new Map<string, Pose>()
-  const lines: MeldLine[] = []
-  filled.forEach((group, g) => {
-    const left = x - layout.cardWidth / 2
-    group.cards.forEach((card, i) => {
-      poses.set(card.id, { x, y: card.id === picked ? y - layout.lift : y, rotate: 0 })
-      if (i < group.cards.length - 1) x += step
-    })
-    const last = g === filled.length - 1
-    // A group's last card shows only up to where the next group's first card covers it.
-    const right = last ? x + layout.cardWidth / 2 : x - layout.cardWidth / 2 + step
-    if (group.kind !== 'loose') lines.push({ kind: group.kind, left, right })
-    x += step + gap
-  })
-  return { poses, lines }
+  return handRowPoses(groups, { centerX: layout.width / 2, y: layout.handY[player], cardWidth: layout.cardWidth, step, gap, lift: layout.lift }, picked)
 }

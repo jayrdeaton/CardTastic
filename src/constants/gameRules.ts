@@ -53,3 +53,15 @@ export const GIN_RUMMY_RULES: string[] = [
   'If the stock is down to two cards and the player who drew throws without knocking, the hand is a draw. The winner of a hand deals the next.',
   'The first to 100 wins the match (50 in a short game). With two players, pass the phone: your hand stays hidden until you tap Ready.'
 ]
+
+// Four Crowns' (games/fourcrowns/engine/rules.ts): scored by what's left in hand over eleven rounds, so no Scoring
+// paragraph of the solitaire kind.
+export const FOUR_CROWNS_RULES: string[] = [
+  'Two to four players, two decks of 52 cards, no jokers. There are eleven rounds: the first deals 3 cards each, and each round deals one more, up to 13.',
+  'Each round, the rank equal to the cards dealt is wild: 3s in the first round, then 4s, and so on up to Jacks, Queens and Kings. A wild stands in for any card.',
+  'On your turn, draw the top card of the stock or of the discard, then throw a card onto the discard. You can’t throw back the card you just took from the discard.',
+  'Melds are books (three or more cards of a rank, suits can repeat) and runs (three or more cards of a suit in a row, Aces low).',
+  'When every card but the one you throw is in a meld, you can go out. Everyone else then has one last turn, and the round ends.',
+  'Cards left out of melds count against you: Aces 1, number cards their number, Jacks 11, Queens 12, Kings 13, and a wild 20. After the eleventh round, the lowest total wins.',
+  'With more than one person playing, pass the phone: your hand stays hidden until you tap Ready.'
+]

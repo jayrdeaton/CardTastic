@@ -5,6 +5,7 @@ import { createPackStore, type PackStoreConfig, type PackStoreSource, type Seat,
 
 import { playerTheme } from '@/components/theme'
 import { SEAT_COLORS } from '@/constants/player'
+import { fourCrownsGuide } from '@/games/fourcrowns/guide'
 import { ginRummyGuide } from '@/games/ginrummy/guide'
 import { ratslapGuide } from '@/games/ratslap/guide'
 import { sixCardGolfGuide } from '@/games/sixcardgolf/guide'
@@ -23,7 +24,7 @@ import { SOLITAIRE_GAME_IDS } from '@/stores/statsTypes'
 // be an import cycle. Everything imports the store through this module, and screen tests swap it for
 // testUtils/gameInProgressStore.ts.
 
-// The two-player games' part (each definition, games/<id>/definition.ts, holds its screen, which can't be imported here):
+// The table games' part (each definition, games/<id>/definition.ts, holds its screen, which can't be imported here):
 // each How to Play's seen version. Their results are among Solitaire's own keys (redux/matchStatsSlice.ts), so a
 // player's reset and Reset Stats reach them. Their matches aren't saved.
 const TABLE_GAME_STORES: { id: string; reducers: Record<string, Reducer>; resumable: boolean }[] = [
@@ -33,7 +34,8 @@ const TABLE_GAME_STORES: { id: string; reducers: Record<string, Reducer>; resuma
   { id: 'war', reducers: { warGuide: warGuide.reducer }, resumable: false },
   { id: 'sixcardgolf', reducers: { sixCardGolfGuide: sixCardGolfGuide.reducer }, resumable: false },
   { id: 'trash', reducers: { trashGuide: trashGuide.reducer }, resumable: false },
-  { id: 'ginrummy', reducers: { ginRummyGuide: ginRummyGuide.reducer }, resumable: false }
+  { id: 'ginrummy', reducers: { ginRummyGuide: ginRummyGuide.reducer }, resumable: false },
+  { id: 'fourcrowns', reducers: { fourCrownsGuide: fourCrownsGuide.reducer }, resumable: false }
 ]
 
 export const storeSource = {

@@ -1,5 +1,6 @@
 import type { GuideStep } from '@tastic/hud/guide'
 
+import { getCrownsGuideSteps } from '@/games/fourcrowns/guideSteps'
 import { getGinGuideSteps } from '@/games/ginrummy/guideSteps'
 import { getSixCardGolfGuideSteps } from '@/games/sixcardgolf/guideSteps'
 import { getSlapjackGuideSteps } from '@/games/slapjack/guideSteps'
@@ -84,4 +85,13 @@ describe('Gin Rummy', () => {
     expectCopyRules(getGinGuideSteps({ target: 100 }, { touch }), touch)
     expectCopyRules(getGinGuideSteps({ target: 50 }, { touch }), touch)
   })
+})
+
+describe('Four Crowns', () => {
+  it('teaches melds, the wild that changes, a turn, going out, scoring, and passing the phone', () => {
+    expect(getCrownsGuideSteps({ touch: true }).map((s) => s.title)).toEqual(['Make Melds', 'A New Wild Each Round', 'Draw, Then Throw', 'Go Out', 'Lowest Total Wins', 'Pass the Phone'])
+    expect(getCrownsGuideSteps({ touch: false })[5].body).toMatch(/click Ready/)
+  })
+
+  it.each([true, false])('touch %s: follows the copy rules', (touch) => expectCopyRules(getCrownsGuideSteps({ touch }), touch))
 })
