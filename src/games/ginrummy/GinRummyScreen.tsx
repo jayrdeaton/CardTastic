@@ -196,12 +196,25 @@ export function GinRummyScreen() {
   return (
     <CardSizeProvider width={layout.cardWidth}>
       <View style={styles.screen} onLayout={onLayout}>
-        <TableView game='ginrummy' layout={layout} cards={cards} dealKey={match.deal} targets={targets} labels={{ 1: label(1), 2: label(2) }} prompts={prompts} notes={notes} call={null} emptySlots={emptySlots} overCards={
+        <TableView
+          game='ginrummy'
+          layout={layout}
+          cards={cards}
+          dealKey={match.deal}
+          targets={targets}
+          labels={{ 1: label(1), 2: label(2) }}
+          prompts={prompts}
+          notes={notes}
+          call={null}
+          emptySlots={emptySlots}
+          overCards={
             <>
               <MeldLines game='ginrummy' lines={lines} />
               {dealt ? <HandSuitMarks game='ginrummy' spots={suitMarkSpots(cards, layout.cardWidth, layout.cardHeight)} cardWidth={layout.cardWidth} /> : null}
             </>
-          } onSettings={() => setSettingsOpen(true)}>
+          }
+          onSettings={() => setSettingsOpen(true)}
+        >
           {actions.length > 0 ? <ActionRow game='ginrummy' actions={actions} y={layout.actionY} /> : null}
           {covered ? <PassCover seat={seats[moving!]} message={passMessage(state, moving!, seats)} onReady={() => setHolder(moving!)} testID='ginrummy-pass' /> : null}
           {resultShown && state.phase === 'handOver' ? <TableOverlay humans={VS_CPU_HUMANS} content={() => handContent(state, you, seats)} actionLabel='Next Hand' onAction={match.nextHand} testID='ginrummy-hand' /> : null}

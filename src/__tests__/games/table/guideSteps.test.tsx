@@ -29,7 +29,14 @@ describe('Slapjack', () => {
     expect(getSlapjackGuideSteps({ touch: true }).map((s) => s.title)).toEqual(['Tap Your Deck', 'Slap a Jack', 'Wrong Slaps Cost'])
   })
 
-  it.each([true, false])('touch %s: follows the copy rules', (touch) => expectCopyRules(getSlapjackGuideSteps({ touch }), touch))
+  it('says what a wrong slap costs under the penalty picked', () => {
+    expect(getSlapjackGuideSteps({ touch: true }, { penalty: 'give' })[2].body).toMatch(/gives your top card/)
+  })
+
+  it.each([true, false])('touch %s: follows the copy rules', (touch) => {
+    expectCopyRules(getSlapjackGuideSteps({ touch }), touch)
+    expectCopyRules(getSlapjackGuideSteps({ touch }, { penalty: 'give' }), touch)
+  })
 })
 
 describe('Six-Card Golf', () => {
@@ -53,9 +60,14 @@ describe('Trash', () => {
     expect(getTrashGuideSteps({ cards: 10 }).map((s) => s.title)).toEqual(['Ace to 10', 'Keep Going', 'Jacks Are Wild', 'One Fewer Each Win'])
   })
 
+  it('names the wild picked', () => {
+    expect(getTrashGuideSteps({ cards: 10, wild: 'kings' })[2].title).toBe('Kings Are Wild')
+  })
+
   it('follows the copy rules', () => {
     expectCopyRules(getTrashGuideSteps({ cards: 10 }), true)
     expectCopyRules(getTrashGuideSteps({ cards: 5 }), false)
+    expectCopyRules(getTrashGuideSteps({ cards: 10, wild: 'kings' }), true)
   })
 })
 
@@ -64,7 +76,14 @@ describe('War', () => {
     expect(getWarGuideSteps({ touch: true }).map((s) => s.title)).toEqual(['Turn Over a Card', 'Higher Card Wins', 'Ties Mean War'])
   })
 
-  it.each([true, false])('touch %s: follows the copy rules', (touch) => expectCopyRules(getWarGuideSteps({ touch }), touch))
+  it('says how many go down in a war under the rule picked', () => {
+    expect(getWarGuideSteps({ touch: true }, { down: 1 })[2].body).toMatch(/one goes down/)
+  })
+
+  it.each([true, false])('touch %s: follows the copy rules', (touch) => {
+    expectCopyRules(getWarGuideSteps({ touch }), touch)
+    expectCopyRules(getWarGuideSteps({ touch }, { down: 1 }), touch)
+  })
 })
 
 describe('Speed', () => {
@@ -72,7 +91,15 @@ describe('Speed', () => {
     expect(getSpeedGuideSteps({ touch: true }).map((s) => s.title)).toEqual(['One Up or Down', 'Ranks Wrap', 'No Turns', 'When Nobody Can Play'])
   })
 
-  it.each([true, false])('touch %s: follows the copy rules', (touch) => expectCopyRules(getSpeedGuideSteps({ touch }), touch))
+  it('follows the rules picked: no wrap, and drawing by hand', () => {
+    expect(getSpeedGuideSteps({ touch: true }, { wrap: false }).map((s) => s.title)).toEqual(['One Up or Down', 'Aces Are Low', 'No Turns', 'When Nobody Can Play'])
+    expect(getSpeedGuideSteps({ touch: false }, { refill: 'tap' }).map((s) => s.title)).toEqual(['One Up or Down', 'Ranks Wrap', 'No Turns', 'Draw Your Own', 'When Nobody Can Play'])
+  })
+
+  it.each([true, false])('touch %s: follows the copy rules', (touch) => {
+    expectCopyRules(getSpeedGuideSteps({ touch }), touch)
+    expectCopyRules(getSpeedGuideSteps({ touch }, { wrap: false, refill: 'tap' }), touch)
+  })
 })
 
 describe('Gin Rummy', () => {

@@ -9,14 +9,16 @@ import { type RandomFn, randomSeed } from '@/engine/rng'
 import { type CpuLevel } from '@/games/table/cpuLevel'
 import { useSettled } from '@/games/table/useTable'
 
-import { cpuMove, cpuPaceMs } from './engine/cpu'
-import { createSpeedMatch, isStuck, playCard, turnSides } from './engine/rules'
-import { type PlayerIndex, type SpeedState } from './engine/types'
+import { cpuDraws, cpuMove, cpuPaceMs } from './engine/cpu'
+import { createSpeedMatch, drawCard, isStuck, playCard, turnSides } from './engine/rules'
+import { type PlayerIndex, type SpeedRules, type SpeedState } from './engine/types'
 
 /** With nobody able to play, the side piles are turned after this long: long enough to see that nothing fits. */
 export const STUCK_TURN_MS = 1100
 
 export interface SpeedMatchOptions {
+  /** Whether ranks wrap, and how a hand refills. */
+  rules: SpeedRules
   /** The CPU in seat 2, or null for a person. */
   cpu: CpuLevel | null
   /** Holds every timer: a dialog is open, the app is in the background, or the result is showing. */
@@ -30,8 +32,8 @@ export interface SpeedMatchOptions {
   initialState?: SpeedState
 }
 
-export function useSpeedMatch({ cpu, paused, dealMs, changed, seed = randomSeed, rng = Math.random, initialState }: SpeedMatchOptions) {
-  const [state, setState] = useState(() => initialState ?? createSpeedMatch(seed()))
+export function useSpeedMatch({ rules, cpu, paused, dealMs, changed, seed = randomSeed, rng = Math.random, initialState }: SpeedMatchOptions) {
+  const [state, setState] = useState(() => initialState ?? createSpeedMatch(seed(), rules))
   // Counts deals (a rematch), so the table deals the cards afresh, and nothing is played until they've landed.
   const [deal, setDeal] = useState(0)
   const dealt = useSettled(deal, dealMs)
@@ -52,9 +54,11 @@ export function useSpeedMatch({ cpu, paused, dealMs, changed, seed = randomSeed,
 
   /** The card in a player's slot onto the center pile it fits best, if it fits one now. */
   const play = useCallback((player: PlayerIndex, slot: number) => dealt && apply(playCard(stateRef.current, player, slot)), [dealt, apply])
+  /** Drawing by hand: a card from the player's draw pile into an empty spot. */
+  const draw = useCallback((player: PlayerIndex) => dealt && apply(drawCard(stateRef.current, player)), [dealt, apply])
 
   const rematch = useCallback(() => {
-    const next = createSpeedMatch(latest.current.seed())
+    const next = createSpeedMatch(latest.current.seed(), stateRef.current.rules)
     stateRef.current = next
     setState(next)
     setDeal((n) => n + 1)
@@ -82,6 +86,7 @@ export function useSpeedMatch({ cpu, paused, dealMs, changed, seed = randomSeed,
         if (current.winner !== null) return
         const move = cpuMove(current, 2)
         if (move) apply(playCard(current, 2, move.slot, move.pile))
+        else if (cpuDraws(current, 2)) apply(drawCard(current, 2))
         setCpuTick((n) => n + 1)
       },
       cpuPaceMs(cpu, latest.current.rng)
@@ -89,5 +94,5 @@ export function useSpeedMatch({ cpu, paused, dealMs, changed, seed = randomSeed,
     return () => clearTimeout(timer)
   }, [cpuTick, deal, paused, dealt, cpu, apply])
 
-  return { state, deal, dealt, play, rematch }
+  return { state, deal, dealt, play, draw, rematch }
 }

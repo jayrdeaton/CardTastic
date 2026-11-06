@@ -27,7 +27,7 @@ import { type Seat, SeatBadge, TableOverlay, TableSideButtons, useAppActive, use
 import { TouchZones } from '@/games/table/TouchZones'
 import { matchStatsActions } from '@/redux/matchStatsSlice'
 
-import { chancesFor, toPlay } from './engine/rules'
+import { chancesFor, otherPlayer, toPlay } from './engine/rules'
 import { type PlayerIndex, type RatSlapRules, type RatSlapState } from './engine/types'
 import { burnedPose, DECK_LABEL_ROOM, deckPose, halfAt, PILE_DRAWN, pileCardPose, slapArea, type TableLayout, tableLayout } from './layout'
 import { useRatSlapMatch } from './useRatSlapMatch'
@@ -57,8 +57,9 @@ const SLAP_LABEL_HEIGHT = 28
 const SLAP_LABEL_COLOR = 'rgba(255,255,255,0.5)'
 
 type Call = { player: PlayerIndex; text: string; key: number }
-/** A won pile on its way to its winner: the cards drawn when it was won, bottom to top. */
-type Departure = { key: number; player: PlayerIndex; cards: AnyCard[] }
+/** Cards on their way to a player's deck: a won pile (the cards drawn when it was won, bottom to top), or a card given
+ * for a wrong slap, which starts over the slapper's deck (`from`). */
+type Departure = { key: number; player: PlayerIndex; cards: AnyCard[]; from?: Pose }
 /** A hand drawn where a slap landed. */
 type SlapMark = { key: number; x: number; y: number; upsideDown: boolean }
 
@@ -160,6 +161,15 @@ export function SlapTable({ game, twoPlayer, rules, cpu }: { game: 'ratslap' | '
         showCall(player, 'Wrong slap')
         leaveDeck(player, card)
       },
+      paid: (player, card) => {
+        slapsRef.current[player].wrong++
+        playInvalidSound()
+        if (humans.includes(player)) hapticInvalid()
+        else markCpuSlap()
+        showCall(player, 'Wrong slap')
+        // The card goes face down from the slapper's deck to the bottom of the other's.
+        if (!reduceMotion) setDepartures((current) => [...current, { key: seq.current++, player: otherPlayer(player), cards: [card], from: deckPose(layoutRef.current, player) }])
+      },
       wonPile: (player, bySlap) => {
         if (!bySlap) return
         slapsRef.current[player].won++
@@ -258,7 +268,7 @@ function tableCardSpecs(state: RatSlapState, layout: TableLayout, origins: Reado
   const specs: TableCardSpec[] = []
   for (const departure of departures) {
     const pose = deckPose(layout, departure.player)
-    for (const card of departure.cards) if (!live.has(card.id)) specs.push({ card, pose, faceUp: false, durationMs: COLLECT_MOVE_MS })
+    for (const card of departure.cards) if (!live.has(card.id)) specs.push({ card, pose, faceUp: false, from: departure.from, durationMs: COLLECT_MOVE_MS })
   }
   const burnedAt = burnedPose(layout, state.pile.length)
   for (const card of burned) specs.push({ card, pose: burnedAt, faceUp: true, dimmed: true, from: origins.get(card.id), durationMs: move })

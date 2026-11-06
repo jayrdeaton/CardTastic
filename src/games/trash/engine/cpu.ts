@@ -1,5 +1,5 @@
 // How the CPU in seat 2 plays Trash, as pure decisions the screen runs on timers. Most of Trash plays itself: a card has
-// one spot or none. The CPU's two choices are whether to take the discard, and where a Jack goes. Hard puts a Jack in
+// one spot or none. The CPU's two choices are whether to take the discard, and where a wild goes. Hard puts a wild in
 // the spot whose own rank it has seen the most of (face up on the table or gone by on the discard), since that spot is
 // the hardest to fill; Easy puts it anywhere, and sometimes doesn't notice a useful discard.
 
@@ -39,7 +39,7 @@ export function cpuDrawChoice(state: TrashState, player: PlayerIndex, level: Cpu
 
 /** The cards of a rank the CPU has seen: face up in either layout, and on the discard (its top only, or all of it). */
 function seenOfRank(state: TrashState, rank: number, discardSeen: 'top' | 'all'): number {
-  const visible: Card[] = [...state.layouts[0], ...state.layouts[1]].filter((card) => card.faceUp && !isWild(card))
+  const visible: Card[] = [...state.layouts[0], ...state.layouts[1]].filter((card) => card.faceUp && !isWild(card, state.wild))
   const discard = discardSeen === 'all' ? state.discard : state.discard.slice(-1)
   return [...visible, ...discard].filter((card) => card.rank === rank).length
 }
@@ -49,7 +49,7 @@ function seenOfRank(state: TrashState, rank: number, discardSeen: 'top' | 'all')
 export function cpuPlaceChoice(state: TrashState, level: CpuLevel, rng: RandomFn): number | null {
   const spots = heldSpots(state)
   if (spots.length === 0) return null
-  if (spots.length === 1 || !state.held || !isWild(state.held)) return spots[0]
+  if (spots.length === 1 || !state.held || !isWild(state.held, state.wild)) return spots[0]
   const style = TRASH_CPU_STYLES[level]
   if (style.jacks === 'anywhere') return spots[Math.floor(rng() * spots.length)]
   // The spot whose rank is hardest to come by, the highest first on a tie (a high spot is the one left open longest).

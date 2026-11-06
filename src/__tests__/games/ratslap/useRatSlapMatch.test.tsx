@@ -32,7 +32,7 @@ function makeState(overrides: Partial<RatSlapState> = {}): RatSlapState {
 }
 
 function events(): jest.Mocked<MatchEvents> {
-  return { played: jest.fn(), burned: jest.fn(), wonPile: jest.fn(), collected: jest.fn(), matchOver: jest.fn() }
+  return { played: jest.fn(), burned: jest.fn(), paid: jest.fn(), wonPile: jest.fn(), collected: jest.fn(), matchOver: jest.fn() }
 }
 
 /** The CPU's dice: always `value`. Above every level's miss chance, so it never misses a good pile. */
@@ -117,6 +117,24 @@ describe('useRatSlapMatch', () => {
       expect(result.current.slap(1)).toBe('burned')
     })
     expect(heard.burned).toHaveBeenCalledWith(1, expect.objectContaining({ id: 'clubs-4-b', faceUp: true }))
+  })
+
+  it('with the give penalty, a wrong slap pays the player’s top card to the other player, and says so', async () => {
+    const heard = events()
+    const state = makeState({
+      rules: { ...DEFAULT_RULES, penalty: 'give' },
+      pile: [
+        { ...card(2), faceUp: true },
+        { ...card(9), faceUp: true }
+      ]
+    })
+    const { result } = await renderHook(() => useRatSlapMatch({ rules: { ...DEFAULT_RULES, penalty: 'give' }, cpu: null, paused: false, events: heard, initialState: state }))
+
+    await act(() => {
+      expect(result.current.slap(1)).toBe('burned')
+    })
+    expect(heard.paid).toHaveBeenCalledWith(1, expect.objectContaining({ id: 'clubs-4-b', faceUp: false }))
+    expect(heard.burned).not.toHaveBeenCalled()
   })
 
   it('a pile won by a face card waits the longer beat, in which a double can still be slapped away', async () => {

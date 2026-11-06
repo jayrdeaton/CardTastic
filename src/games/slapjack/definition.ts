@@ -6,9 +6,10 @@ import { RulesDialog } from '@/components/RulesDialog'
 import { SLAPJACK_RULES } from '@/constants/gameRules'
 import { SlapPreview } from '@/games/ratslap/RatSlapPreview'
 import { SlapStatsSection } from '@/games/ratslap/RatSlapStats'
+import type { RootState } from '@/redux/store'
 
 import { SLAPJACK_GUIDE_VERSION, slapjackGuide } from './guide'
-import { getSlapjackGuideSteps } from './guideSteps'
+import { getSlapjackGuideSteps, type SlapjackGuideInput } from './guideSteps'
 import { SlapjackScreen } from './SlapjackScreen'
 import { useSlapjackLoadout } from './useSlapjackLoadout'
 
@@ -37,7 +38,7 @@ export const slapjack: GameDefinition = {
     version: SLAPJACK_GUIDE_VERSION,
     selectVersionSeen: slapjackGuide.selectVersionSeen,
     markSeen: slapjackGuide.actions.markSeen,
-    selectInput: () => ({}),
-    getSteps: (_input, context) => getSlapjackGuideSteps(context)
+    selectInput: (state): SlapjackGuideInput => ({ penalty: (state as unknown as RootState).settings.slapjackPenalty }),
+    getSteps: (input, context) => getSlapjackGuideSteps(context, input as SlapjackGuideInput)
   }
 }

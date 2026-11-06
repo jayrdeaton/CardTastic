@@ -5,8 +5,13 @@ import { type AnyCard } from '@tastic/cards'
 
 export type PlayerIndex = 1 | 2
 
+/** What a wrong slap costs: the slapper's top card burned face up under the pile (it goes to the pile's winner), or
+ * given to the other player, under their deck (Slapjack's choice on its setup screen; RatSlap always burns). */
+export type SlapPenalty = 'burn' | 'give'
+export const SLAP_PENALTIES: readonly SlapPenalty[] = ['burn', 'give']
+
 /** The rules a match is dealt with. RatSlap's first three are each switchable before a match (all on by default); the
- * last two tell RatSlap from Slapjack. */
+ * next two tell RatSlap from Slapjack; the last is Slapjack's choice. */
 export interface RatSlapRules {
   /** A slap wins the pile when the top two cards match (two 7s, or two jokers). */
   doubles: boolean
@@ -18,12 +23,14 @@ export interface RatSlapRules {
   faceCards: boolean
   /** A slap wins the pile when a Jack is on top (Slapjack). */
   jacks: boolean
+  /** What a wrong slap costs. */
+  penalty: SlapPenalty
 }
 
-export const DEFAULT_RULES: RatSlapRules = { doubles: true, sandwiches: true, jokers: true, faceCards: true, jacks: false }
+export const DEFAULT_RULES: RatSlapRules = { doubles: true, sandwiches: true, jokers: true, faceCards: true, jacks: false, penalty: 'burn' }
 
 /** Slapjack: slap every Jack, and nothing else. No challenges, no jokers. */
-export const SLAPJACK_RULESET: RatSlapRules = { doubles: false, sandwiches: false, jokers: false, faceCards: false, jacks: true }
+export const SLAPJACK_RULESET: RatSlapRules = { doubles: false, sandwiches: false, jokers: false, faceCards: false, jacks: true, penalty: 'burn' }
 
 /** An open challenge: `attacker` played a J, Q, K or A, and `defender` has `requiredChances` tries
  * (1, 2, 3 or 4) to play one of their own, or the attacker wins the pile. */

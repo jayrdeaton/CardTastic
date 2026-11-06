@@ -3,7 +3,7 @@
 //
 // The rules (Jay, 2026-11-05):
 // - The deck is split in two. Both players turn over their top card; the higher takes both. Aces are high.
-// - A tie is a war: each puts three cards face down and one face up, and the higher face-up card takes everything in the
+// - A tie is a war: each puts three cards face down (or one, the setup screen's choice) and one face up, and the higher face-up card takes everything in the
 //   battle. A tie again is another war. A player with fewer than four cards for a war plays what they have, the last one
 //   face up; one with none left can't go to war and loses the battle.
 // - A won battle goes under the winner's deck, shuffled (collected in order, a War deck can go round for ever).
@@ -16,7 +16,7 @@ import { makeDeck } from '@/engine/deck'
 import { mulberry32, shuffle } from '@/engine/rng'
 import { otherPlayer } from '@/games/table/players'
 
-import { type BattleCard, type PlayerIndex, SHORT_GAME_BATTLES, WAR_FACE_DOWN, type WarLength, type WarState } from './types'
+import { type BattleCard, type PlayerIndex, SHORT_GAME_BATTLES, type WarDown, type WarLength, type WarState } from './types'
 
 /** A card's strength: 2 lowest, Ace highest. */
 export function warValue(card: Card): number {
@@ -31,9 +31,9 @@ function both<T>(pair: [T, T], player: PlayerIndex, value: T): [T, T] {
   return player === 1 ? [value, pair[1]] : [pair[0], value]
 }
 
-export function createWarMatch(seed: number, length: WarLength): WarState {
+export function createWarMatch(seed: number, length: WarLength, down: WarDown = 3): WarState {
   const deck = shuffle(makeDeck(), mulberry32(seed))
-  return { length, hands: [deck.slice(0, 26), deck.slice(26)], battle: [[], []], played: [false, false], war: false, battleWinner: null, battles: 0, wars: 0, winner: null, seed }
+  return { length, down, hands: [deck.slice(0, 26), deck.slice(26)], battle: [[], []], played: [false, false], war: false, battleWinner: null, battles: 0, wars: 0, winner: null, seed }
 }
 
 /** Whether the player can play their part of the step in play now. */
@@ -48,12 +48,12 @@ export function battleCard(state: WarState, player: PlayerIndex): Card | null {
   return null
 }
 
-/** The player's part of the step: their top card face up, or for a war three face down and one face up (fewer when they
+/** The player's part of the step: their top card face up, or for a war three (or one) face down and one face up (fewer when they
  * haven't four). Once both have played, the step is settled. */
 export function playStep(state: WarState, player: PlayerIndex): WarState | null {
   if (!canPlay(state, player)) return null
   const hand = handOf(state, player)
-  const count = state.war ? Math.min(hand.length, WAR_FACE_DOWN + 1) : 1
+  const count = state.war ? Math.min(hand.length, state.down + 1) : 1
   const taken = hand.slice(hand.length - count).reverse()
   const cards: BattleCard[] = taken.map((card, i) => ({ card: { ...card, faceUp: i === count - 1 }, faceUp: i === count - 1 }))
   const next: WarState = {

@@ -1,8 +1,8 @@
 import { type Card, type Rank, type Suit } from '@tastic/cards'
 
 import { mulberry32 } from '@/engine/rng'
-import { cpuMove } from '@/games/speed/engine/cpu'
-import { bestPile, cardCount, cardsLeft, createSpeedMatch, fits, hasMove, isStuck, pilesFor, playCard, turnSides } from '@/games/speed/engine/rules'
+import { cpuDraws, cpuMove } from '@/games/speed/engine/cpu'
+import { bestPile, canDraw, cardCount, cardsLeft, createSpeedMatch, drawCard, fits, hasMove, isStuck, pilesFor, playCard, turnSides } from '@/games/speed/engine/rules'
 import { DEADLOCK_TURNS, DRAW_SIZE, HAND_SIZE, type PlayerIndex, type SpeedState } from '@/games/speed/engine/types'
 
 function card(rank: Rank, suit: Suit = 'clubs', idSuffix = ''): Card {
@@ -137,5 +137,67 @@ describe('the CPU', () => {
       if (winner !== 'tie' && cardsLeft(state, winner!) === 0) playedOut++
     }
     expect(playedOut).toBeGreaterThan(270)
+  })
+})
+
+describe('the rule choices', () => {
+  it('without the wrap, an Ace goes only on a 2 and nothing between King and Ace', () => {
+    expect(fits(card(13), card(1), false)).toBe(false)
+    expect(fits(card(1), card(13), false)).toBe(false)
+    expect(fits(card(1), card(2), false)).toBe(true)
+    const state = withTable({ rules: { wrap: false, refill: 'auto' }, centers: [[card(1)], [card(5)]] })
+    expect(pilesFor(state, card(13))).toEqual([])
+    expect(pilesFor(state, card(2))).toEqual([0])
+  })
+
+  it('drawing by hand, a played card leaves its slot empty until the player draws into it', () => {
+    const rules = { wrap: true, refill: 'tap' as const }
+    const state = withTable({ rules, hands: [[card(7), card(2), card(2, 'hearts'), card(2, 'spades'), card(2, 'diamonds')], createSpeedMatch(1).hands[1]], draws: [[card(11), card(12)], []], centers: [[card(8)], [card(4)]] })
+    expect(canDraw(state, 1)).toBe(false)
+    expect(drawCard(state, 1)).toBeNull()
+    const played = playCard(state, 1, 0)!
+    expect(played.hands[0][0]).toBeNull()
+    expect(played.draws[0]).toHaveLength(2)
+    expect(canDraw(played, 1)).toBe(true)
+    const drawn = drawCard(played, 1)!
+    expect(drawn.hands[0][0]).toMatchObject({ rank: 12, faceUp: true })
+    expect(drawn.draws[0]).toHaveLength(1)
+    // Auto refill never draws by hand.
+    expect(canDraw({ ...played, rules: { wrap: true, refill: 'auto' } }, 1)).toBe(false)
+  })
+
+  it('isn’t stuck while anyone can draw, and the CPU draws when nothing fits', () => {
+    const rules = { wrap: true, refill: 'tap' as const }
+    const state = withTable({
+      rules,
+      hands: [
+        [card(2), null, null, null, null],
+        [card(2, 'hearts'), null, null, null, null]
+      ],
+      draws: [[card(11)], []],
+      centers: [[card(8)], [card(8, 'hearts')]]
+    })
+    expect(isStuck(state)).toBe(false)
+    expect(cpuDraws({ ...state, draws: [[], [card(11)]] }, 2)).toBe(true)
+    expect(isStuck({ ...state, draws: [[], []] })).toBe(true)
+  })
+
+  it('every match ends drawing by hand without the wrap', () => {
+    for (let seed = 0; seed < 100; seed++) {
+      const rng = mulberry32(seed)
+      let state = createSpeedMatch(seed, { wrap: false, refill: 'tap' })
+      for (let steps = 0; state.winner === null && steps < 5000; steps++) {
+        if (isStuck(state)) {
+          state = turnSides(state)!
+          continue
+        }
+        const first: PlayerIndex = rng() < 0.5 ? 1 : 2
+        const player = hasMove(state, first) || canDraw(state, first) ? first : first === 1 ? 2 : 1
+        const move = cpuMove(state, player)
+        state = (move ? playCard(state, player, move.slot, move.pile) : drawCard(state, player))!
+        expect(cardCount(state)).toBe(52)
+      }
+      expect(state.winner).not.toBeNull()
+    }
   })
 })

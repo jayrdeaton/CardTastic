@@ -128,7 +128,8 @@ export function isSlappable(state: RatSlapState): boolean {
 
 /** A slap. A good one wins the pile, even mid-challenge or from a face-card win still waiting to be
  * collected. A wrong one burns the slapper's top card face up under the pile (so everyone sees what it
- * cost), or loses the match for a player with no card to burn. Null when the slap comes too late to count: the match is over, or
+ * cost), or with the give penalty (Slapjack's choice) hands it to the other player, under their deck; a
+ * player with no card to pay loses the match. Null when the slap comes too late to count: the match is over, or
  * the pile was already slapped. */
 export function slap(state: RatSlapState, player: PlayerIndex): RatSlapState | null {
   if (state.winner !== null || state.pileWonBySlap) return null
@@ -138,6 +139,12 @@ export function slap(state: RatSlapState, player: PlayerIndex): RatSlapState | n
   const hand = handOf(state, player)
   if (hand.length === 0) return { ...state, winner: otherPlayer(player) }
 
+  if (state.rules.penalty === 'give') {
+    const other = otherPlayer(player)
+    const given: AnyCard = { ...hand[hand.length - 1], faceUp: false }
+    const paid: RatSlapState = { ...state, hands: withHand(withHand(state.hands, player, hand.slice(0, -1)), other, [given, ...handOf(state, other)]) }
+    return paid.pileWinner === null ? settle(paid) : paid
+  }
   const burnedCard: AnyCard = { ...hand[hand.length - 1], faceUp: true }
   const burned: RatSlapState = { ...state, hands: withHand(state.hands, player, hand.slice(0, -1)), burned: [burnedCard, ...state.burned] }
   return burned.pileWinner === null ? settle(burned) : burned

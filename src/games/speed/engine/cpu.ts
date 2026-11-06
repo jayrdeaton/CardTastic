@@ -4,7 +4,7 @@
 import { type RandomFn } from '@/engine/rng'
 import { type CpuLevel } from '@/games/table/cpuLevel'
 
-import { bestPile, handOf, pilesFor } from './rules'
+import { bestPile, canDraw, handOf, pilesFor } from './rules'
 import { type PlayerIndex, type SpeedState } from './types'
 
 /** How long the CPU takes over each card, in ms. */
@@ -17,6 +17,11 @@ export const SPEED_CPU_PACE: Record<CpuLevel, readonly [number, number]> = {
 export function cpuPaceMs(level: CpuLevel, rng: RandomFn): number {
   const [min, max] = SPEED_CPU_PACE[level]
   return Math.round(min + (max - min) * rng())
+}
+
+/** What it does next, drawing by hand: plays a card if one fits (cpuMove), else draws into an empty spot. */
+export function cpuDraws(state: SpeedState, player: PlayerIndex): boolean {
+  return cpuMove(state, player) === null && canDraw(state, player)
 }
 
 /** The card it plays next, and where: the first card in its hand that fits, onto its best pile (bestPile). Null when it

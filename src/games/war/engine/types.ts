@@ -12,8 +12,10 @@ export type WarLength = 'full' | 'short'
 /** A short game's battles. Half a deck's worth. */
 export const SHORT_GAME_BATTLES = 26
 
-/** In a war, each player puts this many cards face down before the one face up. */
-export const WAR_FACE_DOWN = 3
+/** In a war, each player puts this many cards face down before the one face up: three (Jay, 2026-11-05), or one for a
+ * quicker war (the setup screen's choice). */
+export type WarDown = 1 | 3
+export const WAR_DOWNS: readonly WarDown[] = [3, 1]
 
 /** A card in a battle, as it lies: the face-up battle cards, and a war's face-down ones. */
 export interface BattleCard {
@@ -23,6 +25,8 @@ export interface BattleCard {
 
 export interface WarState {
   length: WarLength
+  /** How many cards go face down in a war. */
+  down: WarDown
   /** Index 0 is player 1's. The top of a deck is the END of its array; index 0 is its bottom card. */
   hands: [Card[], Card[]]
   /** The cards each player has put into the battle in play, in the order they went down. */

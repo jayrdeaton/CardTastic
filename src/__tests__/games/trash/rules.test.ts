@@ -159,3 +159,23 @@ describe('the CPU', () => {
     for (let seed = 0; seed < 60; seed++) expect(simulate(seed, { 1: 'easy', 2: 'hard' }, 5).winner).not.toBeNull()
   })
 })
+
+describe('Kings wild (the setup screen’s other choice)', () => {
+  it('a King goes in any face-down spot and stands in for a card there; a Jack or a Queen has no spot', () => {
+    expect(spotsFor(card(13), layout(4, [0, 2]), 'kings')).toEqual([1, 3])
+    expect(spotsFor(card(11), layout(10), 'kings')).toEqual([])
+    expect(spotsFor(card(12), layout(10), 'kings')).toEqual([])
+    const kingInFour = layout(10).map((spot, i) => (i === 3 ? card(13, 'diamonds') : spot))
+    expect(spotsFor(card(4), kingInFour, 'kings')).toEqual([3])
+  })
+
+  it('a match plays its rounds on the wild it was dealt with', () => {
+    const state = createTrashMatch(3, 10, 1, 'kings')
+    expect(state.wild).toBe('kings')
+    const held = holding({ ...state, layouts: [layout(10), state.layouts[1]] }, card(13, 'hearts', true, '-k'))
+    expect(heldSpots(held)).toHaveLength(10)
+    const jack = holding({ ...state, layouts: [layout(10), state.layouts[1]] }, card(11, 'hearts', true, '-j'))
+    expect(heldSpots(jack)).toEqual([])
+    expect(discardHeld(jack, 1)!.turn).toBe(2)
+  })
+})

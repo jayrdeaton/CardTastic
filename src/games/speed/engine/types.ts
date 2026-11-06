@@ -7,14 +7,28 @@ import type { PlayerIndex } from '@/games/table/players'
 
 export type { PlayerIndex }
 
-/** Cards in a full hand. A hand refills from its draw pile after every play. */
+/** Cards in a full hand. A hand refills from its draw pile after every play (or, drawing by hand, one card a tap). */
 export const HAND_SIZE = 5
+
+/** How a hand refills (the setup screen's choice, Jay, 2026-11-05 picked by itself): from its draw pile by itself after
+ * every play, or a card a tap on the draw pile, up to five. */
+export type SpeedRefill = 'auto' | 'tap'
+
+export interface SpeedRules {
+  /** Ranks wrap: a King goes on an Ace, an Ace on a King or a 2 (Jay's pick). Off, Ace is low only. */
+  wrap: boolean
+  refill: SpeedRefill
+}
+
+export const DEFAULT_SPEED_RULES: SpeedRules = { wrap: true, refill: 'auto' }
 /** Each player's draw pile at the deal. */
 export const DRAW_SIZE = 15
 /** Each side pile at the deal: turned onto the center piles whenever nobody can play. */
 export const SIDE_SIZE = 5
 
 export interface SpeedState {
+  /** Whether ranks wrap, and how a hand refills. */
+  rules: SpeedRules
   /** Index 0 is player 1's. HAND_SIZE slots each; a slot is empty once its draw pile has run out. */
   hands: [(Card | null)[], (Card | null)[]]
   /** Face down, top last. */

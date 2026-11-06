@@ -27,7 +27,7 @@ import { useSettled, useTableSize } from '@/games/table/useTable'
 import { useSettings } from '@/hooks/useSettings'
 import { matchStatsActions } from '@/redux/matchStatsSlice'
 
-import { canTakeDiscard, heldSpots, isWild, layoutOf, spotsLeft, toMove } from './engine/rules'
+import { canTakeDiscard, heldSpots, isWild, layoutOf, spotsLeft, toMove, wildName } from './engine/rules'
 import { SPOTS_PER_ROW, type TrashState } from './engine/types'
 import { type TrashRoundSettings } from './useTrashLoadout'
 import { useTrashMatch } from './useTrashMatch'
@@ -52,7 +52,7 @@ export function TrashScreen() {
 
   // The round the setup screen committed (seat 2, the starting spots); a direct link plays the player's own settings
   // against the CPU.
-  const { mode, settings: round } = useActiveRound<TrashRoundSettings>('trash', { trashCards: settings.trashCards, trashCpu: settings.trashCpu })
+  const { mode, settings: round } = useActiveRound<TrashRoundSettings>('trash', { trashCards: settings.trashCards, trashWild: settings.trashWild, trashCpu: settings.trashCpu })
   const twoPlayer = mode === 'twoPlayer'
   const cpu = twoPlayer ? null : round.trashCpu
   const humans = twoPlayer ? TWO_PLAYER_HUMANS : VS_CPU_HUMANS
@@ -79,7 +79,7 @@ export function TrashScreen() {
 
   const dealMs = reduceMotion ? 0 : (startSpots * 2 + 1) * DEAL_STAGGER_MS + MOVE_MS + 100
   const roundDone = (s: TrashState) => s.phase === 'roundOver' || s.phase === 'matchOver'
-  const match = useTrashMatch({ spots: startSpots, cpu, paused: settingsOpen || !appActive, dealMs, changed })
+  const match = useTrashMatch({ spots: startSpots, wild: round.trashWild, cpu, paused: settingsOpen || !appActive, dealMs, changed })
   const { state, dealt } = match
   const resultShown = useSettled(roundDone(state) ? `${match.deal}-${state.round}` : null, reduceMotion ? 300 : RESULT_MS)
   const ready = dealt && !settingsOpen && !resultShown
@@ -178,7 +178,7 @@ function promptFor(state: TrashState, player: PlayerIndex, seats: Record<PlayerI
   if (state.phase === 'draw') return canTakeDiscard(state, player) ? 'Draw a card, or take the discard' : 'Draw a card'
   if (!state.held) return null
   if (heldSpots(state).length === 0) return 'No spot for it'
-  return isWild(state.held) ? 'Put the Jack in any face-down spot' : `Put the ${cardName(state.held)} in its spot`
+  return isWild(state.held, state.wild) ? `Put the ${wildName(state.wild)} in any face-down spot` : `Put the ${cardName(state.held)} in its spot`
 }
 
 const spots = (n: number) => (n === 1 ? '1 spot' : `${n} spots`)

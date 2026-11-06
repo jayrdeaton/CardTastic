@@ -21,6 +21,8 @@ export const SLAP_COLLECT_BEAT_MS = 550
 export interface MatchEvents {
   played: (player: PlayerIndex, card: AnyCard) => void
   burned: (player: PlayerIndex, card: AnyCard) => void
+  /** A wrong slap paid for with a card given to the other player (Slapjack's give penalty). */
+  paid: (player: PlayerIndex, card: AnyCard) => void
   wonPile: (player: PlayerIndex, bySlap: boolean) => void
   /** The cards a pile's winner took: the played ones bottom to top, and the burned ones under them (newest first). */
   collected: (player: PlayerIndex, taken: { pile: AnyCard[]; burned: AnyCard[] }) => void
@@ -63,6 +65,9 @@ export function useRatSlapMatch({ rules, cpu, paused, events, seed = randomSeed,
     const { events } = latest.current
     if (next.pile.length > prev.pile.length) events.played(actor, next.pile[next.pile.length - 1])
     if (next.burned.length > prev.burned.length) events.burned(actor, next.burned[0])
+    // A card that went from the slapper's deck to the bottom of the other's, with nothing played or burned.
+    const other = otherPlayer(actor)
+    if (next.pile === prev.pile && next.burned === prev.burned && next.hands[other - 1].length === prev.hands[other - 1].length + 1 && next.hands[actor - 1].length === prev.hands[actor - 1].length - 1) events.paid(actor, next.hands[other - 1][0])
     if (next.pileWinner !== null && (next.pileWinner !== prev.pileWinner || next.pileWonBySlap !== prev.pileWonBySlap)) events.wonPile(next.pileWinner, next.pileWonBySlap)
     if (prev.pileWinner !== null && next.pileWinner === null && next.pile.length === 0) events.collected(prev.pileWinner, { pile: prev.pile, burned: prev.burned })
     if (next.winner !== null && prev.winner === null) events.matchOver(next.winner)

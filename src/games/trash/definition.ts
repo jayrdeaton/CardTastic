@@ -34,7 +34,10 @@ export const trash: GameDefinition = {
     version: TRASH_GUIDE_VERSION,
     selectVersionSeen: trashGuide.selectVersionSeen,
     markSeen: trashGuide.actions.markSeen,
-    selectInput: (state): TrashGuideInput => ({ cards: (state as unknown as RootState).settings.trashCards }),
+    selectInput: (state): TrashGuideInput => {
+      const { trashCards, trashWild } = (state as unknown as RootState).settings
+      return { cards: trashCards, wild: trashWild }
+    },
     getSteps: (input) => getTrashGuideSteps(input as TrashGuideInput)
   }
 }

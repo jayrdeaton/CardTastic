@@ -55,7 +55,7 @@ export function WarScreen() {
 
   // The round the setup screen committed (seat 2, the length); a direct link plays the player's own settings against the
   // CPU.
-  const { mode, settings: round } = useActiveRound<WarRoundSettings>('war', { warLength: settings.warLength })
+  const { mode, settings: round } = useActiveRound<WarRoundSettings>('war', { warLength: settings.warLength, warDown: settings.warDown })
   const twoPlayer = mode === 'twoPlayer'
   const humans = twoPlayer ? TWO_PLAYER_HUMANS : VS_CPU_HUMANS
   const { seats, statsIds } = useTableSeats(twoPlayer)
@@ -87,7 +87,7 @@ export function WarScreen() {
     [playCardSound, reduceMotion, statsIds, dispatch, twoPlayer]
   )
 
-  const { state, play, rematch: newMatch } = useWarMatch({ length: round.warLength, cpu: !twoPlayer, paused: settingsOpen || !appActive, changed })
+  const { state, play, rematch: newMatch } = useWarMatch({ length: round.warLength, down: round.warDown, cpu: !twoPlayer, paused: settingsOpen || !appActive, changed })
   const [games, setGames] = useState(0)
   const resultShown = useSettled(state.winner !== null ? games : null, RESULT_DELAY_MS)
 

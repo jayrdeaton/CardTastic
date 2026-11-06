@@ -11,13 +11,15 @@ import { useSettled } from '@/games/table/useTable'
 
 import { cpuDrawChoice, cpuPlaceChoice, cpuStepDelayMs } from './engine/cpu'
 import { createTrashMatch, discardHeld, drawStock, heldSpots, nextRound, placeHeld, takeDiscard, toMove } from './engine/rules'
-import { type PlayerIndex, type TrashState } from './engine/types'
+import { type PlayerIndex, type TrashState, type TrashWild } from './engine/types'
 
 /** A card with no spot stays in hand this long before it goes to the discard. */
 export const NO_SPOT_MS = 900
 
 export interface TrashMatchOptions {
   spots: number
+  /** Which rank is wild. */
+  wild: TrashWild
   /** The CPU in seat 2, or null for a person. */
   cpu: CpuLevel | null
   /** Holds every timer: a dialog is open, the app is in the background, or a round's result is showing. */
@@ -31,8 +33,8 @@ export interface TrashMatchOptions {
   initialState?: TrashState
 }
 
-export function useTrashMatch({ spots, cpu, paused, dealMs, changed, seed = randomSeed, rng = Math.random, initialState }: TrashMatchOptions) {
-  const [state, setState] = useState(() => initialState ?? createTrashMatch(seed(), spots, 1))
+export function useTrashMatch({ spots, wild, cpu, paused, dealMs, changed, seed = randomSeed, rng = Math.random, initialState }: TrashMatchOptions) {
+  const [state, setState] = useState(() => initialState ?? createTrashMatch(seed(), spots, 1, wild))
   // Counts deals (a new round, a rematch), so the table deals the cards afresh, and nothing is played until they've landed.
   const [deal, setDeal] = useState(0)
   const dealt = useSettled(deal, dealMs)
@@ -62,7 +64,7 @@ export function useTrashMatch({ spots, cpu, paused, dealMs, changed, seed = rand
   /** A new match, the last one's loser playing first. */
   const rematch = useCallback(() => {
     const { winner } = stateRef.current
-    const next = createTrashMatch(latest.current.seed(), latest.current.spots, winner ? otherPlayer(winner) : 1)
+    const next = createTrashMatch(latest.current.seed(), latest.current.spots, winner ? otherPlayer(winner) : 1, stateRef.current.wild)
     stateRef.current = next
     setState(next)
     setDeal((n) => n + 1)

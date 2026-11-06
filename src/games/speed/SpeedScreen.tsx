@@ -1,7 +1,8 @@
 // Speed's table: each player's hand of five near their own edge with their draw pile just inside it, and the two side
 // piles either side of the two center piles across the middle. Not GameChrome: the table lies flat between two players
-// and never turns (layout.ts). There are no turns: tap a card in your hand to play it onto the center pile it fits, and
-// two people can play at the same moment (games/table/TouchZones.tsx gives each half its own touches). Every card is one
+// and never turns (layout.ts). There are no turns: tap a card in your hand to play it onto the center pile it fits (and,
+// drawing by hand, your draw pile to fill an empty spot, ringed while that's what you need), and two people can play
+// at the same moment (games/table/TouchZones.tsx gives each half its own touches). Every card is one
 // view from the deal until the match ends (games/table/TableCards.tsx): a card goes from a draw pile to a hand to a
 // center pile, and from a side pile to a center pile, as the same view.
 
@@ -28,7 +29,7 @@ import { useSettled, useTableSize } from '@/games/table/useTable'
 import { useSettings } from '@/hooks/useSettings'
 import { matchStatsActions } from '@/redux/matchStatsSlice'
 
-import { cardsLeft, handOf, hasMove, isStuck } from './engine/rules'
+import { canDraw, cardsLeft, handOf, hasMove, isStuck } from './engine/rules'
 import { HAND_SIZE, type SpeedState } from './engine/types'
 import { type SpeedLayout, speedLayout } from './layout'
 import { type SpeedRoundSettings } from './useSpeedLoadout'
@@ -54,8 +55,9 @@ export function SpeedScreen() {
   const reduceMotion = useMotionReduced()
   const { playCardSound, playInvalidSound, hapticCard, hapticInvalid } = useCardSoundEffects()
 
-  // The round the setup screen committed (seat 2); a direct link plays the player's own CPU level.
-  const { mode, settings: round } = useActiveRound<SpeedRoundSettings>('speed', { speedCpu: settings.speedCpu })
+  // The round the setup screen committed (seat 2, the rules); a direct link plays the player's own settings.
+  const { mode, settings: round } = useActiveRound<SpeedRoundSettings>('speed', { speedWrap: settings.speedWrap, speedRefill: settings.speedRefill, speedCpu: settings.speedCpu })
+  const rules = useMemo(() => ({ wrap: round.speedWrap, refill: round.speedRefill }), [round.speedWrap, round.speedRefill])
   const twoPlayer = mode === 'twoPlayer'
   const cpu = twoPlayer ? null : round.speedCpu
   const humans = twoPlayer ? TWO_PLAYER_HUMANS : VS_CPU_HUMANS
@@ -76,14 +78,22 @@ export function SpeedScreen() {
     [playCardSound, statsIds, dispatch, cpu, twoPlayer]
   )
 
-  const match = useSpeedMatch({ cpu, paused: settingsOpen || !appActive, dealMs: reduceMotion ? 0 : DEAL_MS, changed })
-  const { state, dealt, play, rematch } = match
+  const match = useSpeedMatch({ rules, cpu, paused: settingsOpen || !appActive, dealMs: reduceMotion ? 0 : DEAL_MS, changed })
+  const { state, dealt, play, draw, rematch } = match
   const resultShown = useSettled(state.winner !== null ? match.deal : null, RESULT_DELAY_MS)
 
   // A tap on a card in your hand plays it; on a card that fits nowhere, or anywhere else, nothing (a card that doesn't
-  // fit buzzes).
+  // fit buzzes). Drawing by hand, a tap on your draw pile fills an empty spot.
   const handleTouch = useCallback(
     (player: PlayerIndex, x: number, y: number) => {
+      if (rules.refill === 'tap' && inRect({ x, y }, cardRect(layout.draws[player], layout.cardWidth, layout.cardHeight, 4))) {
+        if (draw(player)) hapticCard()
+        else {
+          playInvalidSound()
+          hapticInvalid()
+        }
+        return
+      }
       const slot = layout.hands[player].findIndex((pose) => inRect({ x, y }, cardRect(pose, layout.cardWidth, layout.cardHeight, 4)))
       if (slot < 0) return
       if (play(player, slot)) hapticCard()
@@ -92,7 +102,7 @@ export function SpeedScreen() {
         hapticInvalid()
       }
     },
-    [layout, play, hapticCard, playInvalidSound, hapticInvalid]
+    [layout, rules.refill, play, draw, hapticCard, playInvalidSound, hapticInvalid]
   )
 
   const label = (player: PlayerIndex): TableLabel => ({ seat: seats[player], subtitle: player === 2 && cpu ? CPU_LEVEL_LABELS[cpu] : null, score: `${cardsLeft(state, player)} to go`, active: state.winner === null && hasMove(state, player) })
@@ -100,12 +110,14 @@ export function SpeedScreen() {
   for (const player of humans) prompts[player] = dealt ? promptFor(state, player) : null
   const cards = useMemo(() => speedCards(state, layout, !dealt, reduceMotion), [state, layout, dealt, reduceMotion])
   const winner = state.winner
+  // Drawing by hand, a person's draw pile is ringed while they have nothing to play and a spot to fill.
+  const rings = dealt ? humans.filter((player) => canDraw(state, player) && !hasMove(state, player)).map((player) => layout.draws[player]) : []
   const emptySlots = [...([0, 1] as const).filter((pile) => state.sides[pile].length === 0).map((pile) => layout.sides[pile]), ...([1, 2] as const).filter((player) => state.draws[player - 1].length === 0).map((player) => layout.draws[player])]
 
   return (
     <CardSizeProvider width={layout.cardWidth}>
       <View style={styles.screen} onLayout={onLayout}>
-        <TableView game='speed' layout={layout} cards={cards} dealKey={match.deal} labels={{ 1: label(1), 2: label(2) }} prompts={prompts} notes={{}} call={null} emptySlots={emptySlots} touch={<TouchZones testID='speed' twoPlayer={twoPlayer} splitY={layout.center.y} height={layout.height} enabled={dealt && !settingsOpen && !resultShown && winner === null} onTouch={handleTouch} />} onSettings={() => setSettingsOpen(true)}>
+        <TableView game='speed' layout={layout} cards={cards} dealKey={match.deal} rings={rings} labels={{ 1: label(1), 2: label(2) }} prompts={prompts} notes={{}} call={null} emptySlots={emptySlots} touch={<TouchZones testID='speed' twoPlayer={twoPlayer} splitY={layout.center.y} height={layout.height} enabled={dealt && !settingsOpen && !resultShown && winner === null} onTouch={handleTouch} />} onSettings={() => setSettingsOpen(true)}>
           {resultShown && winner !== null ? <TableOverlay humans={humans} content={(viewer) => resultContent(state, viewer, seats)} actionLabel='Rematch' onAction={rematch} testID='speed-result' /> : null}
           {resultShown && winner !== null && winner !== 'tie' && humans.includes(winner) ? <PipFireworks /> : null}
         </TableView>
@@ -145,7 +157,7 @@ function speedCards(state: SpeedState, layout: SpeedLayout, dealing: boolean, re
 function promptFor(state: SpeedState, player: PlayerIndex): string | null {
   if (state.winner !== null) return null
   if (isStuck(state)) return 'Nobody can play: new cards coming'
-  if (!hasMove(state, player)) return 'Nothing fits yet'
+  if (!hasMove(state, player)) return canDraw(state, player) ? 'Draw from your pile' : 'Nothing fits yet'
   // At the very start, what to do.
   const untouched = state.centers[0].length === 1 && state.centers[1].length === 1 && handOf(state, 1).length === HAND_SIZE && cardsLeft(state, 1) + cardsLeft(state, 2) === 40
   return untouched ? 'Play a card one up or one down' : null

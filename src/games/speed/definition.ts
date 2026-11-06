@@ -3,9 +3,10 @@ import { createElement } from 'react'
 
 import { RulesDialog } from '@/components/RulesDialog'
 import { SPEED_RULES } from '@/constants/gameRules'
+import type { RootState } from '@/redux/store'
 
 import { SPEED_GUIDE_VERSION, speedGuide } from './guide'
-import { getSpeedGuideSteps } from './guideSteps'
+import { getSpeedGuideSteps, type SpeedGuideInput } from './guideSteps'
 import { SpeedPreview } from './SpeedPreview'
 import { SpeedScreen } from './SpeedScreen'
 import { SpeedStatsSections } from './SpeedStats'
@@ -33,7 +34,10 @@ export const speed: GameDefinition = {
     version: SPEED_GUIDE_VERSION,
     selectVersionSeen: speedGuide.selectVersionSeen,
     markSeen: speedGuide.actions.markSeen,
-    selectInput: () => ({}),
-    getSteps: (_input, context) => getSpeedGuideSteps(context)
+    selectInput: (state): SpeedGuideInput => {
+      const { speedWrap, speedRefill } = (state as unknown as RootState).settings
+      return { wrap: speedWrap, refill: speedRefill }
+    },
+    getSteps: (input, context) => getSpeedGuideSteps(context, input as SpeedGuideInput)
   }
 }

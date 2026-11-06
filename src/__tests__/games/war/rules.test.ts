@@ -71,6 +71,17 @@ describe('a war', () => {
     expect(cardCount(state)).toBe(12)
   })
 
+  it('with one down (the setup screen’s quicker war), a war is one card face down and one face up', () => {
+    let state: WarState = { ...tie(), down: 1 }
+    state = both(state)
+    expect(state.battle[0].map((c) => c.faceUp)).toEqual([true, false, true])
+    expect(battleCard(state, 1)?.rank).toBe(5)
+    expect(battleCard(state, 2)?.rank).toBe(11)
+    expect(state.battleWinner).toBe(2)
+    expect(state.hands.map((hand) => hand.length)).toEqual([3, 3])
+    expect(createWarMatch(1, 'full', 1).down).toBe(1)
+  })
+
   it('a player with fewer than four cards for a war plays what they have, the last one face up', () => {
     let state = both(withHands([card(13, 'hearts'), card(8)], [card(2), card(3), card(4), card(5), card(6), card(8, 'spades')]))
     state = both(state)

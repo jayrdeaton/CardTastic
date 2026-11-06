@@ -392,6 +392,21 @@ describe('Slapjack (SLAPJACK_RULESET)', () => {
     expect(burned.hands[1]).toHaveLength(1)
   })
 
+  it('with the give penalty, a wrong slap hands the slapper’s top card to the other player, under their deck', () => {
+    const rules: RatSlapRules = { ...SLAPJACK_RULESET, penalty: 'give' }
+    const given = slap(makeState({ rules, pile: [card(4), card(12, 'hearts')], lastPlayer: 1, turn: 2 }), 2)!
+    expect(given.burned).toEqual([])
+    expect(given.hands[1]).toEqual([P2_HAND[0]])
+    expect(given.hands[0]).toEqual([{ ...P2_HAND[1], faceUp: false }, ...P1_HAND])
+    expect(given.pile).toHaveLength(2)
+    expect(given.turn).toBe(2)
+    // Out of cards, a wrong slap still loses the match.
+    expect(slap(makeState({ rules, pile: [card(4)], hands: [P1_HAND, []] }), 2)!.winner).toBe(1)
+    // Giving a player who was out a card puts them back in.
+    const back = slap(makeState({ rules, pile: [card(4)], hands: [[], P2_HAND], turn: 2 }), 2)!
+    expect(isOut(back, 1)).toBe(false)
+  })
+
   it('deals 26 cards each, with no jokers', () => {
     const state = createInitialState(9, SLAPJACK_RULESET)
     expect(state.hands[0]).toHaveLength(26)

@@ -7,7 +7,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { randomSeed } from '@/engine/rng'
 
 import { canPlay, collectBattle, createWarMatch, playStep } from './engine/rules'
-import { type PlayerIndex, type WarLength, type WarState } from './engine/types'
+import { type PlayerIndex, type WarDown, type WarLength, type WarState } from './engine/types'
 
 /** A won battle stays on the table this long before it's collected. */
 export const BATTLE_COLLECT_MS = 900
@@ -18,6 +18,8 @@ export const CPU_ANSWER_MS = 350
 
 export interface WarMatchOptions {
   length: WarLength
+  /** How many cards go face down in a war. */
+  down: WarDown
   /** Whether seat 2 is the CPU. War has no decisions, so its CPU has no levels. */
   cpu: boolean
   /** Holds every timer: a dialog is open, the app is in the background, or the result is showing. */
@@ -28,8 +30,8 @@ export interface WarMatchOptions {
   initialState?: WarState
 }
 
-export function useWarMatch({ length, cpu, paused, changed, seed = randomSeed, initialState }: WarMatchOptions) {
-  const [state, setState] = useState(() => initialState ?? createWarMatch(seed(), length))
+export function useWarMatch({ length, down, cpu, paused, changed, seed = randomSeed, initialState }: WarMatchOptions) {
+  const [state, setState] = useState(() => initialState ?? createWarMatch(seed(), length, down))
   const stateRef = useRef(state)
   const latest = useRef({ changed, length, seed })
   useEffect(() => {
@@ -48,7 +50,7 @@ export function useWarMatch({ length, cpu, paused, changed, seed = randomSeed, i
   const play = useCallback((player: PlayerIndex) => apply(playStep(stateRef.current, player)), [apply])
 
   const rematch = useCallback(() => {
-    const next = createWarMatch(latest.current.seed(), latest.current.length)
+    const next = createWarMatch(latest.current.seed(), latest.current.length, stateRef.current.down)
     stateRef.current = next
     setState(next)
   }, [])

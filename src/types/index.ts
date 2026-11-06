@@ -3,9 +3,12 @@ import type { ViewRotation } from '@tastic/core'
 import type { EightsDrawRule, EightsHandRule, EightsSpecials } from '@/games/crazyeights/engine/types'
 import type { CrownsDeck, CrownsFaces, CrownsLastTurns } from '@/games/fourcrowns/engine/types'
 import type { GinBonusRule, GinHelp, GinKnockRule, GinTarget } from '@/games/ginrummy/engine/types'
+import type { SlapPenalty } from '@/games/ratslap/engine/types'
+import type { SpeedRefill } from '@/games/speed/engine/types'
 import type { CpuLevel } from '@/games/table/cpuLevel'
 import type { ExtraSeatKind } from '@/games/table/extraSeats'
-import type { WarLength } from '@/games/war/engine/types'
+import type { TrashWild } from '@/games/trash/engine/types'
+import type { WarDown, WarLength } from '@/games/war/engine/types'
 
 // The persisted player settings (see redux/settingsSlice.ts for the defaults and hooks/useSettings.ts
 // for reading and writing them).
@@ -41,6 +44,8 @@ export interface Settings {
   ratslapCpu: CpuLevel
   // Slapjack's CPU (the slap games share one engine and one CPU, games/ratslap/engine/cpu.ts).
   slapjackCpu: CpuLevel
+  // Slapjack: what a wrong slap costs, the slapper's top card burned under the pile or given to the other player.
+  slapjackPenalty: SlapPenalty
   // Six-Card Golf: how many holes a match plays, and how well its CPU plays (games/sixcardgolf/engine/cpu.ts).
   sixCardGolfHoles: SixCardGolfHoles
   sixCardGolfCpu: CpuLevel
@@ -48,11 +53,18 @@ export interface Settings {
   // how well its CPU plays (games/trash/engine/cpu.ts).
   trashCards: TrashCards
   trashCpu: CpuLevel
+  // Trash: which rank is wild, Jacks or Kings (the other two court cards end the turn).
+  trashWild: TrashWild
   // War: how a match ends, Full (until someone has every card) or Short (most cards after 26 battles; games/war). Its CPU
   // has no levels.
   warLength: WarLength
+  // War: how many cards go face down in a war, three or one.
+  warDown: WarDown
   // How quick the CPU in Speed's seat 2 is (games/speed/engine/cpu.ts).
   speedCpu: CpuLevel
+  // Speed: whether ranks wrap (a King on an Ace), and how a hand refills, by itself or a tap on the draw pile at a time.
+  speedWrap: boolean
+  speedRefill: SpeedRefill
   // Gin Rummy: the score a match plays to (100, 50, or one hand), when a player may knock, the bonuses, how much the table
   // helps with melds (games/ginrummy/engine/types.ts), and how well its CPU plays (games/ginrummy/engine/cpu.ts).
   ginTarget: GinTarget

@@ -5,8 +5,9 @@
 // - Each player has a hand of five and a draw pile of fifteen; two side piles of five sit either side of two center
 //   piles, each started with one card.
 // - There are no turns: play any card from your hand onto either center pile when it's one rank higher or lower, suit
-//   no matter. Ranks wrap: a King goes on an Ace, an Ace on a King or a 2.
-// - Your hand refills from your draw pile by itself after every play.
+//   no matter. Ranks wrap: a King goes on an Ace, an Ace on a King or a 2 (or, the setup screen's choice, they don't).
+// - Your hand refills from your draw pile by itself after every play (or, the setup screen's choice, a card a tap on
+//   your draw pile, up to five). The side piles turn only once nobody can play or draw.
 // - When nobody can play, a card from each side pile is turned onto the center pile beside it. Once the side piles are
 //   gone, the center piles (all but their top cards) are shuffled into new ones.
 // - The first to play every card in their hand and draw pile wins.
@@ -16,12 +17,13 @@ import { type Card } from '@tastic/cards'
 import { makeDeck } from '@/engine/deck'
 import { mulberry32, shuffle } from '@/engine/rng'
 
-import { DEADLOCK_TURNS, DRAW_SIZE, HAND_SIZE, type PlayerIndex, SIDE_SIZE, type SpeedState } from './types'
+import { DEADLOCK_TURNS, DEFAULT_SPEED_RULES, DRAW_SIZE, HAND_SIZE, type PlayerIndex, SIDE_SIZE, type SpeedRules, type SpeedState } from './types'
 
-/** Whether `card` goes on a center pile whose top is `top`: one rank apart, a King and an Ace included. */
-export function fits(card: Card, top: Card): boolean {
+/** Whether `card` goes on a center pile whose top is `top`: one rank apart, a King and an Ace included while ranks
+ * wrap. */
+export function fits(card: Card, top: Card, wrap = true): boolean {
   const diff = Math.abs(card.rank - top.rank)
-  return diff === 1 || diff === 12
+  return diff === 1 || (wrap && diff === 12)
 }
 
 export function handOf(state: SpeedState, player: PlayerIndex): (Card | null)[] {
@@ -39,7 +41,7 @@ function withPile<T>(pair: [T, T], pile: number, value: T): [T, T] {
 const up = (card: Card): Card => ({ ...card, faceUp: true })
 const down = (card: Card): Card => ({ ...card, faceUp: false })
 
-export function createSpeedMatch(seed: number): SpeedState {
+export function createSpeedMatch(seed: number, rules: SpeedRules = DEFAULT_SPEED_RULES): SpeedState {
   const deck = shuffle(makeDeck(), mulberry32(seed))
   let at = 0
   const take = (count: number) => deck.slice(at, (at += count))
@@ -49,14 +51,14 @@ export function createSpeedMatch(seed: number): SpeedState {
   const drawTwo = take(DRAW_SIZE)
   const sides: [Card[], Card[]] = [take(SIDE_SIZE), take(SIDE_SIZE)]
   const centers: [Card[], Card[]] = [take(1).map(up), take(1).map(up)]
-  return { hands: [handOne, handTwo], draws: [drawOne, drawTwo], sides, centers, winner: null, seed, refills: 0, turnsWithoutPlay: 0 }
+  return { rules, hands: [handOne, handTwo], draws: [drawOne, drawTwo], sides, centers, winner: null, seed, refills: 0, turnsWithoutPlay: 0 }
 }
 
 /** The center piles a card can go on. */
 export function pilesFor(state: SpeedState, card: Card): number[] {
   return [0, 1].filter((pile) => {
     const top = state.centers[pile][state.centers[pile].length - 1]
-    return !!top && fits(card, top)
+    return !!top && fits(card, top, state.rules.wrap)
   })
 }
 
@@ -65,9 +67,14 @@ export function hasMove(state: SpeedState, player: PlayerIndex): boolean {
   return handOf(state, player).some((card) => !!card && pilesFor(state, card).length > 0)
 }
 
-/** Nobody can play: the side piles get turned. */
+/** Whether the player can draw a card into their hand: drawing by hand, with an empty spot and cards in their pile. */
+export function canDraw(state: SpeedState, player: PlayerIndex): boolean {
+  return state.winner === null && state.rules.refill === 'tap' && state.draws[player - 1].length > 0 && handOf(state, player).some((card) => card === null)
+}
+
+/** Nobody can play or draw: the side piles get turned. */
 export function isStuck(state: SpeedState): boolean {
-  return state.winner === null && !hasMove(state, 1) && !hasMove(state, 2)
+  return state.winner === null && !hasMove(state, 1) && !hasMove(state, 2) && !canDraw(state, 1) && !canDraw(state, 2)
 }
 
 /** Cards a player has still to play: their hand and their draw pile. */
@@ -84,13 +91,13 @@ export function bestPile(state: SpeedState, player: PlayerIndex, slot: number): 
   const rest = handOf(state, player).filter((other, i) => i !== slot && !!other) as Card[]
   const followUps = (pile: number) => {
     const otherTop = state.centers[1 - pile][state.centers[1 - pile].length - 1]
-    return rest.filter((other) => fits(other, card) || fits(other, otherTop)).length
+    return rest.filter((other) => fits(other, card, state.rules.wrap) || fits(other, otherTop, state.rules.wrap)).length
   }
   return followUps(1) > followUps(0) ? 1 : 0
 }
 
 /** The card in the player's `slot` onto center pile `pile` (or the best pile it fits), the slot refilled from their draw
- * pile. Playing their last card wins. */
+ * pile (left empty when they draw by hand). Playing their last card wins. */
 export function playCard(state: SpeedState, player: PlayerIndex, slot: number, pile?: number): SpeedState | null {
   if (state.winner !== null) return null
   const hand = handOf(state, player)
@@ -99,7 +106,7 @@ export function playCard(state: SpeedState, player: PlayerIndex, slot: number, p
   const target = pile ?? bestPile(state, player, slot)
   if (target === null || !pilesFor(state, card).includes(target)) return null
   const draw = state.draws[player - 1]
-  const refill = draw.length > 0 ? up(draw[draw.length - 1]) : null
+  const refill = draw.length > 0 && state.rules.refill === 'auto' ? up(draw[draw.length - 1]) : null
   const next: SpeedState = {
     ...state,
     hands: withPlayer(
@@ -112,6 +119,23 @@ export function playCard(state: SpeedState, player: PlayerIndex, slot: number, p
     turnsWithoutPlay: 0
   }
   return cardsLeft(next, player) === 0 ? { ...next, winner: player } : next
+}
+
+/** Drawing by hand: the top card of the player's draw pile into the first empty spot in their hand. */
+export function drawCard(state: SpeedState, player: PlayerIndex): SpeedState | null {
+  if (!canDraw(state, player)) return null
+  const hand = handOf(state, player)
+  const draw = state.draws[player - 1]
+  const slot = hand.findIndex((card) => card === null)
+  return {
+    ...state,
+    hands: withPlayer(
+      state.hands,
+      player,
+      hand.map((c, i) => (i === slot ? up(draw[draw.length - 1]) : c))
+    ),
+    draws: withPlayer(state.draws, player, draw.slice(0, -1))
+  }
 }
 
 /** With nothing left anyone can play, the player with fewer cards left wins. */

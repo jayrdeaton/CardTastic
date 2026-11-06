@@ -3,9 +3,10 @@ import { createElement } from 'react'
 
 import { RulesDialog } from '@/components/RulesDialog'
 import { WAR_RULES } from '@/constants/gameRules'
+import type { RootState } from '@/redux/store'
 
 import { WAR_GUIDE_VERSION, warGuide } from './guide'
-import { getWarGuideSteps } from './guideSteps'
+import { getWarGuideSteps, type WarGuideInput } from './guideSteps'
 import { useWarLoadout } from './useWarLoadout'
 import { WarPreview } from './WarPreview'
 import { WarScreen } from './WarScreen'
@@ -33,7 +34,7 @@ export const war: GameDefinition = {
     version: WAR_GUIDE_VERSION,
     selectVersionSeen: warGuide.selectVersionSeen,
     markSeen: warGuide.actions.markSeen,
-    selectInput: () => ({}),
-    getSteps: (_input, context) => getWarGuideSteps(context)
+    selectInput: (state): WarGuideInput => ({ down: (state as unknown as RootState).settings.warDown }),
+    getSteps: (input, context) => getWarGuideSteps(context, input as WarGuideInput)
   }
 }
