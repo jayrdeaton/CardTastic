@@ -1,7 +1,7 @@
 // Speed's table: each player's hand of five near their own edge with their draw pile just inside it, and the two side
 // piles either side of the two center piles across the middle. Not GameChrome: the table lies flat between two players
 // and never turns (layout.ts). There are no turns: tap a card in your hand to play it onto the center pile it fits (and,
-// drawing by hand, your draw pile to fill an empty spot, ringed while that's what you need), and two people can play
+// drawing by hand, your draw pile to fill an empty spot, glowing while that's what you need), and two people can play
 // at the same moment (games/table/TouchZones.tsx gives each half its own touches). Every card is one
 // view from the deal until the match ends (games/table/TableCards.tsx): a card goes from a draw pile to a hand to a
 // center pile, and from a side pile to a center pile, as the same view.
@@ -22,7 +22,7 @@ import { CPU_LEVEL_LABELS } from '@/games/table/cpuLevel'
 import { cardRect, cardTilt, inRect, type Pose } from '@/games/table/geometry'
 import { type PlayerIndex, TWO_PLAYER_HUMANS, VS_CPU_HUMANS } from '@/games/table/players'
 import { type TableCardSpec } from '@/games/table/TableCards'
-import { type Seat, type TableCardContent, TableOverlay, useAppActive, useTableSeats } from '@/games/table/TableChrome'
+import { type Seat, type TableCardContent, TableOverlay, useAppActive, useFaceToFace, useTableSeats } from '@/games/table/TableChrome'
 import { type TableLabel, TableView } from '@/games/table/TableView'
 import { TouchZones } from '@/games/table/TouchZones'
 import { useSettled, useTableSize } from '@/games/table/useTable'
@@ -62,7 +62,10 @@ export function SpeedScreen() {
   const cpu = twoPlayer ? null : round.speedCpu
   const humans = twoPlayer ? TWO_PLAYER_HUMANS : VS_CPU_HUMANS
   const { seats, statsIds } = useTableSeats(twoPlayer)
-  const layout = useMemo(() => speedLayout(width, height, insets, twoPlayer), [width, height, insets, twoPlayer])
+  // Player 2's side turned to face them: 2 Player on a phone or tablet only (useFaceToFace). At a computer it's drawn upright, as
+  // against the CPU, while the halves still split the table top and bottom for each person's taps.
+  const faceToFace = useFaceToFace(twoPlayer)
+  const layout = useMemo(() => speedLayout(width, height, insets, faceToFace), [width, height, insets, faceToFace])
 
   const [settingsOpen, setSettingsOpen] = useState(false)
   const appActive = useAppActive()
@@ -110,14 +113,14 @@ export function SpeedScreen() {
   for (const player of humans) prompts[player] = dealt ? promptFor(state, player) : null
   const cards = useMemo(() => speedCards(state, layout, !dealt, reduceMotion), [state, layout, dealt, reduceMotion])
   const winner = state.winner
-  // Drawing by hand, a person's draw pile is ringed while they have nothing to play and a spot to fill.
-  const rings = dealt ? humans.filter((player) => canDraw(state, player) && !hasMove(state, player)).map((player) => layout.draws[player]) : []
+  // Drawing by hand, a person's draw pile glows while they have nothing to play and a spot to fill.
+  const glows = dealt ? humans.filter((player) => canDraw(state, player) && !hasMove(state, player)).map((player) => layout.draws[player]) : []
   const emptySlots = [...([0, 1] as const).filter((pile) => state.sides[pile].length === 0).map((pile) => layout.sides[pile]), ...([1, 2] as const).filter((player) => state.draws[player - 1].length === 0).map((player) => layout.draws[player])]
 
   return (
     <CardSizeProvider width={layout.cardWidth}>
       <View style={styles.screen} onLayout={onLayout}>
-        <TableView game='speed' layout={layout} cards={cards} dealKey={match.deal} rings={rings} labels={{ 1: label(1), 2: label(2) }} prompts={prompts} notes={{}} call={null} emptySlots={emptySlots} touch={<TouchZones testID='speed' twoPlayer={twoPlayer} splitY={layout.center.y} height={layout.height} enabled={dealt && !settingsOpen && !resultShown && winner === null} onTouch={handleTouch} />} onSettings={() => setSettingsOpen(true)}>
+        <TableView game='speed' layout={layout} cards={cards} dealKey={match.deal} glows={glows} labels={{ 1: label(1), 2: label(2) }} prompts={prompts} notes={{}} call={null} emptySlots={emptySlots} touch={<TouchZones testID='speed' twoPlayer={twoPlayer} splitY={layout.center.y} height={layout.height} enabled={dealt && !settingsOpen && !resultShown && winner === null} onTouch={handleTouch} />} onSettings={() => setSettingsOpen(true)}>
           {resultShown && winner !== null ? <TableOverlay humans={humans} content={(viewer) => resultContent(state, viewer, seats)} actionLabel='Rematch' onAction={rematch} testID='speed-result' /> : null}
           {resultShown && winner !== null && winner !== 'tie' && humans.includes(winner) ? <PipFireworks /> : null}
         </TableView>

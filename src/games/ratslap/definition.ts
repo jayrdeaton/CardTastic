@@ -15,7 +15,8 @@ import { useRatSlapLoadout } from './useRatSlapLoadout'
 export const RATSLAP_TITLE = 'RatSlap'
 
 /** RatSlap in the pack (pack.ts): the first game here for two players, seat 2 the CPU or a person, chosen with the rules
- * on the shell's setup screen (useRatSlapLoadout). Two people sit face to face at the phone's short edges, on the web too.
+ * on the shell's setup screen (useRatSlapLoadout). Two people sit face to face at the phone's short edges, in a phone's or
+ * tablet's browser too; at a computer they sit side by side, player 2's side of the table upright (useFaceToFace).
  * A match isn't saved, so a cold launch never comes back to one, and it hides the status bar (the table lies flat; nothing
  * reads it). Its own How to Play shows on the tile's first tap (guideSteps.tsx). */
 export const ratslap: GameDefinition = {
@@ -24,6 +25,9 @@ export const ratslap: GameDefinition = {
   blurb: 'Slap doubles and sandwiches.',
   reducers: { ratslapGuide: ratslapGuide.reducer },
   seatTwo: ['cpu', 'person'],
+  // Face to face on a phone or tablet; at a computer the two people sit side by side, here and at the table, where player 2's side is
+  // drawn upright (useFaceToFace).
+  sideBySideAtComputer: true,
   useLoadout: useRatSlapLoadout,
   resumable: false,
   keepStatusBar: false,

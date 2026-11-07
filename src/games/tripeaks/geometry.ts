@@ -1,13 +1,11 @@
 // TriPeaks' pure board geometry: where each of the 28 cells sits inside the peaks container, how tall
 // the whole board is, and how the card width is chosen from the available height. Kept out of the
-// screen so the rotation-sensitive composition (container-local offset -> screen point) and the
-// portrait-vs-wide sizing can be unit-tested without rendering anything.
+// screen so the portrait-vs-wide sizing can be unit-tested without rendering anything.
 
 import { CARD_ASPECT } from '@tastic/cards'
 
 import { FACE_UP_OFFSET_RATIO } from '@/components/CardSizeContext'
 import { BoardHeightModel, CARD_HEIGHT_RATIO, fitCardWidthToHeight } from '@/components/gameLayout'
-import { localOffsetToScreenPoint } from '@/components/overlayFrameMath'
 import { clampCardWidthForHeight } from '@/games/shared/clampCardWidthForHeight'
 
 import { childIndices, flatIndex, ROW_WIDTHS } from './rules'
@@ -57,17 +55,11 @@ export function buildCardPositions(cardWidth: number, cardHeight: number, gap: n
 }
 
 /**
- * The screen-space bounding-box top-left of the card at (`left`, `top`) inside the peaks container -
- * what a deal ghost is handed as its landing point. `containerOrigin` is the container's MEASURED
- * (measureInWindow) top-left, which under a +/-90/180 rotation is the top-left of its rotated
- * footprint, so a plain `origin + offset` is only right at 0deg - see localOffsetToScreenPoint.
- * `containerWidth`/`containerHeight` are the container's own unrotated size (what it renders with).
+ * The screen top-left of the card at (`left`, `top`) inside the peaks container - what a deal ghost is handed as its landing
+ * point. `containerOrigin` is the container's MEASURED (measureInWindow) top-left.
  */
-export function peaksCardScreenPoint(containerOrigin: { x: number; y: number }, containerWidth: number, containerHeight: number, left: number, top: number, cardWidth: number, rotation: number): { x: number; y: number } {
-  // Bit-exact at 0deg (the going-through-the-centre route can differ by an ulp), so portrait deals land
-  // on exactly the numbers they always did.
-  if (rotation === 0) return { x: containerOrigin.x + left, y: containerOrigin.y + top }
-  return localOffsetToScreenPoint(containerOrigin, containerWidth, containerHeight, left, top, cardWidth, cardWidth / CARD_ASPECT, rotation)
+export function peaksCardScreenPoint(containerOrigin: { x: number; y: number }, left: number, top: number): { x: number; y: number } {
+  return { x: containerOrigin.x + left, y: containerOrigin.y + top }
 }
 
 /**

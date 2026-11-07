@@ -13,10 +13,9 @@ import { useTableColors } from './theme'
  * fills the frame; a radial vignette layers a gentle dim toward the edges in the theme's own
  * `tableFeltDark` accent on top, brighter through the middle where it's fully transparent.
  *
- * Fills whatever positioned/flex-sized parent it's given (same as StyleSheet.absoluteFill). It is
- * deliberately NOT inside FakeLandscapeView: a fake landscape rotation turns the game frame, not the
- * device screen, and an ellipse fitted to the portrait screen reads as the same wide ellipse once the
- * phone is held sideways - so the one root felt is right at every angle, with nothing to re-key. */
+ * Fills whatever positioned/flex-sized parent it's given (same as StyleSheet.absoluteFill). Its Svg is
+ * keyed on the window size, so turning the phone redraws the vignette for the new shape:
+ * react-native-svg doesn't re-resolve its percentage-based gradient Rect after a resize. */
 export function TableBackground() {
   const colors = useTableColors()
   // Every screen used to mount its own instance, and React Navigation on web keeps a popped screen

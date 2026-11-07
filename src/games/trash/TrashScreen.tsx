@@ -21,7 +21,7 @@ import { cardTilt, type Pose } from '@/games/table/geometry'
 import { type GridTableLayout, gridTableLayout } from '@/games/table/gridLayout'
 import { otherPlayer, type PlayerIndex, TWO_PLAYER_HUMANS, VS_CPU_HUMANS } from '@/games/table/players'
 import { type TableCardSpec } from '@/games/table/TableCards'
-import { type Seat, type TableCardContent, TableOverlay, useAppActive, useTableSeats } from '@/games/table/TableChrome'
+import { type Seat, type TableCardContent, TableOverlay, useAppActive, useFaceToFace, useTableSeats } from '@/games/table/TableChrome'
 import { type TableLabel, type TableSpotLabel, type TableTarget, TableView } from '@/games/table/TableView'
 import { useSettled, useTableSize } from '@/games/table/useTable'
 import { useSettings } from '@/hooks/useSettings'
@@ -57,8 +57,11 @@ export function TrashScreen() {
   const cpu = twoPlayer ? null : round.trashCpu
   const humans = twoPlayer ? TWO_PLAYER_HUMANS : VS_CPU_HUMANS
   const { seats, statsIds } = useTableSeats(twoPlayer)
+  // Player 2's side turned to face them: 2 Player on a phone or tablet only (useFaceToFace). At a computer it's drawn upright, as
+  // against the CPU, while the halves still split the table top and bottom for each person's taps.
+  const faceToFace = useFaceToFace(twoPlayer)
   const rows = Math.ceil(round.trashCards / SPOTS_PER_ROW)
-  const layout = useMemo(() => gridTableLayout(width, height, insets, { columns: SPOTS_PER_ROW, rows, upsideDown: twoPlayer }), [width, height, insets, rows, twoPlayer])
+  const layout = useMemo(() => gridTableLayout(width, height, insets, { columns: SPOTS_PER_ROW, rows, upsideDown: faceToFace }), [width, height, insets, rows, faceToFace])
 
   const [settingsOpen, setSettingsOpen] = useState(false)
   const appActive = useAppActive()

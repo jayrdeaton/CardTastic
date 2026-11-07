@@ -1,5 +1,4 @@
 import { CARD_ASPECT, CardSizeProvider } from '@tastic/cards'
-import { rotateInsets, useRotation } from '@tastic/core'
 import { createContext, memo, ReactNode, Ref, useCallback, useContext, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Pressable, StyleSheet, View } from 'react-native'
 import Animated, { cancelAnimation, useAnimatedStyle, useSharedValue, withDelay, withSpring, WithSpringConfig, withTiming } from 'react-native-reanimated'
@@ -9,7 +8,6 @@ import { Card } from '@/engine/types'
 
 import { FaceLoadTrackingContext, GHOST_PAINT_MAX_MS, whenCardsSettled } from '../cardFacePaint'
 import { GAME_CONTENT_TOP_PADDING } from '../gameLayout'
-import { OverlayFrame, toLocal, useOverlayFrame } from '../overlayFrame'
 import { PlayingCard } from '../PlayingCard'
 import { isMotionReduced } from '../reducedMotionFlag'
 import { useCardSoundEffects } from '../useCardSounds'
@@ -197,12 +195,7 @@ interface GhostSlotProps {
    * (false) - see GhostSlot's `holding`. Called synchronously in the landing task, so the provider keeps the pool
    * mounted through the commit that ends the deal. `rect` (screen space) is where it rests; `release` ends the hold. */
   onHold: (slot: number, deal: number, hold: { rect: HoldRect; release: () => void } | null) => void
-  /** The overlay's own placement (see DealProvider's useOverlayFrame) - converts spec.from/to from
-   * screen space into the overlay's own space so a card lands exactly where it was measured,
-   * regardless of where this screen-level overlay itself happens to sit relative to the true
-   * viewport origin, or how far it's rotated under a landscape hold. */
-  frame: OverlayFrame
-  /** The deal's card width - the ghost's own footprint for that conversion. */
+  /** The deal's card width - the ghost's own footprint. */
   cardWidth: number
   /** When the most recent card actually took off (epoch ms), shared by every slot of the deal. A card that reaches its slot's
    * effect with no runway left - its own launch commit ate the whole delay - departs at once, but not in the same breath as
@@ -278,9 +271,9 @@ interface Job extends QueuedCard {
   spring: WithSpringConfig
 }
 
-// Memoized: props are all stable across the deal (a slot number, stable callbacks, the overlay frame, the card width),
+// Memoized: props are all stable across the deal (a slot number, stable callbacks, the card width),
 // so a slot re-renders only through its own state - i.e. when it is launched or lands.
-const GhostSlot = memo(function GhostSlot({ slot, deal, onDealt, onLanded, onIdle, onHold, frame, cardWidth, lastTakeOffRef, ref }: GhostSlotProps) {
+const GhostSlot = memo(function GhostSlot({ slot, deal, onDealt, onLanded, onIdle, onHold, cardWidth, lastTakeOffRef, ref }: GhostSlotProps) {
   const cardHeight = cardWidth / CARD_ASPECT
   const tx = useSharedValue(0)
   const ty = useSharedValue(0)
@@ -590,10 +583,9 @@ const GhostSlot = memo(function GhostSlot({ slot, deal, onDealt, onLanded, onIdl
   // The same guard is on DragGhostLayer's ghost container, which had the same zero-frame shape.
   const slotSize = useMemo(() => ({ width: cardWidth, height: cardHeight }), [cardWidth, cardHeight])
 
-  const style = useAnimatedStyle(() => {
-    const p = toLocal(tx.value, ty.value, cardWidth, cardHeight, frame)
-    return { opacity: opacity.value, transform: [{ translateX: p.x }, { translateY: p.y }] }
-  })
+  // tx/ty are window coordinates (spec.from/to are measured), which are this overlay's own too: it fills the game screen,
+  // and the game screen starts at the window's origin (the stack draws no header).
+  const style = useAnimatedStyle(() => ({ opacity: opacity.value, transform: [{ translateX: tx.value }, { translateY: ty.value }] }))
 
   // A stable element for the card: the slot re-renders on every launch and landing (its `job` changes), and PlayingCard
   // isn't memoized, so building the element inline would re-run it each time even when the card is unchanged. With this,
@@ -622,14 +614,8 @@ const GhostSlot = memo(function GhostSlot({ slot, deal, onDealt, onLanded, onIdl
  * overlay, real card content, spring-driven flight" idioms to N simultaneous ghosts instead. */
 export function DealProvider({ children }: { children: ReactNode }) {
   const { playCardSound, hapticCard } = useCardSoundEffects()
-  // Same rotated-frame safe-area top GameChrome positions its controls from, plus that band's height.
-  const rotation = useRotation()
-  const topChromeBand = rotateInsets(useSafeAreaInsets(), rotation).top + GAME_CONTENT_TOP_PADDING
-  // Read when a card lands (handleHold): a card's screen footprint is its height x width under a quarter turn.
-  const rotationRef = useRef(rotation)
-  useEffect(() => {
-    rotationRef.current = rotation
-  }, [rotation])
+  // Same safe-area top GameChrome positions its controls from, plus that band's height.
+  const topChromeBand = useSafeAreaInsets().top + GAME_CONTENT_TOP_PADDING
   // How many ghost slots the current deal mounts (see ghostPoolSize) - NOT one per card.
   const [poolSize, setPoolSize] = useState(0)
   // Slots still holding a landed card on screen (see GhostSlot's `holding`), by slot, with where each rests. The pool stays
@@ -682,17 +668,10 @@ export function DealProvider({ children }: { children: ReactNode }) {
   // The state copy is what render reads (a ref's `.current` can't be read during render).
   const [generation, setGeneration] = useState(0)
   const generationRef = useRef(0)
-  const { overlayRef, frame, ready: frameReady } = useOverlayFrame()
-  // spec.from/to are screen-space (measureView/CardRegistry.measure, both viewport-relative on
-  // web). But this overlay - a screen-level sibling of {children}, not a descendant - isn't
-  // necessarily anchored at the true viewport origin: it renders wherever the containing block
-  // wrapping this whole screen sits, which can be below a native header (confirmed live on this
-  // app's web target - see DragGhostLayer.tsx's identical fix), and under a landscape hold it sits
-  // inside FakeLandscapeView's rotated frame. Left uncorrected, every dealt card lands somewhere
-  // other than where it was measured - "flies to a spot below its pile, then snaps up" once the
-  // real, correctly-flowed destination card is revealed. useOverlayFrame measures the overlay once
-  // it mounts (and again on resize/rotation) and toLocal converts each ghost's position - see
-  // overlayFrame.ts.
+  // spec.from/to are window coordinates (measureView/CardRegistry.measure, both viewport-relative on web), which are this
+  // overlay's own too: it is a screen-level sibling of {children} filling the game screen, and the game screen starts at
+  // the window's origin (the stack draws no header). A header above the screen would put every dealt card that far below
+  // where it was measured ("flies to a spot below its pile, then snaps up"), which the web build once had.
 
   // One beat of the deal: a click and a buzz together, as every other card move plays them.
   const playBeat = useCallback(() => {
@@ -827,12 +806,9 @@ export function DealProvider({ children }: { children: ReactNode }) {
     if (deal !== generationRef.current) return
     const holds = holdsRef.current
     if (hold) {
-      const quarterTurn = Math.abs(rotationRef.current) === 90
-      const rect = quarterTurn ? { ...hold.rect, width: hold.rect.height, height: hold.rect.width } : hold.rect
-      hold = { ...hold, rect }
       holds.forEach((other, otherSlot) => {
         const a = other.rect
-        const b = rect
+        const b = hold.rect
         if (otherSlot !== slot && a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height) {
           other.release()
           // Unregistered here, not left to that slot's effect cleanup: its hold may end before it ever commits (set and
@@ -864,24 +840,12 @@ export function DealProvider({ children }: { children: ReactNode }) {
   // handles - that is the commit after start(), and effects run after refs attach. The deal's clock starts HERE, not in
   // start(): if the mount took a while (a slow phone, a busy board commit), every card's delay would already be spent and
   // the first several would all leave in the same frame instead of staggered.
-  //
-  // Also gated on frameReady: useOverlayFrame's cx/cy/lw/lh start at 0 until its own async
-  // measureInWindow lands, and toLocal has no way to tell "genuinely a zero-sized frame at the
-  // screen's origin" from "not measured yet" - it just computes with whatever's there. On a fresh
-  // game screen's very first deal, that measurement can still be in flight when this effect would
-  // otherwise fire (both are async work kicked off around the same mount), so the first cards flew to
-  // a wrong, shared position (toLocal's output for a zero frame) and jumped to their real one the
-  // instant the real measurement landed and every still-mounted ghost's animated style (reading
-  // cx/cy reactively) recomputed - confirmed live: "a small percentage" of a deal's earliest cards
-  // flying to nowhere before snapping into place, never the middle or tail of a deal. Re-running once
-  // frameReady flips true (it's a dependency below) costs nothing on every OTHER deal, where it's
-  // already long since true.
   useEffect(() => {
-    if (generation === 0 || !frameReady) return
+    if (generation === 0) return
     startedAtRef.current = Date.now()
     launchDue()
     runBeat()
-  }, [generation, frameReady, launchDue, runBeat])
+  }, [generation, launchDue, runBeat])
 
   useEffect(
     () => () => {
@@ -898,7 +862,7 @@ export function DealProvider({ children }: { children: ReactNode }) {
 
   // One ref callback per slot, built once per pool size, so GhostSlot's memo (which relies on every prop being stable)
   // actually holds: an inline `ref={(h) => ...}` is a new function every render and would re-render and re-attach
-  // every slot whenever the provider re-renders (a rotation, the overlay measurement landing, Settings opening mid-deal).
+  // every slot whenever the provider re-renders (a window resize, Settings opening mid-deal).
   const slotRefs = useMemo(
     () =>
       Array.from({ length: poolSize }, (_, slot) => (handle: GhostSlotHandle | null) => {
@@ -1008,16 +972,13 @@ export function DealProvider({ children }: { children: ReactNode }) {
   return (
     <DealContext.Provider value={controller}>
       {children}
-      {/* Always mounted (regardless of `dealing`) so `frame` above can measure its real
-      position - a card's own screen-space destination is only correct once this measurement
-      lands, which needs the view to already exist. */}
-      <View ref={overlayRef} pointerEvents='none' style={StyleSheet.absoluteFill}>
+      <View pointerEvents='none' style={StyleSheet.absoluteFill}>
         {(dealing || anyHold) && poolSize > 0 && (
           <CardSizeProvider width={cardWidth}>
             {/* Ghosts: their faces are not the board's (see cardFacePaint.ts). */}
             <FaceLoadTrackingContext.Provider value={false}>
               {Array.from({ length: poolSize }, (_, slot) => (
-                <GhostSlot key={`${generation}-${slot}`} slot={slot} deal={generation} onDealt={handleDealt} onLanded={handleLanded} onIdle={handleSlotIdle} onHold={handleHold} frame={frame} cardWidth={cardWidth} lastTakeOffRef={lastTakeOffAt} ref={slotRefs[slot]} />
+                <GhostSlot key={`${generation}-${slot}`} slot={slot} deal={generation} onDealt={handleDealt} onLanded={handleLanded} onIdle={handleSlotIdle} onHold={handleHold} cardWidth={cardWidth} lastTakeOffRef={lastTakeOffAt} ref={slotRefs[slot]} />
               ))}
             </FaceLoadTrackingContext.Provider>
           </CardSizeProvider>

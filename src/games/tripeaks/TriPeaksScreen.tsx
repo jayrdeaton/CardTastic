@@ -9,7 +9,6 @@
 import { useVibration } from '@rific/feedback-press'
 import { useToast } from '@rific/toaster'
 import { CARD_ASPECT, CardSizeProvider } from '@tastic/cards'
-import { useRotation } from '@tastic/core'
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { StyleSheet, View } from 'react-native'
 
@@ -25,6 +24,7 @@ import { DropZoneRegistry } from '@/components/dragdrop/DropZoneRegistry'
 import { GAME_CONTENT_PADDING, GameChrome } from '@/components/GameChrome'
 import { useGameLayout } from '@/components/gameLayout'
 import { GameLoading } from '@/components/GameLoading'
+import { HintGlow } from '@/components/hintGlow'
 import { StockWaste } from '@/components/StockWaste'
 import type { UndoRequestOptions } from '@/components/undoHold'
 import { useCardSoundEffects } from '@/components/useCardSounds'
@@ -77,7 +77,6 @@ interface TriPeaksCellProps {
   exposed: boolean
   /** `card` is hidden: its deal ghost, or an undo's ghost restoring it here, has not landed yet. */
   hidden: boolean
-  hinted: boolean
   /** The screen's last shake's token when it is `card`'s, WHETHER OR NOT the card is exposed - see the cell's comment. */
   shakeToken: number | undefined
   left: number
@@ -114,7 +113,7 @@ interface TriPeaksCellProps {
  * moment a move uncovered it, as it turned face-up. Not while held, though: `shakeToken` is computed for the cell's
  * CURRENT card, which is then not the one drawn.
  */
-export const TriPeaksCell = memo(function TriPeaksCell({ index, card, exposed: exposedOnBoard, hidden, hinted, shakeToken, left, top, zIndex, dropZones, onTap, onDrop }: TriPeaksCellProps) {
+export const TriPeaksCell = memo(function TriPeaksCell({ index, card, exposed: exposedOnBoard, hidden, shakeToken, left, top, zIndex, dropZones, onTap, onDrop }: TriPeaksCellProps) {
   const { shown, holding } = useTakeOffHold(card)
   const exposed = !holding && exposedOnBoard
   const shownId = shown?.id
@@ -128,7 +127,7 @@ export const TriPeaksCell = memo(function TriPeaksCell({ index, card, exposed: e
   if (!shown || !faceDown) return null
   return (
     <DropZone registry={dropZones} pileRef={pileRef} style={style} enabled={exposed}>
-      <DraggableCard card={exposed || holding ? shown : faceDown} hidden={!holding && hidden} disabled={!exposed} registryId={exposed ? undefined : null} hinted={exposed && hinted} onPress={exposed ? handlePress : undefined} onDrop={exposed ? handleDrop : undefined} shakeToken={holding ? undefined : shakeToken} testID={`tripeaks-${index}`} />
+      <DraggableCard card={exposed || holding ? shown : faceDown} hidden={!holding && hidden} disabled={!exposed} registryId={exposed ? undefined : null} onPress={exposed ? handlePress : undefined} onDrop={exposed ? handleDrop : undefined} shakeToken={holding ? undefined : shakeToken} testID={`tripeaks-${index}`} />
     </DropZone>
   )
 })
@@ -161,10 +160,9 @@ function TriPeaksScreenInner() {
   // The deal's game under the rule it was dealt with: what its stats and par are kept for (engine/variants.ts).
   const variant = tripeaksVariant(tripeaksRankWrap)
   const controller = useMemo(() => createTriPeaksController(tripeaksRankWrap), [tripeaksRankWrap])
-  // Width the board may occupy - rotation-aware, and net of the side-chrome gutters in the wide (landscape)
-  // layout; the plain window width (capped) in portrait. See gameLayout.ts.
+  // Width the board may occupy - net of the side-chrome gutters in the wide (landscape) layout; the plain window width
+  // (capped) in portrait. See gameLayout.ts.
   const { contentWidth, isWide, availableHeight: layoutAvailableHeight } = useGameLayout()
-  const rotation = useRotation()
   const { cardWidth: widthCardWidth, gap } = cardLayoutForRow(contentWidth - GAME_CONTENT_PADDING * 2, BASE_WIDTH)
   // Portrait: the same two-axis clamp as Pyramid's own (see clampCardWidthForHeight's doc comment) fed
   // by the column-game height budget, exactly as before. Wide: the real board (stock row + peaks) fitted
@@ -202,9 +200,7 @@ function TriPeaksScreenInner() {
   const playHintGlide = useHintGlide(state, ghost.cardRegistry, dropZones)
   const deal = useDealAnimator()
   const stockViewRef = useRef<View>(null)
-  // The waste slot itself (StockWaste's wasteRef) - exactly card-sized, so its measured bounding box is
-  // the card's own footprint at any rotation. (Measuring the whole StockWaste wrapper instead, as this
-  // once did, is wider than a card: fine at 0deg where the top-left coincides, wrong once rotated.) Used
+  // The waste slot itself (StockWaste's wasteRef) - exactly card-sized, so its measured rect is the card's own. Used
   // as the win cascade's single chain origin, since the waste/build pile is TriPeaks' only "foundation-equivalent" pile, same as
   // Golf - the real waste top card is hidden once won (wasteTopCard below).
   const wasteViewRef = useRef<View>(null)
@@ -346,9 +342,6 @@ function TriPeaksScreenInner() {
     }
 
     const positions = buildCardPositions(cardWidth, cardHeight, gap)
-    // The peaks container's own local size - what it renders with (see the JSX below).
-    const peaksWidth = boardWidth(cardWidth, gap)
-    const peaksHeight = boardHeight(cardHeight)
     const entries: DealCardSpec[] = []
     sequence.forEach((step) => {
       if (step.index === -1) {
@@ -377,7 +370,7 @@ function TriPeaksScreenInner() {
       // face-down flight for a card whose real state isn't face-up-from-the-start. Row 3 (the base)
       // is exposed from the start, so it flies showing its real face.
       const card = row === 3 ? step.card : { ...step.card, faceUp: false }
-      entries.push({ cardId: step.cardId, card, from: stockOrigin, to: peaksCardScreenPoint(boardOrigin, peaksWidth, peaksHeight, left, cardTop, cardWidth, rotation), delayMs: step.visitOrder * dealStaggerMs(sequence.length) })
+      entries.push({ cardId: step.cardId, card, from: stockOrigin, to: peaksCardScreenPoint(boardOrigin, left, cardTop), delayMs: step.visitOrder * dealStaggerMs(sequence.length) })
     })
     if (entries.length === 0) {
       setDealHiddenIds(new Set())
@@ -768,12 +761,24 @@ function TriPeaksScreenInner() {
           </View>
 
           <View ref={peaksViewRef} collapsable={false} style={[styles.peaks, { width, height }]}>
+            {/* The hint's glow under every cell (HintGlow), not on the hinted card: a card overlaps the ones above it, so a
+            halo drawn with it would tint their faces. */}
+            {state.tableau.map((card, index) => {
+              const { row, col } = rowColOf(index)
+              if (!card || !isExposed(state.tableau, row, col) || isTableauHidden(card.id, index) || hintCountFor(activeHint, { zone: 'tableau', index }) === 0) return null
+              const { left, top: cardTop } = positions[index]
+              return (
+                <View key={`glow-${index}`} pointerEvents='none' style={[styles.cellGlow, { left, top: cardTop, width: cardWidth, height: cardHeight }]}>
+                  <HintGlow />
+                </View>
+              )
+            })}
             {/* One memoized cell per index, keyed by the cell - see TriPeaksCell. Every prop is a primitive (or stable),
             so only the cells whose own state changed re-render. */}
             {state.tableau.map((card, index) => {
               const { row, col } = rowColOf(index)
               const { left, top: cardTop } = positions[index]
-              return <TriPeaksCell key={index} index={index} card={card} exposed={isExposed(state.tableau, row, col)} hidden={!!card && isTableauHidden(card.id, index)} hinted={hintCountFor(activeHint, { zone: 'tableau', index }) > 0} shakeToken={card && shake?.cardId === card.id ? shake.token : undefined} left={left} top={cardTop} zIndex={row} dropZones={dropZones} onTap={onTapCell} onDrop={onDropCell} />
+              return <TriPeaksCell key={index} index={index} card={card} exposed={isExposed(state.tableau, row, col)} hidden={!!card && isTableauHidden(card.id, index)} shakeToken={card && shake?.cardId === card.id ? shake.token : undefined} left={left} top={cardTop} zIndex={row} dropZones={dropZones} onTap={onTapCell} onDrop={onDropCell} />
             })}
           </View>
         </View>
@@ -790,6 +795,10 @@ function makeStyles() {
   return StyleSheet.create({
     board: {
       alignItems: 'center'
+    },
+    // A hinted cell's glow, at the cell's spot, under every cell (drawn before them, no zIndex of its own).
+    cellGlow: {
+      position: 'absolute'
     },
     controlRow: {
       // Right-aligned to the peaks' own right edge below, matching where every other game's stock

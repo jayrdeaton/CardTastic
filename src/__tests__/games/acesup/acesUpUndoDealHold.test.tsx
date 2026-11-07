@@ -21,7 +21,7 @@ import { resetGameInProgress, seedGameInProgress } from '../../../testUtils/game
 //
 // The same harness as spiderUndoDealHold.test.tsx: the REAL AcesUpScreen, PileView, DealLayer and cardFacePaint registry;
 // a Reanimated whose withDelay lands on (fake) time and re-renders its owner, so a deal ghost turns visible at its real
-// take-off; overlayFrame measured at once; a PlayingCard whose ghost face reports painted a passive effect after it mounts
+// take-off; a PlayingCard whose ghost face reports painted a passive effect after it mounts
 // unless a test holds it; a faithful card registry. "Drawn" = a PlayingCard whose host view has no ancestor at opacity 0.
 // ---------------------------------------------------------------------------------------------------------------------
 
@@ -86,11 +86,6 @@ jest.mock('react-native-reanimated', () => {
     }
   }
 })
-jest.mock('@/components/overlayFrame', () => ({
-  ...jest.requireActual('@/components/overlayFrame'),
-  useOverlayFrame: () => ({ overlayRef: { current: null }, frame: {}, ready: true }),
-  toLocal: (x: number, y: number) => ({ x, y })
-}))
 jest.mock('@/components/dragdrop/DragGhostLayer', () => ({ DragGhostProvider: ({ children }: { children: unknown }) => children, useDragGhost: () => mockGhost }))
 jest.mock('@/components/PlayingCard', () => {
   const { useContext, useEffect } = require('react')

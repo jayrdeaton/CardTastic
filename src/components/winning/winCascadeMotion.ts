@@ -52,7 +52,7 @@ export function cascadeApexY(headerBottomY: number, floorY: number): number {
   return Math.min(headerBottomY, Math.max(BOUNCE_TOP_MARGIN_PX, floorY - BOUNCE_MIN_SPAN_PX))
 }
 
-/** The box every chain of a cascade bounces in, in the rotated frame the ghosts render in: the two walls (the x of a card's left
+/** The box every chain of a cascade bounces in, in the window: the two walls (the x of a card's left
  * edge against each) and the apex and floor (the y of its top edge at each). */
 export interface CascadeBounds {
   leftX: number
@@ -61,7 +61,7 @@ export interface CascadeBounds {
   floorY: number
 }
 
-/** The bounce box for a `frame` (the rotated window), a card of `cardWidth` x `cardHeight` and a header ending at `headerBottomY`. */
+/** The bounce box for a `frame` (the window), a card of `cardWidth` x `cardHeight` and a header ending at `headerBottomY`. */
 export function cascadeBounds(frame: { width: number; height: number }, cardWidth: number, cardHeight: number, headerBottomY: number): CascadeBounds {
   const floorY = frame.height - cardHeight - BOUNCE_FLOOR_MARGIN_PX
   return { leftX: BOUNCE_H_MARGIN_PX, rightX: frame.width - cardWidth - BOUNCE_H_MARGIN_PX, apexY: cascadeApexY(headerBottomY, floorY), floorY }
@@ -97,7 +97,7 @@ export interface ChainPath {
   initialLegMs: number
   // No start time of its own: every card's elapsed time counts from the whole cascade's one clock, which only starts once
   // its ghosts are on screen (WinCascadeLayer's CascadeChains, startMs) - a path is built before that.
-  // Its walls, apex and floor are the cascade's bounds AT THE WIN: a later resize (a rotation) leaves the path alone and moves
+  // Its walls, apex and floor are the cascade's bounds AT THE WIN: a later resize (the phone turned) leaves the path alone and moves
   // the positions it gives into the new bounds instead (fitXToBounds/fitYToBounds).
 }
 
@@ -112,8 +112,8 @@ function remapAxis(value: number, from0: number, from1: number, to0: number, to1
 
 /** An x of `path` (a card's cardXAtElapsed) moved into the cascade's current `bounds`: the path's two walls onto the new walls,
  * everything between (or beyond) them in proportion. The motion is linear interpolation between the path's own points, so this
- * is exactly the path a chain would have taken had it been built in `bounds` - same timing, same phase, nothing restarts: a
- * rotation mid-cascade carries every card to the same spot of its bounce in the turned frame. */
+ * is exactly the path a chain would have taken had it been built in `bounds` - same timing, same phase, nothing restarts:
+ * turning the phone mid-cascade carries every card to the same spot of its bounce in the new window. */
 export function fitXToBounds(path: ChainPath, bounds: CascadeBounds, x: number): number {
   'worklet'
   return remapAxis(x, Math.min(path.firstX, path.secondX), Math.max(path.firstX, path.secondX), bounds.leftX, bounds.rightX)

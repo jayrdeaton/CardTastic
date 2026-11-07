@@ -3,7 +3,6 @@
 import { useVibration } from '@rific/feedback-press'
 import { useToast } from '@rific/toaster'
 import { CARD_ASPECT, CardSizeProvider } from '@tastic/cards'
-import { useRotation } from '@tastic/core'
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { StyleSheet, View } from 'react-native'
 import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated'
@@ -22,7 +21,7 @@ import { DropZoneRegistry } from '@/components/dragdrop/DropZoneRegistry'
 import { GAME_CONTENT_PADDING, GameChrome } from '@/components/GameChrome'
 import { useGameLayout } from '@/components/gameLayout'
 import { GameLoading } from '@/components/GameLoading'
-import { OverlayFrame, toLocal, useOverlayFrame } from '@/components/overlayFrame'
+import { HintGlow } from '@/components/hintGlow'
 import { PlayingCard } from '@/components/PlayingCard'
 import type { StockRequestOptions } from '@/components/stockHold'
 import { StockWaste } from '@/components/StockWaste'
@@ -236,8 +235,7 @@ const LANDED_CARD_STYLE = { shadowOpacity: 0, elevation: 0 }
  * a LAYOUT effect of the landing commit: PairFlightGhosts is rendered after GameChrome, so by then the board's own layout
  * effects in that commit (the re-sourced face reporting itself as loading) have run; checked synchronously in the landing
  * callback instead, it would find nothing loading yet and retire at once. */
-function FlyingPairCard({ gen, card, from, to, frame, cardWidth, go, landed, onFacePainted, onLanded, onRetired }: { gen: number; card: Card; from: ScreenPoint; to: ScreenPoint; frame: OverlayFrame; cardWidth: number; go: boolean; landed: boolean; onFacePainted: () => void; onLanded: () => void; onRetired: (gen: number, cardId: string) => void }) {
-  const cardHeight = cardWidth / CARD_ASPECT
+function FlyingPairCard({ gen, card, from, to, go, landed, onFacePainted, onLanded, onRetired }: { gen: number; card: Card; from: ScreenPoint; to: ScreenPoint; go: boolean; landed: boolean; onFacePainted: () => void; onLanded: () => void; onRetired: (gen: number, cardId: string) => void }) {
   const tx = useSharedValue(from.x)
   const ty = useSharedValue(from.y)
   const notified = useRef(false)
@@ -266,10 +264,8 @@ function FlyingPairCard({ gen, card, from, to, frame, cardWidth, go, landed, onF
     return whenCardsSettled([cardId], LANDED_GHOST_MAX_MS, () => onRetired(gen, cardId))
   }, [landed, gen, cardId, onRetired])
 
-  const style = useAnimatedStyle(() => {
-    const p = toLocal(tx.value, ty.value, cardWidth, cardHeight, frame)
-    return { transform: [{ translateX: p.x }, { translateY: p.y }] }
-  })
+  // Window coordinates, which are the overlay's own (see PairFlightGhosts).
+  const style = useAnimatedStyle(() => ({ transform: [{ translateX: tx.value }, { translateY: ty.value }] }))
 
   return (
     <Animated.View style={[pairFlightStyles.ghostCard, !go && pairFlightStyles.unpainted, style]}>
@@ -284,7 +280,7 @@ function FlyingPairCard({ gen, card, from, to, frame, cardWidth, go, landed, onF
 /** One pair flight's ghosts. A ghost is a fresh Image, blank for a frame or two (cardFacePaint.ts), so the pair stays
  * invisible - while its sources keep drawing the cards - until BOTH faces have painted (useGhostPaintGate; together, so
  * the lower card's ghost can never show over a still-held top card), then both appear and fly. */
-function PairFlightGroup({ flight, frame, onCardLanded, onCardRetired }: { flight: PairFlightState; frame: OverlayFrame; onCardLanded: (gen: number, cardId: string) => void; onCardRetired: (gen: number, cardId: string) => void }) {
+function PairFlightGroup({ flight, onCardLanded, onCardRetired }: { flight: PairFlightState; onCardLanded: (gen: number, cardId: string) => void; onCardRetired: (gen: number, cardId: string) => void }) {
   const faceIds = useMemo(() => flight.cards.map((c) => c.card.id), [flight.cards])
   const shownOnce = useRef(false)
   const handleShown = useCallback(() => {
@@ -299,7 +295,7 @@ function PairFlightGroup({ flight, frame, onCardLanded, onCardRetired }: { fligh
   return (
     <CardSizeProvider width={flight.cardWidth}>
       {flight.cards.map(({ card, from, to }) => (
-        <FlyingPairCard key={`${flight.gen}-${card.id}`} gen={flight.gen} card={card} from={from} to={to} frame={frame} cardWidth={flight.cardWidth} go={shown} landed={flight.landed.has(card.id)} onFacePainted={() => markPainted(card.id)} onLanded={() => onCardLanded(flight.gen, card.id)} onRetired={onCardRetired} />
+        <FlyingPairCard key={`${flight.gen}-${card.id}`} gen={flight.gen} card={card} from={from} to={to} go={shown} landed={flight.landed.has(card.id)} onFacePainted={() => markPainted(card.id)} onLanded={() => onCardLanded(flight.gen, card.id)} onRetired={onCardRetired} />
       ))}
     </CardSizeProvider>
   )
@@ -325,17 +321,13 @@ const pairFlightStyles = StyleSheet.create({
  * PyramidScreenInner's startPairFlight. Same "N independent simultaneous ghosts" idiom
  * DealLayer/WinCascadeLayer already use, for the same reason the single-slot drag ghost can't do
  * it (see DealLayer.tsx's doc comment). Renders EVERY flight in `flights` - a fast player's next
- * pair takes off while the last one is still in the air, and each must keep flying. Always mounted
- * (only the flights' presence is conditional) so its own offset-correction effect can measure a
- * real position at all times, same reasoning as those two. */
+ * pair takes off while the last one is still in the air, and each must keep flying. Rendered at the screen's top level,
+ * filling it, so its positions are window coordinates. */
 function PairFlightGhosts({ flights, onCardLanded, onCardRetired }: { flights: PairFlightState[]; onCardLanded: (gen: number, cardId: string) => void; onCardRetired: (gen: number, cardId: string) => void }) {
-  // Same overlay-placement pattern as DragGhostLayer/DealLayer - see overlayFrame.ts.
-  const { overlayRef, frame } = useOverlayFrame()
-
   return (
-    <View ref={overlayRef} pointerEvents='none' style={StyleSheet.absoluteFill}>
+    <View pointerEvents='none' style={StyleSheet.absoluteFill}>
       {flights.map((flight) => (
-        <PairFlightGroup key={flight.gen} flight={flight} frame={frame} onCardLanded={onCardLanded} onCardRetired={onCardRetired} />
+        <PairFlightGroup key={flight.gen} flight={flight} onCardLanded={onCardLanded} onCardRetired={onCardRetired} />
       ))}
     </View>
   )
@@ -351,7 +343,6 @@ interface PyramidCellProps {
   hidden: boolean
   /** This cell is the current selection. */
   selected: boolean
-  hinted: boolean
   /** The screen's last shake's token when it is `card`'s, WHETHER OR NOT the card is exposed - see the cell's comment. */
   shakeToken: number | undefined
   /** useDimAfterDeal's `held`: the deal is still in the air, nothing is dimmed yet. */
@@ -391,7 +382,7 @@ interface PyramidCellProps {
  * a New Game gives it) and then play the stale one the moment a move uncovered it. Not while held, though: `shakeToken` is
  * computed for the cell's CURRENT card, which is then not the one drawn.
  */
-export const PyramidCell = memo(function PyramidCell({ index, card, exposed: exposedOnBoard, hidden, selected, hinted, shakeToken, dimHeld, left, top, zIndex, dropZones, onSelect, onDrop }: PyramidCellProps) {
+export const PyramidCell = memo(function PyramidCell({ index, card, exposed: exposedOnBoard, hidden, selected, shakeToken, dimHeld, left, top, zIndex, dropZones, onSelect, onDrop }: PyramidCellProps) {
   const { shown, holding } = useTakeOffHold(card)
   const exposed = !holding && exposedOnBoard
   const covered = !exposed && !holding
@@ -403,7 +394,7 @@ export const PyramidCell = memo(function PyramidCell({ index, card, exposed: exp
   if (!shown) return null
   return (
     <DropZone registry={dropZones} pileRef={pileRef} style={style} enabled={exposed}>
-      <DraggableCard card={shown} selected={exposed && selected} hidden={!holding && hidden} disabled={!exposed} dimmed={covered} dimHold={covered ? hidden || dimHeld : undefined} registryId={exposed ? undefined : null} hinted={exposed && hinted} onPress={exposed ? handlePress : undefined} onDrop={exposed ? handleDrop : undefined} shakeToken={holding ? undefined : shakeToken} testID={`pyramid-${index}`} />
+      <DraggableCard card={shown} selected={exposed && selected} hidden={!holding && hidden} disabled={!exposed} dimmed={covered} dimHold={covered ? hidden || dimHeld : undefined} registryId={exposed ? undefined : null} onPress={exposed ? handlePress : undefined} onDrop={exposed ? handleDrop : undefined} shakeToken={holding ? undefined : shakeToken} testID={`pyramid-${index}`} />
     </DropZone>
   )
 })
@@ -433,12 +424,9 @@ export default withGameProviders(PyramidScreenInner)
 function PyramidScreenInner() {
   const { styles, dropZones, recordDealWon, recordDealAbandoned, recordHintUsed, recordUndoUsed } = useGameScreenBasics(makeStyles)
   const { info: infoToast } = useToast()
-  // Width the board may occupy - rotation-aware, and net of the side-chrome gutters in the wide (landscape)
-  // layout; the plain window width (capped) in portrait. See gameLayout.ts.
+  // Width the board may occupy - net of the side-chrome gutters in the wide (landscape) layout; the plain window width
+  // (capped) in portrait. See gameLayout.ts.
   const { contentWidth, isWide, availableHeight: layoutAvailableHeight } = useGameLayout()
-  // The screen is visually rotated by FakeLandscapeView, so every measured container origin below is a
-  // rotated bounding box - see geometry.ts's pyramidCellScreenPoint.
-  const rotation = useRotation()
   const { cardWidth: widthCardWidth, gap } = cardLayoutForRow(contentWidth - GAME_CONTENT_PADDING * 2, TRIANGLE_WIDTH_UNITS)
   // Pyramid has no PileView/height-budget concept - the triangle's own height is a pure function of
   // cardWidth, so a wider window could otherwise drive cardWidth taller than the viewport fits. Portrait
@@ -731,7 +719,7 @@ function PyramidScreenInner() {
       const triangleOrigin = await measureView(triangleViewRef.current)
       if (!triangleOrigin) return null
       const { row, col } = rowColOf(ref.index)
-      return pyramidCellScreenPoint(triangleOrigin, row, col, cardWidth, gap, rotation)
+      return pyramidCellScreenPoint(triangleOrigin, row, col, cardWidth, gap)
     }
     return null
   }
@@ -1067,7 +1055,7 @@ function PyramidScreenInner() {
         cardId: step.cardId,
         card: step.card,
         from: stockOrigin,
-        to: pyramidCellScreenPoint(triangleOrigin, row, col, cardWidth, gap, rotation),
+        to: pyramidCellScreenPoint(triangleOrigin, row, col, cardWidth, gap),
         delayMs: step.visitOrder * dealStaggerMs(sequence.length)
       }
     })
@@ -1321,7 +1309,7 @@ function PyramidScreenInner() {
         let to: ScreenPoint | null = wasteOrigin
         if (entry.ref.zone === 'pyramid') {
           const { row, col } = rowColOf(entry.ref.index)
-          to = triangleOrigin ? pyramidCellScreenPoint(triangleOrigin, row, col, cardWidth, gap, rotation) : null
+          to = triangleOrigin ? pyramidCellScreenPoint(triangleOrigin, row, col, cardWidth, gap) : null
         }
         if (card && to) specs.push({ card, from: discardOrigin, to })
       }
@@ -1870,12 +1858,24 @@ function PyramidScreenInner() {
           </View>
 
           <View ref={triangleViewRef} collapsable={false} style={[styles.triangle, { width, height }]}>
+            {/* The hint's glow under every cell (HintGlow), not on the hinted card: a card overlaps the two above it, so a
+            halo drawn with it would tint their faces. */}
+            {state.pyramid.map((card, index) => {
+              const { row, col } = rowColOf(index)
+              if (!card || !isExposed(state.pyramid, row, col) || pyramidHiddenIds.has(card.id) || !pairHinted({ zone: 'pyramid', index })) return null
+              const { left, top } = cardPosition(row, col, cardWidth, cardHeight, gap)
+              return (
+                <View key={`glow-${index}`} pointerEvents='none' style={[styles.cellGlow, { left, top, width: cardWidth, height: cardHeight }]}>
+                  <HintGlow />
+                </View>
+              )
+            })}
             {/* One memoized cell per index, keyed by the cell - see PyramidCell. Every prop is a primitive (or stable), so
             only the cells whose own state changed re-render. */}
             {state.pyramid.map((card, index) => {
               const { row, col } = rowColOf(index)
               const { left, top } = cardPosition(row, col, cardWidth, cardHeight, gap)
-              return <PyramidCell key={index} index={index} card={card} exposed={isExposed(state.pyramid, row, col)} hidden={!!card && pyramidHiddenIds.has(card.id)} selected={!!selected && selected.zone === 'pyramid' && selected.index === index} hinted={pairHinted({ zone: 'pyramid', index })} shakeToken={card && shake?.cardId === card.id ? shake.token : undefined} dimHeld={dimAfterDeal.held} left={left} top={top} zIndex={row} dropZones={dropZones} onSelect={onSelectCell} onDrop={onDropCell} />
+              return <PyramidCell key={index} index={index} card={card} exposed={isExposed(state.pyramid, row, col)} hidden={!!card && pyramidHiddenIds.has(card.id)} selected={!!selected && selected.zone === 'pyramid' && selected.index === index} shakeToken={card && shake?.cardId === card.id ? shake.token : undefined} dimHeld={dimAfterDeal.held} left={left} top={top} zIndex={row} dropZones={dropZones} onSelect={onSelectCell} onDrop={onDropCell} />
             })}
           </View>
         </View>
@@ -1902,6 +1902,10 @@ function makeStyles() {
     // width instead of an artificial full-window one.
     board: {
       alignItems: 'center'
+    },
+    // A hinted cell's glow, at the cell's spot, under every cell (drawn before them, no zIndex of its own).
+    cellGlow: {
+      position: 'absolute'
     },
     controlRow: {
       // Spans the triangle's own full width (set inline via the `width` prop) and spaces its two

@@ -23,7 +23,9 @@ export const ginrummy: GameDefinition = {
   blurb: 'Meld sets and runs, then knock.',
   reducers: { ginRummyGuide: ginRummyGuide.reducer },
   seatTwo: ['cpu', 'person'],
-  // Nobody sits across from anyone (the phone is passed), so in a wide window the setup screen seats them side by side.
+  // Nobody sits across from anyone (the phone is passed), so in a wide window the setup screen seats them side by side, and at a
+  // computer in any window.
+  sideBySideAtComputer: true,
   sideBySideWhenWide: true,
   useLoadout: useGinLoadout,
   resumable: false,

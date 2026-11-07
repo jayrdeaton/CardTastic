@@ -1,9 +1,9 @@
 import { Easing, SharedValue, withDelay, withRepeat, withSequence, withTiming } from 'react-native-reanimated'
 
-/** A slow, continuous opacity breath (the ring and its glow brighten and dim) - the visual cue for
+/** A slow, continuous opacity breath (the hint glow brightens and dims) - the visual cue for
  * "the hint feature is pointing at this card" (see PlayingCard's own `hinted` prop), so a hint reads as "look here" rather than a
  * static highlight easy to miss against a busy board. Distinct from shakeAnimation's one-shot
- * wiggle - this loops for as long as the hint stays active, so the owner (PlayingCard's HintRing,
+ * wiggle - this loops for as long as the hint stays active, so the owner (hintGlow.tsx's HintGlow,
  * mounted only while hinted) cancels it on unmount rather than it being fire-and-forget. */
 export function startHintPulse(opacity: SharedValue<number>) {
   opacity.value = withRepeat(withTiming(0.4, { duration: 1100, easing: Easing.inOut(Easing.quad) }), -1, true)

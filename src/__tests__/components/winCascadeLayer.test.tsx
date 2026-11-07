@@ -43,9 +43,8 @@ jest.mock('react-native-reanimated', () => {
     }
   }
 })
-let mockRotation = 0
-let mockFrame = { width: 400, height: 800 } // the ROTATED window: width and height swap under a quarter turn
-jest.mock('@tastic/core', () => ({ useRotation: () => mockRotation, useRotatedWindowDimensions: () => mockFrame, rotateInsets: (insets: unknown) => insets }))
+let mockFrame = { width: 400, height: 800 } // the window: width and height swap when the phone turns
+jest.mock('react-native/Libraries/Utilities/useWindowDimensions', () => ({ __esModule: true, default: () => ({ ...mockFrame, scale: 1, fontScale: 1 }) }))
 jest.mock('@/components/PlayingCard', () => {
   const { View } = require('react-native')
   const { useEffect: useMockEffect } = require('react')
@@ -112,7 +111,6 @@ beforeEach(() => {
   jest.useFakeTimers()
   jest.spyOn(Math, 'random').mockReturnValue(0.5)
   mockFrames.clear()
-  mockRotation = 0
   mockFrame = { width: 400, height: 800 }
 })
 afterEach(() => {
@@ -265,18 +263,6 @@ describe('WinCascadeGhosts - cardOrigins', () => {
     expect(await positionsAt(fanned, settled + 12_345)).toEqual(await positionsAt(plain, settled + 12_345))
   })
 
-  it('carries each card offset through the same rotation as the chain origin (a landscape hold turns the fan sideways)', async () => {
-    mockRotation = 90 // the board is turned a quarter: what runs down the screen runs along the rotated frame's x axis
-    await start([{ cards: cards(1, 3), origin: { x: 40, y: 456 }, cardOrigins: FAN, entranceDelayMs: 500 }])
-
-    const [lowest, middle, highest] = [positionOf('c1'), positionOf('c2'), positionOf('c3')]
-    // 44px apart on screen top-to-bottom (500 vs 456): the same 44px in the rotated frame, along its x axis, none along y.
-    expect(lowest.x - highest.x).toBeCloseTo(44, 3)
-    expect(middle.x - highest.x).toBeCloseTo(22, 3)
-    expect(lowest.y).toBeCloseTo(highest.y, 3)
-    expect(middle.y).toBeCloseTo(highest.y, 3)
-  })
-
   it('leaves a chain without cardOrigins exactly as it was: every card starts on the chain origin', async () => {
     await start([{ cards: cards(1, 3), origin: { x: 40, y: 456 }, entranceDelayMs: 0 }])
 
@@ -398,7 +384,7 @@ describe('WinCascadeGhosts - clear', () => {
   })
 })
 
-describe('WinCascadeGhosts - a rotation while the cascade runs', () => {
+describe('WinCascadeGhosts - the phone turned while the cascade runs', () => {
   const HEADER_BOTTOM = 56 // no safe-area inset in the tests + GAME_CONTENT_TOP_PADDING
   const CARD_HEIGHT = CARD_WIDTH / CARD_ASPECT
   const PORTRAIT = cascadeBounds({ width: 400, height: 800 }, CARD_WIDTH, CARD_HEIGHT, HEADER_BOTTOM)
@@ -410,17 +396,16 @@ describe('WinCascadeGhosts - a rotation while the cascade runs', () => {
   ]
   const HEADS = ['c1', 'c11', 'c21']
 
-  /** Turns the frame the way FakeLandscapeView does: the same window, read with its width and height swapped. */
-  async function turn(view: Awaited<ReturnType<typeof start>>, frame: { width: number; height: number }, rotation: number) {
+  /** Turns the phone: the window, read with its width and height swapped. */
+  async function turn(view: Awaited<ReturnType<typeof start>>, frame: { width: number; height: number }) {
     mockFrame = frame
-    mockRotation = rotation
     await view.rerender(tree())
   }
 
   it('bounces every card inside the turned frame, out to its new walls and down to its new floor', async () => {
     const view = await start(CHAINS)
     await tick(3000)
-    await turn(view, { width: 800, height: 400 }, 90)
+    await turn(view, { width: 800, height: 400 })
 
     let right = -Infinity
     let low = -Infinity
@@ -445,17 +430,16 @@ describe('WinCascadeGhosts - a rotation while the cascade runs', () => {
     const view = await start(CHAINS)
     if (turnAtMs !== undefined) {
       await tick(turnAtMs)
-      await turn(view, { width: 800, height: 400 }, 90)
+      await turn(view, { width: 800, height: 400 })
     }
     if (backAtMs !== undefined) {
       await tick(backAtMs)
-      await turn(view, { width: 400, height: 800 }, 0)
+      await turn(view, { width: 400, height: 800 })
     }
     await tick(ms)
     const positions = HEADS.map((id) => positionOf(id))
     await view.unmount()
     mockFrame = { width: 400, height: 800 }
-    mockRotation = 0
     return positions
   }
 

@@ -138,7 +138,7 @@ export function FourCrownsScreen() {
     for (const { card: drawn, pose } of cards) {
       const card = inHand.get(drawn.id)
       if (!card) continue
-      targets.push({ key: `card-${card.id}`, at: pose, label: picked === card.id ? `Put back the ${cardName(card)}` : `Pick the ${cardName(card)}`, ring: false, onPress: () => setPick(picked === card.id ? null : { state, cardId: card.id }) })
+      targets.push({ key: `card-${card.id}`, at: pose, label: picked === card.id ? `Put back the ${cardName(card)}` : `Pick the ${cardName(card)}`, glow: false, onPress: () => setPick(picked === card.id ? null : { state, cardId: card.id }) })
     }
   }
 

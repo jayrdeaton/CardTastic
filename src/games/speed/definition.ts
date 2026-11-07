@@ -22,6 +22,9 @@ export const speed: GameDefinition = {
   blurb: 'No turns. One up or down, fast.',
   reducers: { speedGuide: speedGuide.reducer },
   seatTwo: ['cpu', 'person'],
+  // Face to face on a phone or tablet; at a computer the two people sit side by side, here and at the table, where player 2's side is
+  // drawn upright (useFaceToFace).
+  sideBySideAtComputer: true,
   useLoadout: useSpeedLoadout,
   resumable: false,
   keepStatusBar: false,

@@ -25,14 +25,4 @@ describe('settingsSlice', () => {
   it('keeps the defaults when nothing was saved', () => {
     expect(reducer(undefined, { type: REHYDRATE, payload: {} } as { type: string })).toEqual(DEFAULT_SETTINGS)
   })
-
-  // Lock Orientation is gone (2026-11-06, the OS turns the screen), but a 1.2.8 store's lock stays in `settings` for one
-  // release, as it was, so a rollback to 1.2.8 finds it: nothing that writes settings any more names it.
-  it("keeps a 1.2.8 store's lock as it was saved, through every later patch", () => {
-    const saved = { ...DEFAULT_SETTINGS, lockOrientation: true, lockedRotation: 90 }
-    const rehydrated = reducer(undefined, { type: REHYDRATE, payload: { settings: saved } } as { type: string })
-    const patched = reducer(rehydrated, settingsActions.initialize({ klondikeDraw: 3 }))
-
-    expect(patched).toMatchObject({ lockOrientation: true, lockedRotation: 90, klondikeDraw: 3 })
-  })
 })

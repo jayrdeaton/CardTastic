@@ -3,7 +3,7 @@ import { type AnyCard, CardFace, isJoker, rankLabel, type TableColors, useCardSi
 import React from 'react'
 import { Image, ImageSourcePropType, ImageStyle, Platform, StyleProp, StyleSheet, View, ViewStyle } from 'react-native'
 import { useTheme } from 'react-native-paper'
-import Animated, { cancelAnimation, useAnimatedStyle, useSharedValue } from 'react-native-reanimated'
+import Animated, { useAnimatedStyle, useSharedValue } from 'react-native-reanimated'
 
 import { Rank, Suit } from '@/engine/types'
 import { useSettings } from '@/hooks/useSettings'
@@ -13,7 +13,7 @@ import { CardBackArt } from './CardBackArt'
 import { CARD_FACE_BITMAPS } from './cardFaceBitmaps'
 import { FaceLoadTrackingContext, trackFaceLoad } from './cardFacePaint'
 import { DIM_FADE_BACKSTOP_MS, fadeInDimScrim } from './dimScrimAnimation'
-import { startHintPulse } from './hintAnimation'
+import { HintGlow } from './hintGlow'
 import { JokerFace } from './JokerFace'
 import { CARD_RADIUS, cardRadiusForWidth, useTableColors } from './theme'
 
@@ -21,6 +21,8 @@ const SHEEN_SOURCE = require('../../assets/card-sheen.png')
 /** How long a card turned face-up in place may keep showing its back while its new face loads (see `backUntilPainted`) -
  * normally a frame or two; this only bounds a load that never reports. */
 const FLIP_BACK_MAX_MS = 250
+/** An empty slot's dashed border. */
+const EMPTY_SLOT_BORDER = 2
 /** Every card is its own compositing layer on the web. Safari (WebKit) does not repaint the part of a card's shadow that
  * spills outside the card when the card is removed, so each card that left a column kept two faint lines of shadow on
  * either side of the spot it left, down to its old bottom, until something else repainted there. On its own layer the
@@ -33,9 +35,9 @@ interface PlayingCardProps {
   card: AnyCard
   /** Highlight this card as part of the current selection. */
   selected?: boolean
-  /** Highlight this card as the one the Hint feature suggests moving - a breathing, glowing ring in
-   * `colors.hintGreen`, distinct from `selected`'s static gold ring since Pyramid already uses
-   * `selected` for its own real tap-to-pair-selection state. */
+  /** Highlight this card as the one the Hint feature suggests moving - a breathing halo round it in `colors.hintGreen`
+   * (HintGlow), distinct from `selected`'s static gold ring since Pyramid already uses `selected` for its own real
+   * tap-to-pair-selection state. A column's cards don't use it: PileView draws the halo under the run instead. */
   hinted?: boolean
   /** Disable pressing (e.g. cards buried under others). */
   disabled?: boolean
@@ -85,10 +87,19 @@ export function PlayingCard({ card, selected, hinted, disabled, dimmed, dimHold,
   const cardRadius = cardRadiusForWidth(width)
   const styles = stylesFor(colors, settings.invertDarkModeColors, cardRadius)
   const cardSize = { width, height }
-  // The pulsing hint ring is its own component, mounted only while this card is actually hinted: it owns a shared
+  // The breathing hint halo is its own component, mounted only while this card is actually hinted: it owns a shared
   // value, an animated-style mapper and a looping animation, none of which ~every card on the board (almost never
-  // hinted) should pay for at mount.
-  const borderOverlay = selected ? <View pointerEvents='none' style={styles.selectedRing} /> : hinted ? <HintRing style={styles.hintRing} /> : <View pointerEvents='none' style={styles.border} />
+  // hinted) should pay for at mount. The card keeps its own frame under it: the halo is only outside the card.
+  const borderOverlay = selected ? (
+    <View pointerEvents='none' style={styles.selectedRing} />
+  ) : hinted ? (
+    <>
+      <View pointerEvents='none' style={styles.border} />
+      <HintGlow />
+    </>
+  ) : (
+    <View pointerEvents='none' style={styles.border} />
+  )
   const dimOverlay = dimmed ? dimHold === undefined ? <View pointerEvents='none' style={styles.dim} /> : <HeldDimScrim hold={dimHold} initialWasHeld={dimFadeIn} style={styles.dim} /> : null
   // A card turned face-up in place (the card a move exposes in its column) mounts a brand-new face Image, which React
   // Native fills in a frame or two later (cardFacePaint.ts) - a blank face in the meantime, with no ghost over it. So the
@@ -187,29 +198,15 @@ function PaintedOnMount({ onPainted }: { onPainted?: () => void }) {
   return null
 }
 
-/** The hint feature's pulsing ring (see hintAnimation.ts) - mounted only while a card is hinted, so it starts each pulse
- * at full opacity and its shared value/animated style/animation are torn down with it when the hint ends. */
-function HintRing({ style }: { style: StyleProp<ViewStyle> }) {
-  const opacity = useSharedValue(1)
-  const animatedStyle = useAnimatedStyle(() => ({ opacity: opacity.value }))
-  React.useEffect(() => {
-    startHintPulse(opacity)
-    return () => cancelAnimation(opacity)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
-  return <Animated.View pointerEvents='none' style={[style, animatedStyle]} />
-}
-
-/** One ring around a whole run of cards (a column's hinted or selected run, see PileView): the same ring a single card
- * draws (`hinted`/`selected`), only as tall as the run. Each card of the run ringing itself drew a ladder of lines across
- * the run, and every card's hint glow spilled over the face of the card above it. Fills its parent, which places and
- * sizes it. */
-export function RunOutline({ kind }: { kind: 'hint' | 'selected' }) {
+/** One ring around a whole selected run of cards (see PileView): the same ring a single selected card draws, only as tall
+ * as the run, since each card of the run ringing itself drew a ladder of lines across it. Fills its parent, which places
+ * and sizes it. A hinted run glows under the column instead (HintGlow). */
+export function RunOutline() {
   const colors = useTableColors()
   const { settings } = useSettings()
   const { width } = useCardSize()
   const styles = stylesFor(colors, settings.invertDarkModeColors, cardRadiusForWidth(width))
-  return kind === 'hint' ? <HintRing style={styles.hintRing} /> : <View pointerEvents='none' style={styles.selectedRing} />
+  return <View pointerEvents='none' style={styles.selectedRing} />
 }
 
 /** The dim scrim of a card that takes part in a ghost hand-off (`dimHold` set). While `hold` is true - the real card is
@@ -308,8 +305,10 @@ export function EmptySlot({ onPress, hinted, style, children, testID }: { onPres
     // disabled when there's nothing to press - otherwise this Pressable still claims the tap (just
     // does nothing with it), silently blocking taps meant for whatever's behind it (e.g. GameChrome's
     // table-tap-to-hide-footer catcher) from ever reaching them.
-    <Pressable testID={testID} onPress={onPress} disabled={!onPress} soundDisabled style={[styles.card, { width, height }, hinted ? styles.emptyHinted : styles.empty, style]}>
+    <Pressable testID={testID} onPress={onPress} disabled={!onPress} soundDisabled style={[styles.card, { width, height }, styles.empty, style]}>
       {children}
+      {/* The halo starts at the slot's outer edge: its dashed border sits outside the content box. */}
+      {hinted ? <HintGlow outset={EMPTY_SLOT_BORDER} /> : null}
     </Pressable>
   )
 }
@@ -414,32 +413,11 @@ function makeStyles(colors: TableColors, invertDarkModeColors?: boolean, radius:
       backgroundColor: 'transparent',
       borderColor: colors.emptySlot,
       borderStyle: 'dashed',
-      borderWidth: 2,
-      justifyContent: 'center'
-    },
-    emptyHinted: {
-      alignItems: 'center',
-      backgroundColor: 'transparent',
-      borderColor: colors.hintGreen,
-      borderStyle: 'dashed',
-      borderWidth: 2,
+      borderWidth: EMPTY_SLOT_BORDER,
       justifyContent: 'center'
     },
     face: {
       backgroundColor: colors.cardFace
-    },
-    // A ring with a soft glow around it (boxShadow, drawn outside the ring on every platform); HintRing's breathing
-    // opacity takes the glow with it.
-    hintRing: {
-      borderColor: colors.hintGreen,
-      borderRadius: radius,
-      borderWidth: 2.5,
-      bottom: 0,
-      boxShadow: `0 0 10px 2px ${colors.hintGreen}`,
-      left: 0,
-      position: 'absolute',
-      right: 0,
-      top: 0
     },
     selectedRing: {
       borderColor: colors.selectedGlow,

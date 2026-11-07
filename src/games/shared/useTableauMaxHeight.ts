@@ -20,10 +20,8 @@ import { TABLEAU_ROW_PADDING_BOTTOM, TOP_ROW_MARGIN_BOTTOM, useGameLayout } from
  * - avoiding the onLayout-vs-mount-commit race the deal animation elsewhere in this app had to
  * work around for a very different reason (see this app's CLAUDE.md).
  *
- * Reads useGameLayout() (rotated window dimensions + rotated insets + the portrait/wide chrome
- * reservation - see gameLayout.ts), so a screen rendered inside a rotated ancestor gets a height
- * budget for its own actual, post-rotation footprint - and, unchanged, the plain portrait numbers
- * everywhere else.
+ * Reads useGameLayout() (the window, its insets and the portrait/wide chrome reservation - see
+ * gameLayout.ts).
  */
 export function tableauMaxHeightFor(availableHeight: number, cardWidth: number, topRowCards = 1): number {
   const topRowHeight = topRowCards * (cardWidth / CARD_ASPECT)

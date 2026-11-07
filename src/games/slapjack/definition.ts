@@ -26,6 +26,9 @@ export const slapjack: GameDefinition = {
   blurb: 'Slap every Jack.',
   reducers: { slapjackGuide: slapjackGuide.reducer },
   seatTwo: ['cpu', 'person'],
+  // Face to face on a phone or tablet; at a computer the two people sit side by side, here and at the table, where player 2's side is
+  // drawn upright (useFaceToFace).
+  sideBySideAtComputer: true,
   useLoadout: useSlapjackLoadout,
   resumable: false,
   keepStatusBar: false,

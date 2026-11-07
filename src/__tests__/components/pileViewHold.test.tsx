@@ -130,11 +130,6 @@ jest.mock('@/components/PlayingCard', () => {
   }
   return { PlayingCard: MockPlayingCard, EmptySlot: () => <View /> }
 })
-jest.mock('@/components/overlayFrame', () => {
-  // toLocal with this frame is the identity on a screen point (the overlay sits at the window origin, unrotated).
-  const frame = { rotation: { value: 0 }, cx: { value: 200 }, cy: { value: 400 }, lw: { value: 400 }, lh: { value: 800 } }
-  return { useOverlayFrame: () => ({ overlayRef: { current: null }, frame }), toLocal: jest.requireActual('@/components/overlayFrameMath').toLocal }
-})
 jest.mock('@/components/useCardSounds', () => ({ useCardSoundEffects: () => mockFeedback }))
 
 // ------------------------------------------------------------------------------------------------ harness

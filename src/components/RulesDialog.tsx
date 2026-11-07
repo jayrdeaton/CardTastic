@@ -1,9 +1,8 @@
 import { FadingScrollView, useAutoPaperTheme } from '@rific/auto-paper'
 import { Button } from '@rific/feedback-press'
-import { rotateInsets, useRotatedWindowDimensions, useRotation } from '@tastic/core'
 import { DialogHeader, overlayActionStyles, OverlayBackdrop, OverlayCard, useCompactDialog } from '@tastic/hud/chrome'
 import { useEffect } from 'react'
-import { BackHandler, Pressable, StyleSheet, View } from 'react-native'
+import { BackHandler, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native'
 import { Portal, Text } from 'react-native-paper'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
@@ -33,13 +32,11 @@ interface RulesDialogProps {
 export function RulesDialog({ visible, onDismiss, title, rules, par, scoring = true }: RulesDialogProps) {
   const { colors } = useAutoPaperTheme()
   const { compact, onLayout } = useCompactDialog()
-  // The card's cap is a number, never a percentage: the space the dialog lays out in (the rotated
-  // frame, since it portals into the frame's host) less the frame's own safe-area edges and the
+  // The card's cap is a number, never a percentage: the window's height less its safe-area edges and the
   // backdrop's 24pt gutter on each side, so a long list scrolls inside the card instead of running
-  // off the screen. The insets come in portrait and are turned onto the frame's edges here: held
-  // sideways, the notch is on a side of the turned frame, not its top.
-  const { height } = useRotatedWindowDimensions()
-  const insets = rotateInsets(useSafeAreaInsets(), useRotation())
+  // off the screen.
+  const { height } = useWindowDimensions()
+  const insets = useSafeAreaInsets()
   const maxHeight = Math.max(0, height - insets.top - insets.bottom - OVERLAY_GUTTER * 2)
 
   useEffect(() => {

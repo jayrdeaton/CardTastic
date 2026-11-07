@@ -1,6 +1,5 @@
 import { callWorkletCallback, useWorkletCallback } from '@rific/core'
 import { faceUpFanOffset, useCardSize } from '@tastic/cards'
-import { useRotation } from '@tastic/core'
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { StyleProp, StyleSheet, View, ViewStyle } from 'react-native'
 import { Gesture, GestureDetector } from 'react-native-gesture-handler'
@@ -17,6 +16,7 @@ import { scaledMs } from './dragdrop/dragSpring'
 import { DropZoneRegistry } from './dragdrop/DropZoneRegistry'
 import { clearFanTop, setFanTop } from './dragdrop/fanTops'
 import { useHoldGuard } from './dragdrop/holdGuard'
+import { HintGlow } from './hintGlow'
 import { EmptySlot, PlayingCard, RunOutline } from './PlayingCard'
 import { useShakeStyle } from './shakeAnimation'
 import { useCardSoundEffects } from './useCardSounds'
@@ -48,8 +48,8 @@ interface PileViewProps {
   /** How many cards counting from the top are currently selected (for a multi-card drag/move). */
   selectedCount?: number
   /** How many cards counting from the top are the Hint feature's suggested source/destination -
-   * same "top N of this pile" shape as selectedCount, rendered as a pulsing green ring instead of
-   * selectedCount's static gold one (see PlayingCard's own `hinted` prop). */
+   * same "top N of this pile" shape as selectedCount, drawn as a breathing halo under them (HintGlow) instead of
+   * selectedCount's static gold ring. */
   hintCount?: number
   /** `measure` is lazy - call it only if a move actually applies. See DraggableTableauCardProps'
    * onPress below for why. */
@@ -107,12 +107,11 @@ interface DraggableTableauCardProps {
   liftable?: boolean
   indexFromTop: number
   /** Set when a touch on this card acts on the run below it (PileDragConfig.grabRunBelow): the run's head card, its
-   * indexFromTop, and how far the head sits from this card on screen (already turned with the frame), so the run's ghost
-   * starts where the run is drawn and a tap measures the head. `runCount` is then the run's. */
+   * indexFromTop, and how far down the column the head sits below this card, so the run's ghost starts where the run is
+   * drawn and a tap measures the head. `runCount` is then the run's. */
   grabCard?: Card
   grabIndexFromTop?: number
-  grabShiftX?: number
-  grabShiftY?: number
+  grabShift?: number
   isHidden: boolean
   /** This card's dim scrim should fade in rather than pop on: it became dimmed after this pile's very first render (its
    * flight just landed, or dimming was just switched on for the board - see PileView's `mountedRef`). Forwarded to
@@ -134,7 +133,7 @@ interface DraggableTableauCardProps {
    * all. A "nowhere to go" shake never touches it, so deferring the call lets that path skip the
    * cost entirely instead of paying for a measurement it throws away. */
   onPress?: (card: Card, indexFromTop: number, measure: () => Promise<{ x: number; y: number }>) => void
-  onDragStart: (indexFromTop: number, runCount: number, shiftX: number, shiftY: number) => void
+  onDragStart: (indexFromTop: number, runCount: number, shift: number) => void
   onDragEnd: (absoluteX: number, absoluteY: number, runCount: number, anchorCardId: string) => void
   /** This column's own persistent position-tracking values (see PileView's own doc comment on
    * originX below) - passed down rather than sourced from useDragGhost() so this card's gesture
@@ -172,19 +171,19 @@ interface DraggableTableauCardProps {
  * screen-level auto-move handlers that call `ghost.cardRegistry.measure(cardId)` after applying a
  * move.
  */
-const DraggableTableauCard = memo(function DraggableTableauCard({ card, selected, hinted, dimmed, top, zIndex, runCount, liftable = true, indexFromTop, grabCard, grabIndexFromTop, grabShiftX = 0, grabShiftY = 0, isHidden, dimFadeIn, held = false, shakeToken, onPress, onDragStart, onDragEnd, originX, originY, dx, dy, startAbsX, startAbsY }: DraggableTableauCardProps) {
+const DraggableTableauCard = memo(function DraggableTableauCard({ card, selected, hinted, dimmed, top, zIndex, runCount, liftable = true, indexFromTop, grabCard, grabIndexFromTop, grabShift = 0, isHidden, dimFadeIn, held = false, shakeToken, onPress, onDragStart, onDragEnd, originX, originY, dx, dy, startAbsX, startAbsY }: DraggableTableauCardProps) {
   const cardStyle = useMemo(() => ({ position: 'absolute' as const, top, left: 0, zIndex }), [top, zIndex])
   const viewRef = useAnimatedRef<Animated.View>()
   const ghost = useDragGhost()
   const shakeStyle = useShakeStyle(shakeToken, card.id)
   // The card a drag reports as its anchor is the run's head - this card's own id unless the touch acts on the run below it.
   const anchorId = grabCard?.id ?? card.id
-  const latest = useRef({ runCount, indexFromTop, onDragStart, onDragEnd, cardId: anchorId, grabShiftX, grabShiftY })
+  const latest = useRef({ runCount, indexFromTop, onDragStart, onDragEnd, cardId: anchorId, grabShift })
   // Updated in an effect rather than directly during render (mutating a ref during render isn't
   // allowed) - still fresh well before handleStart/handleEnd below can actually run, since those
   // only ever fire from a later gesture callback, never synchronously during this render.
   useEffect(() => {
-    latest.current = { runCount, indexFromTop, onDragStart, onDragEnd, cardId: anchorId, grabShiftX, grabShiftY }
+    latest.current = { runCount, indexFromTop, onDragStart, onDragEnd, cardId: anchorId, grabShift }
   })
   const holdGuard = useHoldGuard()
   // Position is tracked via e.absoluteX/Y (screen-space pointer position) minus its value at
@@ -220,7 +219,7 @@ const DraggableTableauCard = memo(function DraggableTableauCard({ card, selected
 
   const handleStart = useCallback(() => {
     wasDraggingRef.current = true
-    latest.current.onDragStart(latest.current.indexFromTop, latest.current.runCount, latest.current.grabShiftX, latest.current.grabShiftY)
+    latest.current.onDragStart(latest.current.indexFromTop, latest.current.runCount, latest.current.grabShift)
   }, [])
 
   const handleEnd = useCallback((absoluteX: number, absoluteY: number) => {
@@ -293,7 +292,7 @@ const DraggableTableauCard = memo(function DraggableTableauCard({ card, selected
     // drag's onUpdate does, so the small async gap doesn't create the "jump" bug that fix targeted.
     // Deferred until the caller actually calls measure() - see onPress's doc comment above. A touch that acts on the run
     // below (grabCard) reports that run's head, measured where the head is drawn.
-    onPress(grabCard ?? card, grabIndexFromTop ?? indexFromTop, () => new Promise((resolve) => view.measureInWindow((x, y) => resolve({ x: x + grabShiftX, y: y + grabShiftY }))))
+    onPress(grabCard ?? card, grabIndexFromTop ?? indexFromTop, () => new Promise((resolve) => view.measureInWindow((x, y) => resolve({ x, y: y + grabShift }))))
   }
 
   // hidden while isHidden: by the time this component renders, a hidden card is the one being dragged (a card whose flight
@@ -396,7 +395,6 @@ function PileViewImpl({ cards, selectedCount = 0, hintCount = 0, onPressCard, on
   const held = nextDeparting.filter((d) => pendingIds.has(d.card.id))
   if (held.length !== departing.length || held.some((d, i) => d !== departing[i])) setDeparting(held.length === 0 ? NO_DEPARTING : held)
   const ghost = useDragGhost()
-  const rotation = useRotation()
   const { playCardSound, hapticCard } = useCardSoundEffects()
   // The cards a drag in progress has picked up, by id (not by position: the commit that moves them and the one that ends
   // the drag are not always the same, and a stale position range would hide whatever cards slid into it).
@@ -439,14 +437,11 @@ function PileViewImpl({ cards, selectedCount = 0, hintCount = 0, onPressCard, on
   })
 
   const handleDragStart = useCallback(
-    (_indexFromTop: number, runCount: number, shiftX: number, shiftY: number) => {
+    (_indexFromTop: number, runCount: number, shift: number) => {
       const { cards: current, resolvedFaceUpOffset: offsetStep, cardWidth: width } = latest.current
       const runCards = current.slice(current.length - runCount)
       // A touch that acts on the run below it (grabRunBelow) measured the card it touched: the ghost starts at the run's head.
-      if (shiftX !== 0 || shiftY !== 0) {
-        originX.set(originX.get() + shiftX)
-        originY.set(originY.get() + shiftY)
-      }
+      if (shift !== 0) originY.set(originY.get() + shift)
       dragTokenRef.current += 1
       flightRef.current = ghost.showLive({ cards: runCards, offsetStep, cardWidth: width }, { originX, originY, dx, dy })
       playCardSound()
@@ -546,14 +541,19 @@ function PileViewImpl({ cards, selectedCount = 0, hintCount = 0, onPressCard, on
   const shakeCardArrayIndex = shakeCardId ? cards.findIndex((c) => c.id === shakeCardId) : -1
   const shakeStartIndexFromTop = shakeCardArrayIndex === -1 ? null : cards.length - 1 - shakeCardArrayIndex
 
-  // A hinted or selected RUN (more than one card) gets one outline around the whole run (RunOutline), not a ring per
-  // card: per-card rings drew a ladder of lines across the run, and each hint glow spilled over the card above. A single
-  // card keeps its own ring. Selection wins over a hint, as on a single card (PlayingCard). No outline while any card of
-  // the run is hidden (in flight, or picked up by a drag): its ghost has no ring either.
-  const outlineKind: 'selected' | 'hint' | null = selectedCount > 1 ? 'selected' : hintCount > 1 ? 'hint' : null
-  const outlineCount = Math.min(outlineKind === 'selected' ? selectedCount : hintCount, cards.length)
-  const outlineStart = cards.length - outlineCount
-  const outline = outlineKind && outlineCount > 1 && cards.slice(outlineStart).every((card, j) => !isCardHidden(card, outlineCount - 1 - j)) ? { kind: outlineKind, top: tops[outlineStart], height: tops[cards.length - 1] + cardHeight - tops[outlineStart] } : null
+  // The box round the top `count` cards, from the run's head to its bottom card, or null while any of them is hidden (in
+  // flight, or picked up by a drag: its ghost is drawn plain).
+  const runBox = (count: number) => {
+    const start = cards.length - count
+    return count > 0 && cards.slice(start).every((card, j) => !isCardHidden(card, count - 1 - j)) ? { top: tops[start], height: tops[cards.length - 1] + cardHeight - tops[start] } : null
+  }
+  // A hinted run, or a single hinted card, glows UNDER the column's cards (HintGlow in the run's box, drawn before every
+  // card), so the halo shows round the run and never over the card above it, and none of its cards marks itself. A
+  // selected RUN gets one ring round the whole run (RunOutline), over the cards (rings on every card drew a ladder of
+  // lines across it), and wins over a hint: then no card is hinted at all. A single selected card wins over its own hint
+  // (PlayingCard).
+  const hintGlow = selectedCount > 1 ? null : runBox(Math.min(hintCount, cards.length))
+  const outline = selectedCount > 1 ? runBox(Math.min(selectedCount, cards.length)) : null
 
   // react-hooks/refs flags reading a ref's `.current` during render (a component could in principle
   // render speculatively more than once for one commit under React's concurrent features), and - since
@@ -576,14 +576,16 @@ function PileViewImpl({ cards, selectedCount = 0, hintCount = 0, onPressCard, on
   if (drag?.grabRunBelow) {
     for (let i = cards.length - 1; i >= 0 && runCounts[i] > 0; i--) grabHead = i
   }
-  // The head's offset from a card above it, turned with the frame (the measurement it adjusts is in screen space).
-  const turnCos = rotation === 0 ? 1 : rotation === 180 ? -1 : 0
-  const turnSin = rotation === 90 ? 1 : rotation === -90 ? -1 : 0
 
   return (
     <View style={[styles.container, { width: cardWidth, height: maxHeight === undefined ? totalHeight : Math.max(maxHeight, totalHeight) }, style]}>
       {/* The column's own empty slot under a card that is still taking off from it (the last one out). */}
       {cards.length === 0 && <EmptySlot onPress={onPressEmpty} hinted={hintCount > 0} />}
+      {hintGlow && (
+        <Animated.View layout={FAN_GLIDE} pointerEvents='none' style={[styles.outline, { top: hintGlow.top, height: hintGlow.height, width: cardWidth }]} testID='run-hint-glow'>
+          <HintGlow />
+        </Animated.View>
+      )}
       {[...cards, ...held.map((d) => d.card)].map((card, i) => {
         // A card still taking off from this column (see `departing`): the same component and key as when it was in the
         // column, so React keeps the very instance (and its painted face); inert - no press, no drag, no hint or selection -
@@ -593,9 +595,10 @@ function PileViewImpl({ cards, selectedCount = 0, hintCount = 0, onPressCard, on
           return <DraggableTableauCard key={d.card.id} card={d.card} selected={false} hinted={false} dimmed={false} top={d.top} zIndex={d.zIndex} runCount={0} indexFromTop={-1} isHidden={false} dimFadeIn={false} held onDragStart={handleDragStart} onDragEnd={handleDragEnd} originX={originX} originY={originY} dx={dx} dy={dy} startAbsX={startAbsX} startAbsY={startAbsY} />
         }
         const indexFromTop = cards.length - 1 - i
-        // A run drawn with one outline (see `outline` above) doesn't ring its cards one by one.
-        const isSelected = indexFromTop < selectedCount && !(outline && outline.kind === 'selected')
-        const isHinted = indexFromTop < hintCount && !outline
+        // A run that glows under the column, or is ringed as one (see `hintGlow` and `outline` above), doesn't mark its
+        // cards one by one.
+        const isSelected = indexFromTop < selectedCount && !outline
+        const isHinted = indexFromTop < hintCount && !hintGlow && !outline
         const isHidden = isCardHidden(card, indexFromTop)
         // getRunCount (tableauRunCount -> maxSupermoveCount -> an 8-column scan, plus a
         // descending-alt-color walk back down the column) is real, non-trivial computation, run
@@ -651,8 +654,7 @@ function PileViewImpl({ cards, selectedCount = 0, hintCount = 0, onPressCard, on
             indexFromTop={indexFromTop}
             grabCard={grabs ? cards[grabHead] : undefined}
             grabIndexFromTop={grabs ? cards.length - 1 - grabHead : undefined}
-            grabShiftX={grabs ? -grabShift * turnSin + 0 : undefined}
-            grabShiftY={grabs ? grabShift * turnCos + 0 : undefined}
+            grabShift={grabs ? grabShift : undefined}
             isHidden={isHidden}
             // Gated on isDimmed, not just wasAlreadyMounted alone - dimFadeIn only ever affects a
             // DIMMED card's own rendering (PlayingCard reads it inside `dimmed ? ... : null`), so an
@@ -677,7 +679,7 @@ function PileViewImpl({ cards, selectedCount = 0, hintCount = 0, onPressCard, on
       {/* eslint-enable react-hooks/refs */}
       {outline && (
         <Animated.View layout={FAN_GLIDE} pointerEvents='none' style={[styles.outline, { top: outline.top, height: outline.height, width: cardWidth, zIndex: cards.length + held.length }]}>
-          <RunOutline kind={outline.kind} />
+          <RunOutline />
         </Animated.View>
       )}
       {allCardsHidden && (
@@ -736,7 +738,8 @@ const styles = StyleSheet.create({
   // default) does not, without a zIndex of its own. Without this, every card's zIndex: i below
   // leaks out to compete directly with sibling branches elsewhere on the screen - including the
   // screen-level drag/deal ghost overlays, which render without their own zIndex and lost that
-  // fight to any card here past the very bottom of the pile, rendering "under" it mid-flight.
+  // fight to any card here past the very bottom of the pile, rendering "under" it mid-flight. A hinted column sits under
+  // the columns beside it (hintGlow.tsx's hintStacking, on each screen's column wrapper), so they cover its glow.
   container: { zIndex: 0 },
   hidden: {
     opacity: 0
@@ -744,7 +747,8 @@ const styles = StyleSheet.create({
   noTouch: {
     pointerEvents: 'none'
   },
-  // Placed and sized per render (top, height, width, zIndex above every card); RunOutline fills it.
+  // Placed and sized per render (top, height, width; a selected run's ring gets a zIndex above every card, a hint's glow
+  // none, so it stays under them); RunOutline or HintGlow fills it.
   outline: {
     left: 0,
     position: 'absolute'

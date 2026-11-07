@@ -1,9 +1,8 @@
 import { getTintTextColor, useAutoPaperTheme } from '@rific/auto-paper'
 import { type ToastCardProps, Toaster, type ToastLevel } from '@rific/toaster'
-import { useRotatedWindowDimensions } from '@tastic/core'
 import { OverlayCard } from '@tastic/hud/chrome'
 import { useMemo } from 'react'
-import { StyleSheet, View } from 'react-native'
+import { StyleSheet, useWindowDimensions, View } from 'react-native'
 import { Icon } from 'react-native-paper'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
@@ -27,7 +26,7 @@ export const TOAST_LEVEL_ICONS: Record<ToastLevel, string> = {
   warning: 'exclamation-thick'
 }
 
-/** The toast stack's place in the rotated frame: in the top chrome band, between the two corner buttons (Home and Settings on a game, the trophy
+/** The toast stack's place in the window: in the top chrome band, between the two corner buttons (Home and Settings on a game, the trophy
  * and the cog on Home), where a game's title is. Down there it sat on the footer, so the "No helpful moves" toast covered Undo, the very button
  * the player wanted next (Jay, 2026-10-15). Centred between the clearances and capped at TOAST_MAX_WIDTH. */
 export function toastStackFrame(width: number, insets: { left: number; right: number }): { left: number; right: number; marginTop: number } {
@@ -64,12 +63,11 @@ function ToastIcon({ color, name }: { color?: string; name: string; size?: numbe
 }
 
 /** The app's one toaster (the pack's `Toaster`), laid over every screen in the frame @tastic/shell's RootLayout draws a pack's toaster
- * in: a RotatedFrame turned with the phone, with `rotatedSafeArea`, so the frame width and the insets it reads are the turned frame's
- * own, and `passThrough`, so only a toast takes a touch over the stack. */
+ * in, with `passThrough`, so only a toast takes a touch over the stack. */
 export function ThemedToaster() {
   const { colors, fonts } = useAutoPaperTheme()
   const insets = useSafeAreaInsets()
-  const { width } = useRotatedWindowDimensions()
+  const { width } = useWindowDimensions()
   const wrapperStyle = toastStackFrame(width, insets)
   // Each level's badge in the theme's own role for it: the primary (the player's color) for news, auto-paper's success, warning and danger
   // roles for the rest.

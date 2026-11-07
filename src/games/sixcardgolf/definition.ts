@@ -23,6 +23,9 @@ export const sixcardgolf: GameDefinition = {
   blurb: 'Swap low, pair up, score least.',
   reducers: { sixCardGolfGuide: sixCardGolfGuide.reducer },
   seatTwo: ['cpu', 'person'],
+  // Face to face on a phone or tablet; at a computer the two people sit side by side, here and at the table, where player 2's side is
+  // drawn upright (useFaceToFace).
+  sideBySideAtComputer: true,
   useLoadout: useSixCardGolfLoadout,
   resumable: false,
   keepStatusBar: false,

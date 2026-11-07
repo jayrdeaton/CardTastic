@@ -3,14 +3,12 @@ import { forgetProfileAchievements, onProfileRemoved } from '@tastic/shell'
 import { SOLITAIRE_GAME_IDS } from '@/stores/statsTypes'
 
 import achievements, { dropProfileStats } from './achievementsSlice'
-import activeProfile from './activeProfileSlice'
 import gameInProgress, { gameInProgressActions } from './gameInProgressSlice'
 import guide from './guideSlice'
 import matchStats, { matchStatsActions } from './matchStatsSlice'
 import playerSettings, { playerSettingsActions } from './playerSettingsSlice'
 import recentWins, { recentWinsActions } from './recentWinsSlice'
 import settings from './settingsSlice'
-import tableColor from './tableColorSlice'
 import topWins, { topWinsActions } from './topWinsSlice'
 
 // A saved board for a deleted profile, in every game: through the reducer, so each game's own persisted entry is
@@ -44,11 +42,7 @@ export const packReducers = {
   // The persisted settings (see settingsSlice.ts): the selected player's, for the ones that follow the player.
   settings,
   // Every other player's settings, swapped with the live ones whenever seat 1 changes (see playerSettingsSlice.ts).
-  playerSettings: onProfileRemoved(playerSettings, (state, profileId) => playerSettings(state, playerSettingsActions.remove(profileId))),
-  // Solitaire's player and color picks from before the move, kept for one release for a rollback to 1.2.8 (see each
-  // file). Never read.
-  activeProfile,
-  tableColor
+  playerSettings: onProfileRemoved(playerSettings, (state, profileId) => playerSettings(state, playerSettingsActions.remove(profileId)))
 }
 
 export type PackReducersState = { [K in keyof typeof packReducers]: ReturnType<(typeof packReducers)[K]> }

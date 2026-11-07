@@ -1,7 +1,7 @@
 // Crazy Eights' table, drawn upright for whoever's turn it is (layout.ts): their hand across the bottom, sorted by suit
 // with the 8s last, the cards that fit raised on their turn; each other player in a slot across the top, their hand a
 // fan of backs; and the stock and the discard between, with the suit to follow under them. A tap on a card that fits
-// plays it; an 8 brings up the four suits to name. With nothing to play, the stock is ringed to draw from; once nothing
+// plays it; an 8 brings up the four suits to name. With nothing to play, the stock glows to draw from; once nothing
 // more can be drawn the turn passes by itself. With one person and CPUs, seat 1 always sits at the bottom. With more
 // people the phone is passed: when the turn goes to another person every hand turns face down and the pass cover
 // (games/table/PassCover.tsx) says who to hand it to and what was played since their last turn. Every card is one view
@@ -139,7 +139,7 @@ export function CrazyEightsScreen() {
         key: `card-${card.id}`,
         at: poses[i],
         label: playable ? `Play the ${cardName(card)}` : `The ${cardName(card)} doesn’t fit`,
-        ring: false,
+        glow: false,
         onPress: () => {
           if (playable && match.play(seated, card.id)) hapticCard()
           else {

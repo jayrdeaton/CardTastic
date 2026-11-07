@@ -35,6 +35,7 @@ import { DropZone } from '@/components/dragdrop/DropZone'
 import { GAME_CONTENT_PADDING, GameChrome } from '@/components/GameChrome'
 import { fitCardWidthToHeight, fittedGap, useGameLayout } from '@/components/gameLayout'
 import { GameLoading } from '@/components/GameLoading'
+import { hintStacking } from '@/components/hintGlow'
 import { PileDragConfig, PileView } from '@/components/PileView'
 import { PlayingCard } from '@/components/PlayingCard'
 import { hiddenUntilDealt } from '@/components/reducedMotionFlag'
@@ -84,8 +85,8 @@ export default withGameProviders(AcesUpScreenInner)
 function AcesUpScreenInner() {
   const { styles, dropZones, recordDealWon, recordDealAbandoned, recordHintUsed, recordUndoUsed } = useGameScreenBasics(makeStyles)
   const { info: infoToast } = useToast()
-  // Width the board may occupy - rotation-aware, and net of the side-chrome gutters in the wide (landscape)
-  // layout; the plain window width (capped) in portrait. See gameLayout.ts.
+  // Width the board may occupy - net of the side-chrome gutters in the wide (landscape) layout; the plain window width
+  // (capped) in portrait. See gameLayout.ts.
   const { contentWidth, availableHeight, isWide } = useGameLayout()
   const rowWidth = contentWidth - GAME_CONTENT_PADDING * 2
   const { cardWidth: widthCardWidth, gap: widthGap } = cardLayoutForRow(rowWidth, NUM_PILES, PILE_MIN_GAP)
@@ -294,9 +295,8 @@ function AcesUpScreenInner() {
     // The win cascade needs a real chain of cards - the 4 remaining Aces, one per pile, each launching from
     // the spot its own real Ace stands on. That spot is the Ace's own registered rect (CardRegistry): the
     // pile's plain container is NOT usable - with a card in it PileView's container is as tall as the whole
-    // column (maxHeight), and a chain origin must be card-sized (the ghost overlay converts it through the card's
-    // centre when the board is rotated). The registry only knows cards that are still rendered, so this runs
-    // while the piles are STILL on screen and they blank only afterwards, once the ghosts are on screen
+    // column (maxHeight), and a chain origin must be the card's own rect. The registry only knows cards that are
+    // still rendered, so this runs while the piles are STILL on screen and they blank only afterwards, once the ghosts are on screen
     // (cascadeHandoff, set from startChains' onShown - in the commit the ghosts appear, which waits for the
     // parked Aces' faces to paint; see WinCascadeLayer's CascadeChains): blanking first left the four piles empty
     // until the ghosts arrived, and blanking in the commit that mounted them showed four blank-faced Aces for a
@@ -758,7 +758,7 @@ function AcesUpScreenInner() {
               onDrop: (to, _count, anchorCardId, flight) => handleDrop(pileIndex, to, anchorCardId, flight)
             }
             return (
-              <DropZone key={pileIndex} registry={dropZones} pileRef={{ zone: 'tableau', index: pileIndex }} style={[styles.pile, { width: cardWidth }]}>
+              <DropZone key={pileIndex} registry={dropZones} pileRef={{ zone: 'tableau', index: pileIndex }} style={[hintStacking(hintCountFor(activeHint, { zone: 'tableau', index: pileIndex }) > 0), styles.pile, { width: cardWidth }]}>
                 <PileView cards={cards} onPressCard={(card, _indexFromTop, measure) => handleCardTap(pileIndex, card, measure)} maxHeight={tableauMaxHeight} drag={dragConfig} hiddenCount={hiddenCount} hiddenCardIds={dealHiddenIds} shakeCardId={shake?.cardId} shakeToken={shake?.token} hintCount={hintCountFor(activeHint, { zone: 'tableau', index: pileIndex })} />
               </DropZone>
             )

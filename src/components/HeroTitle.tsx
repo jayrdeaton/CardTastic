@@ -1,6 +1,6 @@
-import { clamp, useRotatedWindowDimensions } from '@tastic/core'
+import { clamp } from '@tastic/core'
 import type { HeroTitleProps } from '@tastic/shell'
-import { StyleSheet, Text, View } from 'react-native'
+import { StyleSheet, Text, useWindowDimensions, View } from 'react-native'
 
 import { CARD_FONT_FAMILY } from './cardFont'
 import { HeroCards } from './HeroCards'
@@ -30,7 +30,7 @@ export function heroScaleFor(fit: { width: number; height: number }, windowHeigh
  * pane (`fit`). The fan rests while Home is covered or the app is in the background (`active`). Purely decorative: it
  * takes no touches. */
 export function HeroTitle({ words, color, active, fit }: HeroTitleProps) {
-  const { height } = useRotatedWindowDimensions()
+  const { height } = useWindowDimensions()
   const scale = fit ? heroScaleFor(fit, height) : 1
   const maxFontScale = fit ? WIDE_MAX_FONT_SCALE : undefined
   return (

@@ -42,31 +42,6 @@ jest.mock('react-native-reanimated', () => {
     }
   }
 })
-// `ready` needs to be genuinely REACTIVE (a real useState inside the mock, not a closed-over plain
-// value) so a test can flip it from false to true on an already-mounted provider and prove the
-// deal's own [generation, frameReady] effect re-runs - the exact race the fix closes. `initialReady`
-// controls what a fresh render starts at; `setReady` (populated by the hook's own effect while
-// mounted) lets a test flip it later. Reset both in afterEach so one test's override never leaks.
-const overlayFrameControl: { initialReady: boolean; setReady: ((ready: boolean) => void) | null } = { initialReady: true, setReady: null }
-jest.mock('@/components/overlayFrame', () => {
-  const { useEffect: useMockEffect, useState: useMockState } = require('react')
-  return {
-    useOverlayFrame: () => {
-      const [ready, setReady] = useMockState(overlayFrameControl.initialReady)
-      useMockEffect(() => {
-        overlayFrameControl.setReady = setReady
-        return () => {
-          overlayFrameControl.setReady = null
-        }
-      }, [setReady])
-      return { overlayRef: { current: null }, frame: {}, ready }
-    },
-    // A pass-through (not a fixed {0,0}) so a test can read a ghost's actual tx/ty off its rendered
-    // transform style - needed to verify the settle-verification timeout backstop snaps the ghost to
-    // its real destination before notify() fires, not just that notify() eventually fires at all.
-    toLocal: (tx: number, ty: number) => ({ x: tx, y: ty })
-  }
-})
 // A face reports its paint (PlayingCard's onFacePainted) as soon as it has committed, like a cached bitmap - unless `defer`,
 // when the report waits in `pending` for a test to deliver it.
 const mockPaint = { defer: false, pending: new Map<string, () => void>() }
@@ -89,7 +64,6 @@ jest.mock('@/components/PlayingCard', () => {
     }
   }
 })
-jest.mock('@tastic/core', () => ({ useRotation: () => 0, rotateInsets: (insets: unknown) => insets }))
 // Reduce Motion as the app applies it (the Settings row or the device's, see reducedMotion.tsx): DealProvider reads it when
 // a deal starts, so these tests set it before start().
 
@@ -119,9 +93,8 @@ const opacityOf = (node: { props: { style?: unknown } }) => styleOf(node).opacit
 // A slot is "flying" (or waiting to) whenever it is not the hidden idle one.
 const flying = () => ghosts().filter((node) => opacityOf(node) !== 0)
 // The ghost's OWN rendered position - its inner Animated.View (the outer `deal-ghost-*` node's only
-// child) carries the translateX/Y that toLocal's pass-through (see the overlayFrame mock above)
-// reflects straight from tx.value/ty.value, so this reads the ghost's real current position rather
-// than trusting that it settled correctly.
+// child) carries the translateX/Y straight from tx.value/ty.value, so this reads the ghost's real
+// current position rather than trusting that it settled correctly.
 const positionOf = (node: { children: readonly (string | { props: { style?: unknown } })[] }) => {
   const inner = node.children[0] as { props: { style?: unknown } }
   const transform = (styleOf(inner).transform ?? []) as { translateX?: number; translateY?: number }[]
@@ -449,32 +422,6 @@ describe('DealProvider ghost pool', () => {
     // start() cancels every one of deal A's mounted slots (flying or still idle-waiting) - 3 shared
     // values (tx, ty, opacity) stopped per slot, not just the ones caught mid-spring at this instant.
     expect(cancelAnimation).toHaveBeenCalledTimes(poolSizeA * 3)
-  })
-
-  // Bug: useOverlayFrame's cx/cy/lw/lh start at 0 until its own async measureInWindow lands - on a
-  // fresh game screen's very first deal, that can still be in flight when this provider's own
-  // [generation, launchDue] effect would otherwise start the clock (both fire around the same
-  // mount). The first cards then computed toLocal() against a zero'd frame - a wrong, SHARED
-  // position (every such card converges on the same spot, since they all divide by the same zero) -
-  // and jumped to their real one the instant the real measurement landed and reactively recomputed
-  // every still-mounted ghost's style. Confirmed live: "a small percentage" of a deal's earliest
-  // cards flying to nowhere before snapping into place - never the middle or tail of a deal.
-  it('does not start launching until the overlay frame has actually been measured', async () => {
-    overlayFrameControl.initialReady = false
-    try {
-      await renderProvider()
-      await act(async () => controller.start(makeEntries(5, 'a'), CARD_WIDTH, jest.fn(), jest.fn()))
-      await advance(LOOKAHEAD_MS + 50) // well past when the first card would have launched, were it not gated
-
-      expect(flying().length).toBe(0) // nothing has launched - not even into a wrong position
-
-      await act(async () => overlayFrameControl.setReady?.(true)) // the overlay's real measurement finally lands
-      await advance(LOOKAHEAD_MS + 50)
-
-      expect(flying().length).toBeGreaterThan(0) // now it proceeds, for the first time
-    } finally {
-      overlayFrameControl.initialReady = true
-    }
   })
 
   // Bug: the landing timer was a blind `setTimeout(notify, wait + duration)` - correct only if the UI

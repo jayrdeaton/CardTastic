@@ -53,12 +53,7 @@ jest.mock('react-native-reanimated', () => {
   }
 })
 
-jest.mock('@tastic/core', () => ({
-  ...jest.requireActual('@tastic/core'),
-  useRotation: () => 0,
-  useRotatedWindowDimensions: () => ({ width: 400, height: 800 }),
-  rotateInsets: (insets: unknown) => insets
-}))
+jest.mock('react-native/Libraries/Utilities/useWindowDimensions', () => ({ __esModule: true, default: () => ({ width: 400, height: 800, scale: 1, fontScale: 1 }) }))
 
 /** Every mounted card face by id: whether its bitmap has been delivered, and the PlayingCard's latest onFacePainted. */
 const mockFaces = new Map<string, { painted: boolean; report?: () => void }>()

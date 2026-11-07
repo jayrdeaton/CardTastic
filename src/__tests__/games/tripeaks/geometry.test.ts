@@ -3,51 +3,18 @@ import { CARD_ASPECT } from '@tastic/cards'
 import { FACE_UP_OFFSET_RATIO } from '@/components/CardSizeContext'
 import { computeGameLayout, fitCardWidthToHeight } from '@/components/gameLayout'
 import { clampCardWidthForHeight } from '@/games/shared/clampCardWidthForHeight'
-import { boardHeight, boardWidth, buildCardPositions, CONTROL_ROW_MARGIN_BOTTOM, peaksCardScreenPoint, TRIPEAKS_BOARD_MODEL, tripeaksCardWidth } from '@/games/tripeaks/geometry'
+import { boardHeight, buildCardPositions, CONTROL_ROW_MARGIN_BOTTOM, peaksCardScreenPoint, TRIPEAKS_BOARD_MODEL, tripeaksCardWidth } from '@/games/tripeaks/geometry'
 
 const CARD_W = 60
 const CARD_H = CARD_W / CARD_ASPECT
 const GAP = 6
-const BOARD_W = boardWidth(CARD_W, GAP)
-const BOARD_H = boardHeight(CARD_H)
-
-// Independent forward model: a container of local size BOARD_W x BOARD_H whose centre sits at
-// (cx, cy) on screen, rotated `rotation` degrees clockwise about that centre. Maps a card's local
-// top-left to the top-left of its screen bounding box, and gives the container's own bbox top-left
-// (what measureInWindow reports for it).
-function model(rotation: number, cx: number, cy: number) {
-  const swapped = Math.abs(rotation) === 90
-  const rad = (rotation * Math.PI) / 180
-  const bboxW = swapped ? BOARD_H : BOARD_W
-  const bboxH = swapped ? BOARD_W : BOARD_H
-  return {
-    measured: { x: cx - bboxW / 2, y: cy - bboxH / 2 },
-    cardBBoxTopLeft(left: number, top: number) {
-      const relX = left + CARD_W / 2 - BOARD_W / 2
-      const relY = top + CARD_H / 2 - BOARD_H / 2
-      const sx = cx + relX * Math.cos(rad) - relY * Math.sin(rad)
-      const sy = cy + relX * Math.sin(rad) + relY * Math.cos(rad)
-      return { x: sx - (swapped ? CARD_H : CARD_W) / 2, y: sy - (swapped ? CARD_W : CARD_H) / 2 }
-    }
-  }
-}
 
 describe('peaksCardScreenPoint', () => {
   const positions = buildCardPositions(CARD_W, CARD_H, GAP)
 
-  it.each([0, 90, -90, 180])('matches the rotated-container forward model for all 28 cells at %i degrees', (rotation) => {
-    const m = model(rotation, 210, 433)
+  it('is exactly measured origin + local offset', () => {
     positions.forEach(({ left, top }) => {
-      const got = peaksCardScreenPoint(m.measured, BOARD_W, BOARD_H, left, top, CARD_W, rotation)
-      const want = m.cardBBoxTopLeft(left, top)
-      expect(got.x).toBeCloseTo(want.x, 6)
-      expect(got.y).toBeCloseTo(want.y, 6)
-    })
-  })
-
-  it('is exactly measured origin + local offset at 0 degrees', () => {
-    positions.forEach(({ left, top }) => {
-      expect(peaksCardScreenPoint({ x: 13.5, y: 201.25 }, BOARD_W, BOARD_H, left, top, CARD_W, 0)).toEqual({ x: 13.5 + left, y: 201.25 + top })
+      expect(peaksCardScreenPoint({ x: 13.5, y: 201.25 }, left, top)).toEqual({ x: 13.5 + left, y: 201.25 + top })
     })
   })
 })

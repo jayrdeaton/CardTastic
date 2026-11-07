@@ -1,5 +1,4 @@
 import { CARD_ASPECT, CardSizeProvider } from '@tastic/cards'
-import { rotateInsets, useRotatedWindowDimensions, useRotation } from '@tastic/core'
 import { createContext, memo, ReactNode, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { StyleSheet, useWindowDimensions, View } from 'react-native'
 import Animated, { SharedValue, useAnimatedStyle, useFrameCallback, useSharedValue } from 'react-native-reanimated'
@@ -10,7 +9,6 @@ import { Card } from '@/engine/types'
 import { FaceLoadTrackingContext, useGhostPaintGate } from '../cardFacePaint'
 import { ScreenPoint } from '../dealing/measureView'
 import { GAME_CONTENT_TOP_PADDING } from '../gameLayout'
-import { screenToLocalPoint } from '../overlayFrame'
 import { PlayingCard } from '../PlayingCard'
 import { isMotionReduced } from '../reducedMotionFlag'
 import { BOUNCE_V_HALF_PERIOD_MAX_MS, BOUNCE_V_HALF_PERIOD_MIN_MS, cardXAtElapsed, cardYAtElapsed, CascadeBounds, cascadeBounds, CHAIN_SEGMENT_DELAY_MS, chainEntranceDelayMs, ChainPath, fitXToBounds, fitYToBounds, isGhostVisible, spreadHHalfPeriods } from './winCascadeMotion'
@@ -24,8 +22,7 @@ export interface ChainSpec {
    * aligned by index - e.g. a fanned column's cards, each at its own spot). A card with an entry
    * waits there, visible, until its entrance, then falls onto the racked chain (see
    * cardXAtElapsed); a card without one - or a chain with no `cardOrigins` at all - starts on
-   * `origin` exactly as it always did. Each entry must be card-sized, like `origin`: it goes through
-   * the same rotation conversion. */
+   * `origin` exactly as it always did. */
   cardOrigins?: ScreenPoint[]
   /** Opt-in: this chain's own launch delay, overriding the default - chains leave in the order given, spread so the last
    * starts its fall as the first lands (chainEntranceDelayMs). No screen passes one; the tests use it for exact timings. */
@@ -117,15 +114,13 @@ interface ChainGhostCardProps {
   onFacePainted?: (cardId: string) => void
   /** The bounce box as it is NOW (see CascadeChains): `path` was built in the one at the win. */
   bounds: SharedValue<CascadeBounds>
-  containerOffsetX: SharedValue<number>
-  containerOffsetY: SharedValue<number>
 }
 
 // Memoized: CascadeChains re-renders once per face its paint gate hears from (Scorpion's runs stand every card in its own
 // spot, so up to 52), and every prop here is stable for the cascade's whole life (its path, numbers and shared values are
 // built once by startChains; onFacePainted is the gate's own stable markPainted) - without this, each of those renders
 // would re-render every ghost in the cascade.
-const ChainGhostCard = memo(function ChainGhostCard({ card, path, delayMs, segmentDelayMs, offsetX, offsetY, alwaysVisible, zIndex, startMs, onFacePainted, bounds, containerOffsetX, containerOffsetY }: ChainGhostCardProps) {
+const ChainGhostCard = memo(function ChainGhostCard({ card, path, delayMs, segmentDelayMs, offsetX, offsetY, alwaysVisible, zIndex, startMs, onFacePainted, bounds }: ChainGhostCardProps) {
   // Parked where the real card stood until this card's own entrance - VISIBLE, not hidden until then:
   // a screen blanks its real cards as the cascade takes over, so a ghost waiting invisible for its
   // entrance (the last chain enters a whole first fall late - chainEntranceDelayMs - a card 42ms
@@ -148,7 +143,7 @@ const ChainGhostCard = memo(function ChainGhostCard({ card, path, delayMs, segme
   // cards with spots of their own) drawn and the rest hidden under them - exactly the first frame of the cascade, so it
   // starts from there the moment it shows instead of having moved on while it was invisible.
   // The path is the one built at the win, in that frame's bounds; each position is then moved into the bounds as they are now
-  // (fitXToBounds), so a rotation mid-cascade turns the bounce with the frame instead of leaving it in the old one's shape.
+  // (fitXToBounds), so turning the phone mid-cascade reshapes the bounce to the new window instead of leaving it in the old one's.
   useFrameCallback((frameInfo) => {
     const start = startMs.value
     const elapsed = (start === null ? 0 : frameInfo.timestamp - start) - delayMs
@@ -158,9 +153,11 @@ const ChainGhostCard = memo(function ChainGhostCard({ card, path, delayMs, segme
     bx.value = fitXToBounds(path, now, cardXAtElapsed(path, elapsed, offsetX))
   })
 
+  // Window coordinates (the chain origins are measured), which are this overlay's own: it fills the game screen, which starts
+  // at the window's origin (the stack draws no header).
   const style = useAnimatedStyle(() => ({
     opacity: opacity.value,
-    transform: [{ translateX: bx.value - containerOffsetX.value }, { translateY: by.value - containerOffsetY.value }]
+    transform: [{ translateX: bx.value }, { translateY: by.value }]
   }))
 
   const handleFacePainted = useCallback(() => onFacePainted?.(card.id), [onFacePainted, card.id])
@@ -180,8 +177,8 @@ interface ResolvedChain {
   /** The chain's own delay between successive cards (ChainSpec.segmentDelayMs, else CHAIN_SEGMENT_DELAY_MS). */
   segmentDelayMs: number
   /** Tail-to-head render order, so each chain's head card paints on top of its own tail. `offsetX/Y`
-   * are where the card really stood minus the chain's origin (0 without a cardOrigins entry, in the
-   * rotated frame the path lives in), `alwaysVisible` whether it shows while parked - see
+   * are where the card really stood minus the chain's origin (0 without a cardOrigins entry),
+   * `alwaysVisible` whether it shows while parked - see
    * isGhostVisible. */
   cards: { card: Card; delayMs: number; offsetX: number; offsetY: number; alwaysVisible: boolean }[]
 }
@@ -189,15 +186,11 @@ interface ResolvedChain {
 /** `bounds` is the bounce box every path was built in (the frame at the win). */
 type CascadeState = { mode: 'idle' } | { mode: 'chains'; chains: ResolvedChain[]; cardWidth: number; bounds: CascadeBounds; onShown?: () => void }
 
-/** The frame the ghosts bounce in: the rotated window (see FakeLandscapeView: width and height swap under a quarter turn) and
- * the bottom of the header band in that frame's own coordinates - the same band GameChrome reserves above the board (its top
- * safe-area inset, remapped onto the rotated frame, plus GAME_CONTENT_TOP_PADDING), where every chain bounces up to. Exact
- * identity with plain useWindowDimensions()/useSafeAreaInsets() for a screen with no rotated wrapper. */
+/** The frame the ghosts bounce in: the window and the bottom of the header band - the same band GameChrome reserves above the
+ * board (its top safe-area inset plus GAME_CONTENT_TOP_PADDING), where every chain bounces up to. */
 function useCascadeFrame(): { width: number; height: number; headerBottom: number } {
-  const { width, height } = useRotatedWindowDimensions()
-  const rotation = useRotation()
-  const insets = useSafeAreaInsets()
-  return { width, height, headerBottom: rotateInsets(insets, rotation).top + GAME_CONTENT_TOP_PADDING }
+  const { width, height } = useWindowDimensions()
+  return { width, height, headerBottom: useSafeAreaInsets().top + GAME_CONTENT_TOP_PADDING }
 }
 
 /** Provides the win-cascade controller (see useWinCascade) to a game screen - deliberately does
@@ -211,26 +204,18 @@ function useCascadeFrame(): { width: number; height: number; headerBottom: numbe
 export function WinCascadeProvider({ children }: { children: ReactNode }) {
   const [cascade, setCascade] = useState<CascadeState>({ mode: 'idle' })
   const [generation, setGeneration] = useState(0)
-  // The frame the paths are built in. A resize after the win (a rotation) doesn't rebuild them: CascadeChains moves every
-  // position into the new frame instead.
+  // The frame the paths are built in. A resize after the win (the phone turned) doesn't rebuild them: CascadeChains moves
+  // every position into the new frame instead.
   const { width: winWidth, height: winHeight, headerBottom } = useCascadeFrame()
   // Read at startChains-call time via the ref (not the useMemo's own deps) so the controller
   // identity stays stable across resizes, the same way useDealAnimator's does.
   const boundsRef = useRef({ width: winWidth, height: winHeight })
-  // The real (unrotated) window and the current rotation, for converting each chain's screen-space
-  // origin into the rotated frame the bounce path itself lives in (see startChains below).
-  const rotation = useRotation()
-  const { width: screenWidth, height: screenHeight } = useWindowDimensions()
-  const screenRef = useRef({ rotation, width: screenWidth, height: screenHeight })
-  useEffect(() => {
-    screenRef.current = { rotation, width: screenWidth, height: screenHeight }
-  }, [rotation, screenWidth, screenHeight])
   const headerBottomRef = useRef(headerBottom)
   useEffect(() => {
     headerBottomRef.current = headerBottom
   }, [headerBottom])
   useEffect(() => {
-    // useRotatedWindowDimensions() can transiently report a degenerate 0x0 size (e.g. right after a fresh
+    // useWindowDimensions() can transiently report a degenerate 0x0 size (e.g. right after a fresh
     // web navigation, before the viewport has settled) - guard against ever computing a chain's
     // bounce path against that, which would send every card wildly off-screen. Keeping the last
     // known-good size until a real one arrives is harmless: it's only ever off by a frame or two.
@@ -254,16 +239,9 @@ export function WinCascadeProvider({ children }: { children: ReactNode }) {
         // apart is their horizontal speed alone: one distinct half-period per chain (see spreadHHalfPeriods).
         const hHalfPeriods = spreadHHalfPeriods(chains.length)
         const bounds = cascadeBounds(boundsRef.current, cardWidth, cardHeight, headerBottomRef.current)
-        // chain.origin is a screen-space measurement, but boundsRef above is the ROTATED footprint
-        // (that's the frame the ghosts render and bounce in under a landscape hold), so an origin
-        // measured on a rotated board has to be converted into it first. A no-op at rotation 0, where
-        // WinCascadeGhosts' own overlay-offset subtraction already handles screen -> overlay space.
-        const { rotation: rot, width: sw, height: sh } = screenRef.current
-        const toLocal = (point: ScreenPoint): ScreenPoint => (rot === 0 ? point : screenToLocalPoint(point.x, point.y, cardWidth, cardHeight, rot, sw, sh))
-        const origins = chains.map((chain) => toLocal(chain.origin))
-        const paths = chains.map((_, chainIndex) => buildChainPath(origins[chainIndex], bounds, chainIndex, hHalfPeriods[chainIndex]))
+        const paths = chains.map((chain, chainIndex) => buildChainPath(chain.origin, bounds, chainIndex, hHalfPeriods[chainIndex]))
         const resolved: ResolvedChain[] = chains.map((chain, chainIndex) => {
-          const origin = origins[chainIndex]
+          const origin = chain.origin
           const segmentDelayMs = chain.segmentDelayMs ?? CHAIN_SEGMENT_DELAY_MS
           // One after another: the last chain leaves as the first one's head lands from its launch fall (paths[0]'s half-period).
           const entranceDelayMs = chain.entranceDelayMs ?? chainEntranceDelayMs(chainIndex, chains.length, paths[0].vHalfPeriodMs)
@@ -272,12 +250,9 @@ export function WinCascadeProvider({ children }: { children: ReactNode }) {
             path: paths[chainIndex],
             cards: chain.cards
               .map((card, i) => {
-                // Converted with the same function as the chain's own origin, so the offset between them is the
-                // real (rotated-frame) distance between the two spots.
                 const own = chain.cardOrigins?.[i]
-                const local = own ? toLocal(own) : null
                 // The head (index 0) is the card the real pile showed; a card with a spot of its own stood there too.
-                return { card, delayMs: entranceDelayMs + i * segmentDelayMs, offsetX: local ? local.x - origin.x : 0, offsetY: local ? local.y - origin.y : 0, alwaysVisible: i === 0 || !!local }
+                return { card, delayMs: entranceDelayMs + i * segmentDelayMs, offsetX: own ? own.x - origin.x : 0, offsetY: own ? own.y - origin.y : 0, alwaysVisible: i === 0 || !!own }
               })
               .reverse()
           }
@@ -301,33 +276,17 @@ export function WinCascadeProvider({ children }: { children: ReactNode }) {
 
 /** Renders the actual bouncing chains - place this explicitly in a game screen's own JSX, as a
  * plain sibling among its other screen-level overlays (Fireworks, the win banner, etc.), wherever
- * it should paint relative to them. Always mounted (only its cascade.mode==='chains' children are
- * conditional) so its own offset-correction effect can measure a real position at all times, the
- * same reasoning DealLayer/DragGhostLayer's own always-mounted overlays already rely on.
- * pointerEvents="none" means these cards never block whatever's underneath, including "New Game",
+ * it should paint relative to them, at the screen's top level: it fills the screen, so its positions are window
+ * coordinates. pointerEvents="none" means these cards never block whatever's underneath, including "New Game",
  * for as long as the cascade runs. */
 export function WinCascadeGhosts() {
   const ctx = useContext(WinCascadeContext)
   if (!ctx) throw new Error('WinCascadeGhosts must be used within a WinCascadeProvider')
   const { cascade, generation } = ctx
 
-  const overlayRef = useRef<View>(null)
-  const containerOffsetX = useSharedValue(0)
-  const containerOffsetY = useSharedValue(0)
-  // Rotation-aware, same reasoning as WinCascadeProvider's own boundsRef above.
-  const { width: winWidth, height: winHeight } = useRotatedWindowDimensions()
-
-  useEffect(() => {
-    overlayRef.current?.measureInWindow((x, y) => {
-      containerOffsetX.value = x
-      containerOffsetY.value = y
-    })
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [winWidth, winHeight])
-
   return (
-    <View ref={overlayRef} pointerEvents='none' style={StyleSheet.absoluteFill}>
-      {cascade.mode === 'chains' && <CascadeChains key={generation} chains={cascade.chains} cardWidth={cascade.cardWidth} initialBounds={cascade.bounds} onShown={cascade.onShown} containerOffsetX={containerOffsetX} containerOffsetY={containerOffsetY} />}
+    <View pointerEvents='none' style={StyleSheet.absoluteFill}>
+      {cascade.mode === 'chains' && <CascadeChains key={generation} chains={cascade.chains} cardWidth={cascade.cardWidth} initialBounds={cascade.bounds} onShown={cascade.onShown} />}
     </View>
   )
 }
@@ -357,7 +316,7 @@ export const WIN_CASCADE_PAINT_MAX_MS = 500
  * of it has left (isGhostVisible) - mounted in the same commit as the faces waited on, it loads alongside them, and even a
  * chain that leaves at once uncovers its second card only gradually (the head's fall starts from rest).
  */
-function CascadeChains({ chains, cardWidth, initialBounds, onShown, containerOffsetX, containerOffsetY }: { chains: ResolvedChain[]; cardWidth: number; initialBounds: CascadeBounds; onShown?: () => void; containerOffsetX: SharedValue<number>; containerOffsetY: SharedValue<number> }) {
+function CascadeChains({ chains, cardWidth, initialBounds, onShown }: { chains: ResolvedChain[]; cardWidth: number; initialBounds: CascadeBounds; onShown?: () => void }) {
   // The cascade's t=0 - what every card measures its own elapsed time against (elapsed = frameInfo.timestamp - startMs
   // - delayMs, see ChainGhostCard) - null until the ghosts have shown: nothing moves while they are invisible, so a chain
   // that enters at once leaves from where its head is seen standing instead of from wherever it had got to by then.
@@ -385,8 +344,8 @@ function CascadeChains({ chains, cardWidth, initialBounds, onShown, containerOff
     if (shown) startMs.value = performance.now()
   }, [shown, startMs])
   // The bounce box as it is now, for every ghost's frame callback to move its position into (fitXToBounds): the paths keep the
-  // box they were built in at the win, and a rotation (or any resize) while the cascade runs only changes this. A layout effect,
-  // so it reaches the UI thread as close as it can to the commit that turns the frame. A degenerate 0x0 reading (see the
+  // box they were built in at the win, and a resize while the cascade runs (the phone turned) only changes this. A layout effect,
+  // so it reaches the UI thread as close as it can to the commit that resizes the frame. A degenerate 0x0 reading (see the
   // provider's boundsRef) keeps the last real box.
   const bounds = useSharedValue(initialBounds)
   const { width, height, headerBottom } = useCascadeFrame()
@@ -412,7 +371,7 @@ function CascadeChains({ chains, cardWidth, initialBounds, onShown, containerOff
     <View collapsable={false} style={[StyleSheet.absoluteFill, !shown && styles.unpainted]}>
       <CardSizeProvider width={cardWidth}>
         {ghosts.map(({ chain, c: { card, delayMs, offsetX, offsetY, alwaysVisible }, zIndex }) => (
-          <ChainGhostCard key={card.id} card={card} path={chain.path} delayMs={delayMs} segmentDelayMs={chain.segmentDelayMs} offsetX={offsetX} offsetY={offsetY} alwaysVisible={alwaysVisible} zIndex={zIndex} startMs={startMs} onFacePainted={alwaysVisible && card.faceUp ? markPainted : undefined} bounds={bounds} containerOffsetX={containerOffsetX} containerOffsetY={containerOffsetY} />
+          <ChainGhostCard key={card.id} card={card} path={chain.path} delayMs={delayMs} segmentDelayMs={chain.segmentDelayMs} offsetX={offsetX} offsetY={offsetY} alwaysVisible={alwaysVisible} zIndex={zIndex} startMs={startMs} onFacePainted={alwaysVisible && card.faceUp ? markPainted : undefined} bounds={bounds} />
         ))}
       </CardSizeProvider>
     </View>

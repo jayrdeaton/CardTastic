@@ -19,10 +19,6 @@ jest.mock('@/components/PlayingCard', () => {
   }
   return { PlayingCard: MockPlayingCard }
 })
-jest.mock('@/components/overlayFrame', () => {
-  const frame = { rotation: { value: 0 }, cx: { value: 200 }, cy: { value: 400 }, lw: { value: 400 }, lh: { value: 800 } }
-  return { useOverlayFrame: () => ({ overlayRef: { current: null }, frame }), toLocal: jest.requireActual('@/components/overlayFrameMath').toLocal }
-})
 
 const card = (id: string): Card => ({ id, suit: 'hearts', rank: 5, faceUp: true })
 const rect = (x: number, y: number) => ({ x, y, width: 50, height: 70 })

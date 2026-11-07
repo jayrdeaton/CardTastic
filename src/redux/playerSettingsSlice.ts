@@ -7,7 +7,7 @@ import type { ProfileSelectionState } from '@tastic/shell'
 import { REHYDRATE } from 'redux-persist'
 
 import { GUEST_PLAYER_ID } from '@/constants/player'
-import type { LegacySettingsLock, Settings } from '@/types'
+import type { Settings } from '@/types'
 
 import { settingsActions } from './settingsSlice'
 
@@ -26,9 +26,7 @@ import { settingsActions } from './settingsSlice'
 // this existed) starts with the settings on screen, so picking them changes nothing. Within Solitaire
 // only: these settings don't exist in the other games.
 export interface PlayerSettings {
-  // An entry filed before Lock Orientation went (2026-11-06, the OS turns the screen) may still carry its lock
-  // (LegacySettingsLock); it's never loaded.
-  settings: Settings & LegacySettingsLock
+  settings: Settings
   sound: SoundSettings
   haptic: HapticSettings
   keepAwake: KeepAwakeSettings
@@ -57,12 +55,6 @@ function livePlayerSettings(state: PlayerSettingsState): PlayerSettings {
   return { settings: state.settings, sound: state.sound, haptic: state.haptic, keepAwake: state.keepAwake, theme: { appearance: state.theme.appearance, blur: state.theme.blur } }
 }
 
-// A lock filed with the settings (by 1.2.8, or since the CardTastic move) isn't loaded: nothing reads it since the OS
-// turns the screen. A store 1.2.8 saved keeps its own lock in `settings` for one release; a merge never removes it.
-function withoutLock({ lockOrientation: _locked, lockedRotation: _angle, ...settings }: Settings & LegacySettingsLock): Settings {
-  return settings
-}
-
 const isRehydrate = (action: unknown) => typeof action === 'object' && action !== null && (action as { type?: unknown }).type === REHYDRATE
 
 /**
@@ -88,7 +80,7 @@ export const playerSettingsMiddleware: Middleware<object, PlayerSettingsState, D
   const after = api.getState()
   const stored = after.playerSettings[to]
   if (!stored) return result
-  api.dispatch(settingsActions.initialize(withoutLock(stored.settings)))
+  api.dispatch(settingsActions.initialize(stored.settings))
   api.dispatch(soundActions.initialize({ ...after.sound, ...stored.sound }))
   api.dispatch(hapticActions.initialize({ ...after.haptic, ...stored.haptic }))
   api.dispatch(keepAwakeActions.initialize({ ...after.keepAwake, ...stored.keepAwake }))

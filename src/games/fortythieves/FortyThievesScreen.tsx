@@ -21,6 +21,7 @@ import { DropZone } from '@/components/dragdrop/DropZone'
 import { GAME_CONTENT_PADDING, GameChrome } from '@/components/GameChrome'
 import { useGameLayout } from '@/components/gameLayout'
 import { GameLoading } from '@/components/GameLoading'
+import { hintStacking } from '@/components/hintGlow'
 import { PileDragConfig, PileView } from '@/components/PileView'
 import { StockWaste } from '@/components/StockWaste'
 import type { UndoRequestOptions } from '@/components/undoHold'
@@ -124,8 +125,8 @@ function FortyThievesScreenInner() {
   // alongside the undo stack in startNewGame/restoreGame below.
   const hintsUsedRef = useRef(false)
   const session = useGameSession()
-  // Width the board may occupy - rotation-aware, and net of the side-chrome gutters in the wide (landscape)
-  // layout; the plain window width (capped) in portrait. See gameLayout.ts.
+  // Width the board may occupy - net of the side-chrome gutters in the wide (landscape) layout; the plain window width
+  // (capped) in portrait. See gameLayout.ts.
   const { contentWidth } = useGameLayout()
   // The tableau's gap floor is doubled so the top row can squeeze its foundations and its waste/stock pair to half of it
   // and pool the rest between the two groups - see SPLIT_TOP_ROW_MIN_GAP.
@@ -855,7 +856,7 @@ function FortyThievesScreenInner() {
             }
             const hiddenCount = flying.filter((f) => f.to.zone === 'tableau' && f.to.index === colIndex).reduce((sum, f) => sum + f.count, 0)
             return (
-              <DropZone key={colIndex} registry={dropZones} pileRef={{ zone: 'tableau', index: colIndex }} style={[styles.tableauColumn, { width: cardWidth }]}>
+              <DropZone key={colIndex} registry={dropZones} pileRef={{ zone: 'tableau', index: colIndex }} style={[hintStacking(hintCountFor(activeHint, { zone: 'tableau', index: colIndex }) > 0), styles.tableauColumn, { width: cardWidth }]}>
                 {/* dimUnplayable: the whole tableau is always face-up (like FreeCell/Canfield), so
                 a face-up card that isn't currently the head of a movable run (every card but the
                 true top, while runMoves is off) needs its own dimmed cue to read as temporarily

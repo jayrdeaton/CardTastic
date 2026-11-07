@@ -19,7 +19,7 @@ import { PipFireworks } from '@/components/winning/PipFireworks'
 import { DeckStack } from '@/games/table/DeckStack'
 import { otherPlayer, type PlayerIndex, TWO_PLAYER_HUMANS, VS_CPU_HUMANS } from '@/games/table/players'
 import { type TableCardSpec } from '@/games/table/TableCards'
-import { type Seat, type TableCardContent, TableOverlay, useAppActive, useTableSeats } from '@/games/table/TableChrome'
+import { type Seat, type TableCardContent, TableOverlay, useAppActive, useFaceToFace, useTableSeats } from '@/games/table/TableChrome'
 import { type TableLabel, TableView } from '@/games/table/TableView'
 import { TouchZones } from '@/games/table/TouchZones'
 import { useSettled, useTableSize } from '@/games/table/useTable'
@@ -59,7 +59,10 @@ export function WarScreen() {
   const twoPlayer = mode === 'twoPlayer'
   const humans = twoPlayer ? TWO_PLAYER_HUMANS : VS_CPU_HUMANS
   const { seats, statsIds } = useTableSeats(twoPlayer)
-  const layout = useMemo(() => warLayout(width, height, insets, twoPlayer), [width, height, insets, twoPlayer])
+  // Player 2's side turned to face them: 2 Player on a phone or tablet only (useFaceToFace). At a computer it's drawn upright, as
+  // against the CPU, while the halves still split the table top and bottom for each person's taps.
+  const faceToFace = useFaceToFace(twoPlayer)
+  const layout = useMemo(() => warLayout(width, height, insets, faceToFace), [width, height, insets, faceToFace])
 
   const [settingsOpen, setSettingsOpen] = useState(false)
   const appActive = useAppActive()
@@ -115,7 +118,7 @@ export function WarScreen() {
     notes[player] = state.winner === null ? `Battle ${state.battles + 1}${state.length === 'short' ? ` of ${SHORT_GAME_BATTLES}` : ''}` : null
   }
   const cards = useMemo(() => warCards(state, layout, departures, reduceMotion), [state, layout, departures, reduceMotion])
-  const rings = humans.filter((player) => canPlay(state, player)).map((player) => layout.decks[player])
+  const glows = humans.filter((player) => canPlay(state, player)).map((player) => layout.decks[player])
   const winner = state.winner
 
   return (
@@ -126,7 +129,7 @@ export function WarScreen() {
           layout={layout}
           cards={cards}
           dealKey={games}
-          rings={rings}
+          glows={glows}
           labels={{ 1: label(1), 2: label(2) }}
           prompts={prompts}
           notes={notes}

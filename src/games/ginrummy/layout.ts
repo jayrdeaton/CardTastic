@@ -68,7 +68,7 @@ export function ginLayout(width: number, height: number, insets: { top: number; 
   // The stock and the discard sit halfway between the two prompt lines.
   const middleY = (otherPromptY + PROMPT_ROOM / 2 + seatedPromptY - PROMPT_ROOM / 2) / 2
   const center = { x: width / 2, y: middleY }
-  // Under the piles, clear of the ring round a pile that can be drawn from.
+  // Under the piles, clear of the glow under a pile that can be drawn from.
   const note: Pose = { x: center.x, y: middleY + cardHeight / 2 + 20, rotate: 0 }
   return {
     width,

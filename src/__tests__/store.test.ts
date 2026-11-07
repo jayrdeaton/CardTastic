@@ -1,4 +1,3 @@
-import type { Action, Dispatch } from '@reduxjs/toolkit'
 import type { Profile } from '@tastic/profile'
 import * as shell from '@tastic/shell'
 
@@ -10,14 +9,11 @@ import { reshapeForShell } from '@/redux/shellMigrate'
 import { SOLITAIRE_GAME_IDS } from '@/stores/statsTypes'
 import { DEFAULT_PROFILE_STATS, DEFAULT_STATS } from '@/stores/statsValidation'
 
-import { release128Actions } from '../testUtils/release128Store'
-
-// Solitaire's store is @tastic/shell's createPackStore since the CardTastic move (pack.ts). These run the real store,
-// and 1.2.8's (testUtils/release128Store.ts), through real redux-persist over the in-memory AsyncStorage mock: the keys
-// it saves, the saved games kept out of the root entry, a 1.2.8 save reshaped in place, and a rollback to 1.2.8.
+// Solitaire's store is @tastic/shell's createPackStore since the CardTastic move (pack.ts). These run the real store
+// through real redux-persist over the in-memory AsyncStorage mock: the keys it saves, the saved games kept out of the
+// root entry, and a 1.2.8 save reshaped in place.
 
 type StoreModule = typeof import('@/redux/store')
-type Release128Module = typeof import('../testUtils/release128Store')
 type Storage = Record<string, string>
 type Persistor = { getState: () => { bootstrapped: boolean }; subscribe: (listener: () => void) => () => void; flush: () => Promise<unknown> }
 
@@ -64,15 +60,11 @@ async function launchWith<T extends { persistor: Persistor }>(disk: Storage, loa
   return { ...loaded!, storage, disk: { ...storage } }
 }
 
-// @tastic/profile's action creators type their actions without RTK's index signature.
-const send = (store: { dispatch: unknown }, action: Action) => (store.dispatch as Dispatch<Action>)(action)
-
 const launch = (disk: Storage = {}) => launchWith(disk, () => require('@/redux/store') as StoreModule)
-const launch128 = (disk: Storage) => launchWith(disk, () => (require('../testUtils/release128Store') as Release128Module).createRelease128Store())
 
 const dad: Profile = { id: 'profile-dad', name: 'Dad', color: '#2196f3', tag: 'DAD', createdAt: 1, updatedAt: 1 }
 const kid: Profile = { id: 'profile-kid', name: 'Kid', color: '#ff9800', tag: 'KID', createdAt: 2, updatedAt: 2 }
-const filed = (klondikeDraw: 1 | 3, lockOrientation: boolean) => ({ settings: { ...DEFAULT_SETTINGS, klondikeDraw, lockOrientation }, sound: { enabled: true }, haptic: { vibrate: true }, keepAwake: { enabled: true }, theme: { appearance: 'light', blur: false } })
+const filed = (klondikeDraw: 1 | 3, lock: object = {}) => ({ settings: { ...DEFAULT_SETTINGS, klondikeDraw, ...lock }, sound: { enabled: true }, haptic: { vibrate: true }, keepAwake: { enabled: true }, theme: { appearance: 'light', blur: false } })
 const saved = (moves: number) => ({ state: { tableau: [], moves }, undoStack: [], moves, elapsedSeconds: moves * 2, foundationLayout: 1 })
 const stats = { ...DEFAULT_STATS, currentDayStreak: 4, profiles: { [dad.id]: { ...DEFAULT_PROFILE_STATS, currentDayStreak: 2 } } }
 
@@ -93,7 +85,8 @@ const root128 = {
   tableColor: { guestColor: '#009688', profileColors: { [dad.id]: '#e91e63', 'profile-gone': '#ffffff' } },
   guide: { versionSeen: GUIDE_VERSION },
   settings: { ...DEFAULT_SETTINGS, klondikeDraw: 3, lockOrientation: true, lockedRotation: 90 },
-  playerSettings: { [kid.id]: filed(1, false) }
+  // As 1.2.8 filed them, with the lock inside the settings.
+  playerSettings: { [kid.id]: filed(1, { lockOrientation: true, lockedRotation: -90 }) }
 }
 const disk128: Storage = {
   'solitaire:root': blob(root128),
@@ -109,7 +102,7 @@ describe('the store (pack.ts)', () => {
   it("holds the shell's keys and Solitaire's, and a fresh install saves its root entry and each game's own", async () => {
     const { store, disk } = await launch()
 
-    expect(Object.keys(store.getState()).sort()).toEqual(['_persist', 'achievements', 'activeProfile', 'appSettings', 'gameInProgress', 'guide', 'haptic', 'keepAwake', 'lastActiveGame', 'liveplay', 'opponent', 'playerSettings', 'profileSelection', 'profiles', 'matchStats', 'crazyEightsGuide', 'fourCrownsGuide', 'ginRummyGuide', 'ratslapGuide', 'sixCardGolfGuide', 'slapjackGuide', 'speedGuide', 'trashGuide', 'warGuide', 'recentWins', 'seatColors', 'settings', 'sound', 'tableColor', 'theme', 'topWins'].sort())
+    expect(Object.keys(store.getState()).sort()).toEqual(['_persist', 'achievements', 'appSettings', 'gameInProgress', 'guide', 'haptic', 'keepAwake', 'lastActiveGame', 'liveplay', 'opponent', 'playerSettings', 'profileSelection', 'profiles', 'matchStats', 'crazyEightsGuide', 'fourCrownsGuide', 'ginRummyGuide', 'ratslapGuide', 'sixCardGolfGuide', 'slapjackGuide', 'speedGuide', 'trashGuide', 'warGuide', 'recentWins', 'seatColors', 'settings', 'sound', 'theme', 'topWins'].sort())
     expect(Object.keys(disk).sort()).toEqual(['solitaire:root', ...SOLITAIRE_GAME_IDS.map((id) => `solitaire:gameInProgress.${id}`)].sort())
     // Never the saved boards (their own entries) or the per-round state.
     expect(Object.keys(slicesOf(disk['solitaire:root']))).not.toEqual(expect.arrayContaining(['gameInProgress']))
@@ -142,7 +135,9 @@ describe('a 1.2.8 save, reshaped in place', () => {
     // Lock Orientation isn't carried over: it went with @tastic/shell 0.5 (the OS turns the screen).
     expect(state.appSettings).toEqual({ deferBottomEdgeGestures: false })
     expect(state.settings.klondikeDraw).toBe(3)
-    expect(state.playerSettings[kid.id]).toEqual(filed(1, false))
+    expect(state.settings).not.toHaveProperty('lockOrientation')
+    expect(state.settings).not.toHaveProperty('lockedRotation')
+    expect(state.playerSettings[kid.id]).toEqual(filed(1))
     expect(state.sound.enabled).toBe(false)
     expect(state.haptic.vibrate).toBe(false)
     expect(state.theme).toEqual(root128.theme)
@@ -155,13 +150,17 @@ describe('a 1.2.8 save, reshaped in place', () => {
     expect(state.gameInProgress.spider[GUEST_PLAYER_ID]?.moves).toBe(9)
   })
 
-  it('keeps the old keys in the root entry as they were, for a rollback', async () => {
+  // Kept for one release for a rollback to 1.2.8 until 2026-11-06, when the build that lets the OS turn the screen got a
+  // new native fingerprint (1.2.8's JS can't be rolled back onto it).
+  it('drops the old player keys and the lock from the root entry', async () => {
     const { disk } = await launch(disk128)
     const root = slicesOf(disk['solitaire:root'])
 
-    expect(root.activeProfile).toBe(dad.id)
-    expect(root.tableColor).toEqual(root128.tableColor)
-    expect(root.settings).toMatchObject({ lockOrientation: true, lockedRotation: 90 })
+    expect(root).not.toHaveProperty('activeProfile')
+    expect(root).not.toHaveProperty('tableColor')
+    expect(root.settings).not.toHaveProperty('lockOrientation')
+    expect(root.settings).not.toHaveProperty('lockedRotation')
+    expect((root.playerSettings as Record<string, unknown>)[kid.id]).toEqual(filed(1))
     expect(root.profileSelection).toEqual({ 1: dad.id, 2: null })
     // The saved games are still in their own entries, untouched.
     expect(disk['solitaire:gameInProgress.klondike']).toBe(disk128['solitaire:gameInProgress.klondike'])
@@ -189,40 +188,8 @@ describe('a 1.2.8 save, reshaped in place', () => {
     expect(reshaped.profileSelection).toEqual({ 1: null, 2: null })
     expect(reshaped.seatColors).toEqual({ lastGuestColor: { ...SEAT_COLORS }, lastCpuColor: SEAT_COLORS[2], profileColors: {} })
     expect(reshaped).not.toHaveProperty('appSettings')
-  })
-})
-
-// Jay, 2026-10-29: the old keys stay for one release, so an OTA rolled back to 1.2.8 finds each player, color pick and
-// lock as they were at the move.
-describe('a rollback to 1.2.8', () => {
-  it("finds the player, the color picks and the lock in what the move left behind, loaded by 1.2.8's own store", async () => {
-    const moved = await launch(disk128)
-    // A pick made after the move is the new keys' alone, so a rollback finds the move's.
-    send(moved.store, shell.profileSelectionActions.select({ seat: 1, profileId: kid.id }))
-    await moved.persistor.flush()
-
-    const { store } = await launch128(moved.storage)
-    const state = store.getState()
-
-    expect(state.activeProfile).toBe(dad.id)
-    expect(state.tableColor).toEqual(root128.tableColor)
-    expect(state.settings).toMatchObject({ lockOrientation: true, lockedRotation: 90, klondikeDraw: expect.any(Number) })
-    expect(state.profiles).toEqual([dad, kid])
-    expect(state.gameInProgress.klondike[dad.id]?.moves).toBe(42)
-  })
-
-  it('reshapes again from what 1.2.8 changed, once rolled forward', async () => {
-    const moved = await launch(disk128)
-    const rolledBack = await launch128(moved.disk)
-    rolledBack.store.dispatch(release128Actions.activeProfile.select(kid.id))
-    rolledBack.store.dispatch(release128Actions.tableColor.setColor({ id: kid.id, color: '#3f51b5' }))
-    await rolledBack.persistor.flush()
-    // 1.2.8 drops the keys it has no reducer for on its next write.
-    expect(Object.keys(slicesOf(rolledBack.storage['solitaire:root']))).not.toEqual(expect.arrayContaining(['profileSelection']))
-
-    const { store } = await launch(rolledBack.storage)
-
-    expect(store.getState().profileSelection[1]).toBe(kid.id)
-    expect(store.getState().seatColors.profileColors[kid.id]).toEqual({ color: '#3f51b5', profileColor: kid.color })
+    expect(reshaped).not.toHaveProperty('activeProfile')
+    expect(reshaped).not.toHaveProperty('tableColor')
+    expect(reshaped.settings).toEqual(DEFAULT_SETTINGS)
   })
 })

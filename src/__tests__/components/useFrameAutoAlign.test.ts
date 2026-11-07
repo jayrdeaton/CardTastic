@@ -1,22 +1,4 @@
-import { localOffsetToScreenPoint } from '@/components/overlayFrameMath'
-import { columnInsets, computeFramePlacement, FRAME_ALIGN_EDGE_MARGIN, frameRectFromScreen } from '@/components/useFrameAutoAlign'
-
-// A 402x874 portrait window. FakeLandscapeView keeps the game frame centred in it and rotates it, so the frame's
-// own (local) size is 402x874 at 0/180 and 874x402 at +/-90 - and its screen bounding box always fills the window.
-const WIN_W = 402
-const WIN_H = 874
-
-const isSwapped = (rotation: number) => rotation === 90 || rotation === -90
-const frameSize = (rotation: number) => (isSwapped(rotation) ? { width: WIN_H, height: WIN_W } : { width: WIN_W, height: WIN_H })
-
-/** What measureInWindow would report for a `width` x `height` (local) trigger at frame-local (`x`, `y`): the
- * top-left AND the size of its transformed bounding box (size swapped at +/-90). Built on the existing forward
- * model. The frame's own screen bbox top-left is (0, 0) at every angle (it fills the window). */
-function measuredBox(x: number, y: number, width: number, height: number, rotation: number) {
-  const frame = frameSize(rotation)
-  const topLeft = localOffsetToScreenPoint({ x: 0, y: 0 }, frame.width, frame.height, x, y, width, height, rotation)
-  return { x: topLeft.x, y: topLeft.y, boxWidth: isSwapped(rotation) ? height : width, boxHeight: isSwapped(rotation) ? width : height }
-}
+import { columnInsets, computeFramePlacement, FRAME_ALIGN_EDGE_MARGIN } from '@/components/useFrameAutoAlign'
 
 describe('FRAME_ALIGN_EDGE_MARGIN', () => {
   it('is @tastic/hud EDGE_MARGIN (12), so a popover keeps the margin it always had', () => {
@@ -24,62 +6,8 @@ describe('FRAME_ALIGN_EDGE_MARGIN', () => {
   })
 })
 
-describe('frameRectFromScreen', () => {
-  const POSITIONS: [number, number][] = [
-    [0, 0],
-    [100, 50],
-    [413, 20],
-    [700, 300]
-  ]
-
-  it.each([0, 90, -90, 180])('recovers a 48x48 trigger exactly from its screen bounding box at %i degrees', (rotation) => {
-    for (const [x, y] of POSITIONS) {
-      const box = measuredBox(x, y, 48, 48, rotation)
-      const rect = frameRectFromScreen(box.x, box.y, box.boxWidth, box.boxHeight, rotation, WIN_W, WIN_H)
-      expect(rect.x).toBeCloseTo(x, 6)
-      expect(rect.y).toBeCloseTo(y, 6)
-      expect(rect.width).toBe(48)
-      expect(rect.height).toBe(48)
-    }
-  })
-
-  it.each([0, 90, -90, 180])('un-swaps a non-square 60x36 trigger (reported swapped at +/-90) at %i degrees', (rotation) => {
-    for (const [x, y] of POSITIONS) {
-      const box = measuredBox(x, y, 60, 36, rotation)
-      // Sanity: the screen bounding box really is swapped at +/-90, so the width/height swap is doing the work.
-      expect(box.boxWidth).toBe(isSwapped(rotation) ? 36 : 60)
-      expect(box.boxHeight).toBe(isSwapped(rotation) ? 60 : 36)
-      const rect = frameRectFromScreen(box.x, box.y, box.boxWidth, box.boxHeight, rotation, WIN_W, WIN_H)
-      expect(rect.x).toBeCloseTo(x, 6)
-      expect(rect.y).toBeCloseTo(y, 6)
-      expect(rect.width).toBe(60)
-      expect(rect.height).toBe(36)
-    }
-  })
-
-  // Hand-computed screen positions of a 48x48 trigger at frame-local (100, 50), independent of the forward
-  // model above: +90 turns local +x into screen +y and local +y into screen -x (the frame's local top-left lands
-  // at the screen's top-right); -90 is the mirror image; 180 flips both.
-  it.each([
-    [0, 100, 50],
-    [90, 402 - 50 - 48, 100],
-    [-90, 50, 874 - 100 - 48],
-    [180, 402 - 100 - 48, 874 - 50 - 48]
-  ])('maps the hand-computed screen top-left at %i degrees back to local (100, 50)', (rotation, screenX, screenY) => {
-    const rect = frameRectFromScreen(screenX, screenY, 48, 48, rotation, WIN_W, WIN_H)
-    expect(rect.x).toBeCloseTo(100, 6)
-    expect(rect.y).toBeCloseTo(50, 6)
-    expect(rect.width).toBe(48)
-    expect(rect.height).toBe(48)
-  })
-
-  it('is a plain pass-through at 0 degrees', () => {
-    expect(frameRectFromScreen(37, 412, 48, 30, 0, WIN_W, WIN_H)).toEqual({ x: 37, y: 412, width: 48, height: 30 })
-  })
-})
-
 describe('computeFramePlacement', () => {
-  // A phone held sideways: 874x402 frame, home-indicator/notch side insets like the simulator reported.
+  // A phone held sideways: an 874x402 window, home-indicator/notch side insets like the simulator reported.
   const FRAME_W = 874
   const FRAME_H = 402
   const INSETS = { top: 0, right: 34, bottom: 0, left: 62 }
@@ -203,20 +131,6 @@ describe('computeFramePlacement', () => {
       const result = place(trigger(400, 0, 48, 400))
       expect(result.verticalAlign).toBe('below')
       expect(result.maxHeight).toBe(0)
-    })
-  })
-
-  describe('with frameRectFromScreen (the useFrameAutoAlign pipeline)', () => {
-    it.each([0, 90, -90, 180])('a trigger reported in screen space at %i degrees is placed as if measured in the frame', (rotation) => {
-      const frame = frameSize(rotation)
-      const local = trigger(120, 40)
-      const box = measuredBox(local.x, local.y, local.width, local.height, rotation)
-      const recovered = frameRectFromScreen(box.x, box.y, box.boxWidth, box.boxHeight, rotation, WIN_W, WIN_H)
-      // The frame is 874x402 at +/-90 and 402x874 at 0/180: the placement must follow the frame, not the window.
-      const insets = { top: 0, right: 34, bottom: 0, left: 62 }
-      const viaScreen = computeFramePlacement(recovered, CONTENT_W, CONTENT_H, frame.width, frame.height, insets)
-      const direct = computeFramePlacement(local, CONTENT_W, CONTENT_H, frame.width, frame.height, insets)
-      expect(viaScreen).toEqual(direct)
     })
   })
 })

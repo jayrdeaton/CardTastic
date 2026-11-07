@@ -186,7 +186,7 @@ describe('cascadeBounds', () => {
 describe('fitXToBounds / fitYToBounds', () => {
   // PATH was built in this box: walls at 20 and 320, apex 100, floor 700.
   const BUILT: CascadeBounds = { leftX: 20, rightX: 320, apexY: 100, floorY: 700 }
-  // A quarter turn later: twice as wide, under half as tall.
+  // The phone turned: twice as wide, under half as tall.
   const TURNED: CascadeBounds = { leftX: 12, rightX: 724, apexY: 56, floorY: 286 }
 
   it('changes nothing, to the last bit, while the bounds are the ones the path was built in', () => {

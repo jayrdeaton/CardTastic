@@ -1,5 +1,4 @@
 import { CARD_ASPECT, CardSizeProvider } from '@tastic/cards'
-import { useRotation } from '@tastic/core'
 import React, { createContext, memo, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { StyleSheet, View } from 'react-native'
 import Animated, { makeMutable, SharedValue, useAnimatedStyle, withSpring, WithSpringConfig } from 'react-native-reanimated'
@@ -8,7 +7,6 @@ import { scheduleOnUI } from 'react-native-worklets'
 import { Card } from '@/engine/types'
 
 import { FaceLoadTrackingContext, LANDED_GHOST_MAX_MS, markGhostPending, useGhostPaintGate, whenCardsSettled } from '../cardFacePaint'
-import { OverlayFrame, toLocal, useOverlayFrame } from '../overlayFrame'
 import { PlayingCard } from '../PlayingCard'
 import { useCardSoundEffects } from '../useCardSounds'
 import { CardRegistry, useCardRegistry } from './CardRegistry'
@@ -196,7 +194,7 @@ interface FlightEntry {
    * (flyTo) - the spacing of the column it lands on (fanTops.ts). Columns compress their fans to fit the screen, so these
    * differ from `content.offsetStep` and from each other. Always `content.offsetStep` for a single card or an unfanned stack. */
   step: SharedValue<number>
-  /** How far down its own fan (the overlay's local y, so it holds under a quarter turn) the ghost is drawn from its position: 0,
+  /** How far down its own fan the ghost is drawn from its position: 0,
    * except for a peeled flight, whose first card starts `PeelFrom.index` cards down the fan it was taken out of and springs to 0 over
    * its flight. */
   lift: SharedValue<number>
@@ -251,14 +249,10 @@ function peelHoldId(cardId: string): string {
 // No shadow on a landed ghost: the real card under it draws its own, and two would darken it for as long as both show.
 const LANDED_CARD_STYLE = { shadowOpacity: 0, elevation: 0 }
 
-/** A landed group's screen-space footprint, from its head card's measured screen top-left: `width` x `height`
- * (the fan runs down) unrotated. Under a quarter turn the head card is `cardHeight` wide and `width` tall on screen and the
- * fan runs sideways - which way depends on the turn - so the rect covers the fan's length on both sides of the head card
- * (a little too wide rather than missing an overlap). */
-function restRect(x: number, y: number, width: number, height: number, cardHeight: number, quarterTurn: boolean) {
-  if (!quarterTurn) return { x, y, width, height }
-  const fan = height - cardHeight
-  return { x: x - fan, y, width: cardHeight + 2 * fan, height: width }
+/** A landed group's screen-space footprint, from its head card's measured screen top-left: `width` x `height` (the fan
+ * runs down). */
+function restRect(x: number, y: number, width: number, height: number) {
+  return { x, y, width, height }
 }
 
 /** The spacing a ghost's run starts at: the run's own, as the column it leaves lays it out now (fanTops.ts), or `offsetStep`
@@ -289,7 +283,6 @@ interface FlightGhostCardProps {
   liveStep: SharedValue<number>
   followIndex: number
   visibleCount: SharedValue<number>
-  frame: OverlayFrame
   landed: boolean
 }
 
@@ -315,10 +308,10 @@ function StackedGhostCard({ index, visibleCount, children }: GhostCardSlotProps)
 
 // Memoized: several of these can be mounted at once (see DragGhostProvider's `flights`), and every
 // still-flying entry's own props here stay referentially stable across a sibling landing (content
-// is only ever set once at creation; the shared values and `frame` never change
+// is only ever set once at creation; the shared values never change
 // identity) - without this, every remaining ghost would re-render whenever any sibling's own
 // landing removed it from `flights`, same reasoning as DealLayer.tsx's GhostSlot.
-const FlightGhostCard = memo(function FlightGhostCard({ onVisible, releasePending, prePainted, content, live, own, handedOff, step, lift, liveLift, liveStep, followIndex, visibleCount, frame, landed }: FlightGhostCardProps) {
+const FlightGhostCard = memo(function FlightGhostCard({ onVisible, releasePending, prePainted, content, live, own, handedOff, step, lift, liveLift, liveStep, followIndex, visibleCount, landed }: FlightGhostCardProps) {
   const cardHeight = content.cardWidth / CARD_ASPECT
   // Invisible until its visible faces have painted (visibleFaceIds; see useGhostPaintGate): a ghost is a freshly mounted
   // Image, blank for a frame or two, while the source keeps drawing the departing card meanwhile (cardFacePaint.ts's ghost
@@ -333,15 +326,14 @@ const FlightGhostCard = memo(function FlightGhostCard({ onVisible, releasePendin
   const { originX: liveOriginX, originY: liveOriginY, dx: liveDx, dy: liveDy } = live
   const { originX: ownOriginX, originY: ownOriginY, dx: ownDx, dy: ownDy } = own
   const animatedStyle = useAnimatedStyle(() => {
-    // origin + delta is the ghost's live screen-space position (see toLocal for how that becomes a
-    // position inside this overlay, which lives in the rotated frame under a landscape hold).
+    // origin + delta is the ghost's live screen-space position, which is its position in this overlay too: the overlay
+    // fills the game screen, and the game screen starts at the window's origin (the stack draws no header).
     const handed = handedOff.value === 1
     const sx = handed ? ownOriginX.value + ownDx.value : liveOriginX.value + liveDx.value
     const sy = handed ? ownOriginY.value + ownDy.value : liveOriginY.value + liveDy.value
-    const p = toLocal(sx, sy, content.cardWidth, cardHeight, frame)
-    // Down the fan, in the overlay's own frame: 0 but for a peeled flight (FlightEntry.lift).
+    // Down the fan: 0 but for a peeled flight (FlightEntry.lift).
     const down = handed ? lift.value : liveLift.value + followIndex * liveStep.value
-    return { transform: [{ translateX: p.x }, { translateY: p.y + down }] }
+    return { transform: [{ translateX: sx }, { translateY: sy + down }] }
   })
   // An explicit size for the container - its only children are absolutely positioned, so without it this lays out as
   // an exactly-zero frame at the overlay's origin, which trips a React Native (Fabric, iOS) view-recycling bug that
@@ -390,22 +382,10 @@ export function DragGhostProvider({ children }: { children: React.ReactNode }) {
   const { playInvalidSound, hapticInvalid } = useCardSoundEffects()
   const [flights, setFlights] = useState<FlightEntry[]>([])
   const cardRegistry = useCardRegistry()
-  const { overlayRef, frame } = useOverlayFrame()
-  // Read when a flight lands (its rest rect): a card's screen footprint is its height x width under a quarter turn.
-  const rotation = useRotation()
-  const rotationRef = useRef(rotation)
-  useEffect(() => {
-    rotationRef.current = rotation
-  }, [rotation])
   const nextIdRef = useRef(0)
-  // originX/Y and flyTo's targetX/Y are all screen-space (measureInWindow/Reanimated's own
-  // measure(), both viewport-relative on web - see CardRegistry.ts/PileView.tsx), but this overlay
-  // - a screen-level sibling of {children}, not a descendant - isn't necessarily anchored at the true
-  // viewport origin (it can sit below a native header on this app's web target - confirmed live), and
-  // under a landscape hold it lives inside FakeLandscapeView's rotated frame, so a screen-space point
-  // isn't a valid position inside it as-is. useOverlayFrame measures the overlay once mounted (and
-  // again on resize/rotation) and toLocal converts each ghost's screen-space position accordingly -
-  // see overlayFrame.ts.
+  // originX/Y and flyTo's targetX/Y are all window coordinates (measureInWindow/Reanimated's own measure(), both
+  // viewport-relative on web - see CardRegistry.ts/PileView.tsx), and so are the ghosts' positions in this overlay: it
+  // fills the game screen, which starts at the window's origin (the stack draws no header).
 
   // showLive's caller (DraggableCard/PileView) owns ONE persistent set of SharedValues per
   // draggable slot/column, reused for every drag that ever starts from there - necessary so the
@@ -774,7 +754,7 @@ export function DragGhostProvider({ children }: { children: React.ReactNode }) {
               own.dy.value = withSpring(targetY - own.originY.value, config)
               if (landingStep !== null) step.value = withSpring(landingStep, config)
             },
-            restRect(targetX, targetY, content.cardWidth, content.cardWidth / CARD_ASPECT + Math.max(0, content.cards.length - 1) * (landingStep ?? step.value), content.cardWidth / CARD_ASPECT, Math.abs(rotationRef.current) === 90)
+            restRect(targetX, targetY, content.cardWidth, content.cardWidth / CARD_ASPECT + Math.max(0, content.cards.length - 1) * (landingStep ?? step.value))
           )
         },
         hide() {
@@ -876,9 +856,9 @@ export function DragGhostProvider({ children }: { children: React.ReactNode }) {
       {/* Always mounted (regardless of `flights`) so `frame` above can measure its real
       position - a card's own screen-space origin is only correct once this measurement lands,
       which needs the view to already exist. */}
-      <View ref={overlayRef} pointerEvents='none' style={StyleSheet.absoluteFill}>
+      <View pointerEvents='none' style={StyleSheet.absoluteFill}>
         {flights.map((flight) => (
-          <FlightGhostCard key={flight.key} onVisible={flight.onVisible} releasePending={flight.releasePending} prePainted={flight.prePainted} content={flight.content} live={flight.live} own={flight.own} handedOff={flight.handedOff} step={flight.step} lift={flight.lift} liveLift={flight.liveLift} liveStep={flight.liveStep} followIndex={flight.followIndex} visibleCount={flight.visibleCount} frame={frame} landed={!!flight.landed} />
+          <FlightGhostCard key={flight.key} onVisible={flight.onVisible} releasePending={flight.releasePending} prePainted={flight.prePainted} content={flight.content} live={flight.live} own={flight.own} handedOff={flight.handedOff} step={flight.step} lift={flight.lift} liveLift={flight.liveLift} liveStep={flight.liveStep} followIndex={flight.followIndex} visibleCount={flight.visibleCount} landed={!!flight.landed} />
         ))}
       </View>
     </DragGhostContext.Provider>

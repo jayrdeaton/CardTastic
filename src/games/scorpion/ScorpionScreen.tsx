@@ -25,6 +25,7 @@ import { DropZone } from '@/components/dragdrop/DropZone'
 import { GAME_CONTENT_PADDING, GameChrome } from '@/components/GameChrome'
 import { useGameLayout } from '@/components/gameLayout'
 import { GameLoading } from '@/components/GameLoading'
+import { hintStacking } from '@/components/hintGlow'
 import { PileDragConfig, PileView } from '@/components/PileView'
 import { EmptySlot, PlayingCard } from '@/components/PlayingCard'
 import { hiddenUntilDealt } from '@/components/reducedMotionFlag'
@@ -119,8 +120,8 @@ function ScorpionScreenInner() {
   // The deal's game under the rule it was dealt with: what its stats and par are kept for (engine/variants.ts).
   const variant = scorpionVariant(assistedStock)
   const controller = useMemo(() => createScorpionController(assistedStock), [assistedStock])
-  // Width the board may occupy - rotation-aware, and net of the side-chrome gutters in the wide (landscape)
-  // layout; the plain window width (capped) in portrait. See gameLayout.ts.
+  // Width the board may occupy - net of the side-chrome gutters in the wide (landscape) layout; the plain window width
+  // (capped) in portrait. See gameLayout.ts.
   const { contentWidth, isWide } = useGameLayout()
   // Wide layout: the stock packet sits one gap past column 7 while the tableau stays centred on its own,
   // so the row must have room for a packet-sized column on BOTH sides of it: the width-derived size/gap
@@ -850,7 +851,7 @@ function ScorpionScreenInner() {
               // set from startChains' onShown).
               const cards = winRevealed && cascadeHandoffFor === state ? [] : col
               return (
-                <DropZone key={colIndex} registry={dropZones} pileRef={{ zone: 'tableau', index: colIndex }} style={[styles.tableauColumn, { width: cardWidth }]}>
+                <DropZone key={colIndex} registry={dropZones} pileRef={{ zone: 'tableau', index: colIndex }} style={[hintStacking(hintCountFor(activeHint, { zone: 'tableau', index: colIndex }) > 0), styles.tableauColumn, { width: cardWidth }]}>
                   <View
                     ref={(el) => {
                       tableauColumnRefs.current[colIndex] = el

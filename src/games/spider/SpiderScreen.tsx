@@ -1,6 +1,6 @@
 import { Pressable, useVibration } from '@rific/feedback-press'
 import { useToast } from '@rific/toaster'
-import { CARD_ASPECT, CardSizeProvider, faceUpFanOffset, useCardSize } from '@tastic/cards'
+import { CardSizeProvider, faceUpFanOffset, useCardSize } from '@tastic/cards'
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { StyleProp, StyleSheet, View, ViewStyle } from 'react-native'
 import Animated, { useAnimatedStyle, useSharedValue, withDelay, withSpring, withTiming } from 'react-native-reanimated'
@@ -17,7 +17,7 @@ import { DropZone } from '@/components/dragdrop/DropZone'
 import { GAME_CONTENT_PADDING, GameChrome } from '@/components/GameChrome'
 import { TABLEAU_ROW_PADDING_BOTTOM, useGameLayout } from '@/components/gameLayout'
 import { GameLoading } from '@/components/GameLoading'
-import { OverlayFrame, toLocal, useOverlayFrame } from '@/components/overlayFrame'
+import { HintGlow, hintStacking } from '@/components/hintGlow'
 import { PileDragConfig, PileView } from '@/components/PileView'
 import { EmptySlot, PlayingCard } from '@/components/PlayingCard'
 import { hiddenUntilDealt, isMotionReduced } from '@/components/reducedMotionFlag'
@@ -161,8 +161,7 @@ interface SequenceFlightInstance {
  * so stacking switches to reflect ARRIVAL order instead, letting each card land visibly on top of
  * the ones before it, exactly like a real pile building up, without the two phases (natural fan,
  * then arrival order) ever fighting each other. Otherwise mirrors Pyramid's own FlyingPairCard. */
-function FlyingSequenceCard({ card, from, to, delayMs: stagger, frame, cardWidth, go, landed, onFacePainted, onDealt, onLanded }: { card: Card; from: ScreenPoint; to: ScreenPoint; delayMs: number; frame: OverlayFrame; cardWidth: number; go: boolean; landed: boolean; onFacePainted: () => void; onDealt: () => void; onLanded: () => void }) {
-  const cardHeight = cardWidth / CARD_ASPECT
+function FlyingSequenceCard({ card, from, to, delayMs: stagger, go, landed, onFacePainted, onDealt, onLanded }: { card: Card; from: ScreenPoint; to: ScreenPoint; delayMs: number; go: boolean; landed: boolean; onFacePainted: () => void; onDealt: () => void; onLanded: () => void }) {
   const tx = useSharedValue(from.x)
   const ty = useSharedValue(from.y)
   const zIndex = useSharedValue(0)
@@ -194,10 +193,8 @@ function FlyingSequenceCard({ card, from, to, delayMs: stagger, frame, cardWidth
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [go])
 
-  const style = useAnimatedStyle(() => {
-    const p = toLocal(tx.value, ty.value, cardWidth, cardHeight, frame)
-    return { zIndex: zIndex.value, transform: [{ translateX: p.x }, { translateY: p.y }] }
-  })
+  // Window coordinates, which are the overlay's own (see SequenceFlightGhosts).
+  const style = useAnimatedStyle(() => ({ zIndex: zIndex.value, transform: [{ translateX: tx.value }, { translateY: ty.value }] }))
 
   return (
     <Animated.View style={[sequenceFlightStyles.ghostCard, !go && sequenceFlightStyles.unpainted, style]}>
@@ -231,7 +228,7 @@ const LANDED_CARD_STYLE = { shadowOpacity: 0, elevation: 0 }
  * than the commit, the card is revealed in its column meanwhile, and the column holds it at take-off instead) - waited on
  * from the callback, it would find nothing to wait for. This overlay renders after the board, so its layout effects run
  * after the board's. */
-function SequenceFlightGroup({ flight, frame, onCardLanded, onDealt, onRetire }: { flight: SequenceFlightInstance; frame: OverlayFrame; onCardLanded: (id: number, cardId: string) => void; onDealt: () => void; onRetire: (id: number) => void }) {
+function SequenceFlightGroup({ flight, onCardLanded, onDealt, onRetire }: { flight: SequenceFlightInstance; onCardLanded: (id: number, cardId: string) => void; onDealt: () => void; onRetire: (id: number) => void }) {
   const { id, cards, landed = false, releasePending } = flight
   const faceIds = useMemo(() => cards.filter((c) => c.card.faceUp).map((c) => c.card.id), [cards])
   const { shown, markPainted } = useGhostPaintGate(faceIds, releasePending)
@@ -249,7 +246,7 @@ function SequenceFlightGroup({ flight, frame, onCardLanded, onDealt, onRetire }:
   return (
     <CardSizeProvider width={flight.cardWidth}>
       {cards.map(({ card, from, to, delayMs }) => (
-        <FlyingSequenceCard key={`${id}-${card.id}`} card={card} from={from} to={to} delayMs={delayMs} frame={frame} cardWidth={flight.cardWidth} go={shown} landed={landed} onFacePainted={() => markPainted(card.id)} onDealt={onDealt} onLanded={() => onCardLanded(id, card.id)} />
+        <FlyingSequenceCard key={`${id}-${card.id}`} card={card} from={from} to={to} delayMs={delayMs} go={shown} landed={landed} onFacePainted={() => markPainted(card.id)} onDealt={onDealt} onLanded={() => onCardLanded(id, card.id)} />
       ))}
     </CardSizeProvider>
   )
@@ -272,23 +269,20 @@ const sequenceFlightStyles = StyleSheet.create({
  * replaces its whole batch on every call - a second call while a stock deal is still flying would
  * silently cancel it, and nothing here stops a tap-triggered completion or undo from landing
  * mid-deal). Same "N independent simultaneous ghosts" idiom DealLayer/WinCascadeLayer/Pyramid's
- * PairFlightGhosts already use. Always mounted (only `flights`'s contents are conditional) so its
- * own offset-correction effect can measure a real position at all times. */
+ * PairFlightGhosts already use. Rendered at the screen's top level, filling it, so its positions are window
+ * coordinates. */
 function SequenceFlightGhosts({ flights, onCardLanded, onRetire }: { flights: SequenceFlightInstance[]; onCardLanded: (id: number, cardId: string) => void; onRetire: (id: number) => void }) {
-  // Same overlay-placement pattern as DragGhostLayer/DealLayer - see overlayFrame.ts.
-  const { overlayRef, frame } = useOverlayFrame()
   // Own instance, same as StockPacket's own useDragGhost() call above - this is a screen-level
   // sibling component, not nested under SpiderScreenInner, so it needs its own hook call to reach
   // these rather than having them threaded down as props.
   const { playCardSound, hapticCard } = useCardSoundEffects()
 
   return (
-    <View ref={overlayRef} pointerEvents='none' style={StyleSheet.absoluteFill}>
+    <View pointerEvents='none' style={StyleSheet.absoluteFill}>
       {flights.map((flight) => (
         <SequenceFlightGroup
           key={flight.id}
           flight={flight}
-          frame={frame}
           onCardLanded={onCardLanded}
           onRetire={onRetire}
           onDealt={() => {
@@ -340,8 +334,8 @@ function SpiderScreenInner() {
   const hintsUsedRef = useRef(false)
   const session = useGameSession()
 
-  // Width the board may occupy - rotation-aware, and net of the side-chrome gutters in the wide (landscape)
-  // layout; the plain window width (capped) in portrait. See gameLayout.ts.
+  // Width the board may occupy - net of the side-chrome gutters in the wide (landscape) layout; the plain window width
+  // (capped) in portrait. See gameLayout.ts.
   const { contentWidth } = useGameLayout()
   // Sized by the width alone, in both layouts: in the wide layout a column too long for the ~400pt of height scrolls
   // rather than shrinking every card to fit it (Jay, 2026-10-14: big cards in landscape, and scroll a bit sometimes).
@@ -1905,7 +1899,7 @@ function SpiderScreenInner() {
             }
             const hiddenCount = flying.filter((f) => f.to.zone === 'tableau' && f.to.index === colIndex).reduce((sum, f) => sum + f.count, 0)
             return (
-              <DropZone key={colIndex} registry={dropZones} pileRef={{ zone: 'tableau', index: colIndex }} style={[styles.column, { width: cardWidth }]}>
+              <DropZone key={colIndex} registry={dropZones} pileRef={{ zone: 'tableau', index: colIndex }} style={[hintStacking(hintCountFor(activeHint, { zone: 'tableau', index: colIndex }) > 0), styles.column, { width: cardWidth }]}>
                 {/* dimUnplayable: dropping a single card here only checks rank (see rules.ts's
                 tryMove, destTop.rank === movingBottom.rank + 1 - no suit check), but dragging 2+
                 cards as a group requires the whole span to be same-suit descending
@@ -1951,7 +1945,7 @@ function CompletedSlotCard({ card }: { card: Card | undefined }) {
  * Wrapped in pointerEvents="none" so its own internal Pressable (PlayingCard always renders one)
  * can't intercept the tap meant for StockFan's single covering Pressable - the same pattern
  * DragGhostLayer/DealLayer use for their own non-interactive card copies. */
-function StockPacket({ index, hinted, style }: { index: number; hinted?: boolean; style: StyleProp<ViewStyle> }) {
+function StockPacket({ index, style }: { index: number; style: StyleProp<ViewStyle> }) {
   const ghost = useDragGhost()
   const viewRef = useRef<View>(null)
 
@@ -1963,12 +1957,12 @@ function StockPacket({ index, hinted, style }: { index: number; hinted?: boolean
 
   return (
     <View ref={viewRef} collapsable={false} pointerEvents='none' style={style}>
-      <PlayingCard card={STOCK_PACKET_CARD} hinted={hinted} />
+      <PlayingCard card={STOCK_PACKET_CARD} />
     </View>
   )
 }
 
-const stockFanStyles = StyleSheet.create({ fan: { alignItems: 'flex-end' } })
+const stockFanStyles = StyleSheet.create({ fan: { alignItems: 'flex-end' }, glow: { position: 'absolute', right: 0, top: 0 } })
 
 /** The stock, shown as up to 5 fanned face-down packets - one per remaining round of
  * TABLEAU_COLUMNS cards (see rules.ts's drawStock) - instead of a single pile with a card count on
@@ -1992,11 +1986,16 @@ function StockFan({ count, onPress, hinted }: { count: number; onPress: () => vo
         <EmptySlot />
       ) : (
         <Pressable onPress={onPress} style={{ width: totalWidth, height }}>
+          {/* The hint's glow round the whole fan, under every packet (HintGlow): one halo reads as "tap here", where a mark
+          on each packet would read as five things to tap, and one on the front packet alone cut across the others. */}
+          {hinted ? (
+            <View pointerEvents='none' style={[stockFanStyles.glow, { height, width: width + fanOffset * (packets - 1) }]}>
+              <HintGlow />
+            </View>
+          ) : null}
           {Array.from({ length: packets }).map((_, i) => {
             const packetStyle = { position: 'absolute' as const, right: i * fanOffset, top: 0 }
-            // Only the frontmost packet (the one this round actually deals from) shows the ring -
-            // highlighting every packet would read as "5 things to tap" instead of "tap here."
-            return <StockPacket key={i} index={i} hinted={hinted && i === packets - 1} style={packetStyle} />
+            return <StockPacket key={i} index={i} style={packetStyle} />
           })}
         </Pressable>
       )}

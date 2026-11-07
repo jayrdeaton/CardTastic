@@ -10,6 +10,7 @@ import { DraggableCard } from './dragdrop/DraggableCard'
 import { DragFlightHandle } from './dragdrop/DragGhostLayer'
 import { DropZone } from './dragdrop/DropZone'
 import { DropZoneRegistry } from './dragdrop/DropZoneRegistry'
+import { HintGlow, hintStacking } from './hintGlow'
 import { PileOverlay } from './PileOverlay'
 import { EmptySlot, PlayingCard } from './PlayingCard'
 import { STOCK_LONG_PRESS_MS, StockHandler, useStockHold } from './stockHold'
@@ -181,10 +182,23 @@ export function StockWaste({ dropZones, stockTopCard, wasteTop, wasteBehind = EM
   // wasteFanStepFor (with the same widenFan), so the two can't drift apart.
   const { width: contextCardWidth } = useCardSize()
   const fanOffset = wasteFanStepFor(cardWidth ?? contextCardWidth, widenFan, gap)
+  // The hint's halo (HintGlow): under the waste's cards while its top card is the hint (not a card still taking off, and
+  // not while the overlay stands in for it); an empty waste or stock glows on its own slot (EmptySlot's `hinted`).
+  const wasteGlowing = !!wasteHinted && !!wasteShown && !wasteHolding && !wasteOverlayVisible
+  const stockGlowing = !!stockHinted
 
   return (
     <View style={[styles.group, gap != null && { gap }, style]}>
-      <View ref={wasteRef} collapsable={false} style={styles.wasteArea}>
+      {/* The waste over the stock unless the stock is the one glowing, and the other way round (hintStacking), so a halo
+      never covers the face beside it. */}
+      <View ref={wasteRef} collapsable={false} style={[styles.wasteArea, hintStacking(!stockGlowing)]}>
+        {/* The hinted top card's halo, under the draw-3 fan's cards as well as the top card, so it shows round the waste
+        and never over the cards fanned behind it. */}
+        {wasteGlowing && (
+          <View style={[styles.wasteGlow, { width: cardWidth ?? contextCardWidth }]} pointerEvents='none'>
+            <HintGlow />
+          </View>
+        )}
         {frozenBehind2 && (
           <View style={[styles.wasteBehindCard, styles.wasteBehindFar, { left: -fanOffset * 2 }]} pointerEvents='none'>
             <PlayingCard card={frozenBehind2} />
@@ -203,12 +217,12 @@ export function StockWaste({ dropZones, stockTopCard, wasteTop, wasteBehind = EM
           card, then the card under both once that one's ghost shows), and not as its own ghost until that ghost painted. The
           tap is lost instead, for the frame or two until the held card's ghost shows. The stock below does pass a tap on:
           its cards are backs, all alike. */}
-          {wasteShown ? <DraggableCard card={wasteShown} selected={wasteSelected && !wasteHolding} hinted={wasteHinted && !wasteHolding} hidden={wasteOverlayVisible} disabled={wasteHolding} registryId={wasteHolding ? (wasteTop?.id ?? null) : undefined} shakeToken={wasteHolding ? undefined : wasteShakeToken} underCard={fanShowsUnder ? null : wasteHolding ? wasteTop : wasteUnder} emptyFallback={fanShowsUnder ? null : <EmptySlot />} onPress={wasteHolding ? undefined : onWastePress} onDrop={wasteHolding ? undefined : onWasteDrop} testID='waste-top' /> : <EmptySlot hinted={wasteHinted} />}
+          {wasteShown ? <DraggableCard card={wasteShown} selected={wasteSelected && !wasteHolding} hidden={wasteOverlayVisible} disabled={wasteHolding} registryId={wasteHolding ? (wasteTop?.id ?? null) : undefined} shakeToken={wasteHolding ? undefined : wasteShakeToken} underCard={fanShowsUnder ? null : wasteHolding ? wasteTop : wasteUnder} emptyFallback={fanShowsUnder ? null : <EmptySlot />} onPress={wasteHolding ? undefined : onWastePress} onDrop={wasteHolding ? undefined : onWasteDrop} testID='waste-top' /> : <EmptySlot hinted={wasteHinted} />}
           {/* Mounted (invisible) whenever there is a waste card, not just during a flight here - see PileOverlay. */}
           {(topHidden || wasteTop) && <PileOverlay visible={wasteOverlayVisible}>{wasteUnderlay ? <PlayingCard card={wasteUnderlay} disabled /> : <EmptySlot />}</PileOverlay>}
         </DropZone>
       </View>
-      <View ref={stockRef} collapsable={false}>
+      <View ref={stockRef} collapsable={false} style={hintStacking(stockGlowing)}>
         {/* ONE press target for the stock, whatever it draws: a back, the empty slot, the frozen look while cards fly into it, the
         card a draw has just taken off. It used to be the card's own press, then the empty slot's, and fast taps were lost (Jay's
         kids, speeding through the stock, 2026-10-16): a press that began on one and ended after the swap to the other went with
@@ -264,6 +278,14 @@ function makeStyles(colors: TableColors) {
     // beneath wasteTopZone (3).
     wasteBehindNear: {
       zIndex: 2
+    },
+    // Under every waste card (zIndex 0, before them), at the top card's spot: the hinted waste's halo.
+    wasteGlow: {
+      bottom: 0,
+      left: 0,
+      position: 'absolute',
+      top: 0,
+      zIndex: 0
     },
     // Always above both wasteBehindCard slots (zIndex 1 and 2 above) - wasteTop is always the
     // frontmost, fully-visible card regardless of wasteHiddenCount.

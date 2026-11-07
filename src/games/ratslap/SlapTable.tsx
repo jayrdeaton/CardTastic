@@ -16,14 +16,15 @@ import { useDispatch } from 'react-redux'
 import { EmptySlot, PlayingCard } from '@/components/PlayingCard'
 import { useMotionReduced } from '@/components/reducedMotion'
 import { SettingsDialog } from '@/components/SettingsDialog'
-import { CHROME_FG, CHROME_FG_MUTED, useTableColors } from '@/components/theme'
+import { CHROME_FG, CHROME_FG_MUTED } from '@/components/theme'
 import { useCardSoundEffects } from '@/components/useCardSounds'
 import { PipFireworks } from '@/components/winning/PipFireworks'
 import { CPU_LEVEL_LABELS, type CpuLevel } from '@/games/table/cpuLevel'
 import { inRect, type Point, type Pose } from '@/games/table/geometry'
+import { PileGlow, usePileGlowPulse } from '@/games/table/PileGlow'
 import { TWO_PLAYER_HUMANS, VS_CPU_HUMANS } from '@/games/table/players'
 import { TableCards, type TableCardSpec } from '@/games/table/TableCards'
-import { type Seat, SeatBadge, TableOverlay, TableSideButtons, useAppActive, useTableSeats } from '@/games/table/TableChrome'
+import { type Seat, SeatBadge, TableOverlay, TableSideButtons, useAppActive, useFaceToFace, useTableSeats } from '@/games/table/TableChrome'
 import { TouchZones } from '@/games/table/TouchZones'
 import { matchStatsActions } from '@/redux/matchStatsSlice'
 
@@ -39,8 +40,6 @@ export const COLLECT_MOVE_MS = 380
 
 /** How many burned cards are drawn: they all lie in one spot, so the newest and the one it covers. */
 const BURNED_DRAWN = 2
-/** The ring round the deck whose turn it is sits this far outside the card (a card back has a white frame of its own). */
-const TURN_RING_GAP = 5
 /** How long a "Slap!" or "Wrong slap" call stays up. */
 const CALL_MS = 900
 /** The result waits for the last pile to reach its winner. */
@@ -83,6 +82,9 @@ export function SlapTable({ game, twoPlayer, rules, cpu }: { game: 'ratslap' | '
 
   const humans = twoPlayer ? TWO_PLAYER_HUMANS : VS_CPU_HUMANS
   const { seats, statsIds } = useTableSeats(twoPlayer)
+  // Player 2's side turned to face them: 2 Player on a phone or tablet only. At a computer it's upright, as against the CPU, and the
+  // halves still split the table top and bottom for each person's taps (TouchZones).
+  const faceToFace = useFaceToFace(twoPlayer)
 
   const [settingsOpen, setSettingsOpen] = useState(false)
   const appActive = useAppActive()
@@ -208,10 +210,10 @@ export function SlapTable({ game, twoPlayer, rules, cpu }: { game: 'ratslap' | '
         else hapticInvalid()
         return
       }
-      markSlap(point, humans.length === 2 && player === 2)
+      markSlap(point, faceToFace && player === 2)
       if (slap(player) === 'won') hapticCard()
     },
-    [humans, play, slap, markSlap, hapticCard, hapticInvalid]
+    [humans, faceToFace, play, slap, markSlap, hapticCard, hapticInvalid]
   )
   const enabled = !settingsOpen && !resultShown && state.winner === null
 
@@ -225,23 +227,26 @@ export function SlapTable({ game, twoPlayer, rules, cpu }: { game: 'ratslap' | '
     newDeal()
   }, [newDeal])
 
+  const glowPulse = usePileGlowPulse()
   const tableCards = useMemo(() => tableCardSpecs(state, layout, origins, departures, reduceMotion), [state, layout, origins, departures, reduceMotion])
 
   return (
     <CardSizeProvider width={layout.cardWidth}>
       <View style={styles.screen} onLayout={handleLayout}>
         {humans.map((player) => (
-          <SlapLabel key={player} game={game} layout={layout} player={player} upsideDown={player === 2} hidden={call?.player === player} />
+          <SlapLabel key={player} game={game} layout={layout} player={player} upsideDown={faceToFace && player === 2} hidden={call?.player === player} />
         ))}
         {state.pile.length === 0 && state.burned.length === 0 ? <EmptySlot style={[styles.pileSlot, { left: layout.center.x - layout.cardWidth / 2, top: layout.center.y - layout.cardHeight / 2 }]} /> : null}
+        {/* The deck whose turn it is glows, under every card: its own backs and a card sliding out from under it. */}
+        {([1, 2] as const).map((player) => (toPlay(state) === player && state.hands[player - 1].length > 0 ? <PileGlow key={player} at={layout.decks[player]} cardWidth={layout.cardWidth} cardHeight={layout.cardHeight} pulse={glowPulse} testID={`${game}-glow-${player}`} /> : null))}
         <TableCards cards={tableCards} cardWidth={layout.cardWidth} cardHeight={layout.cardHeight} testID={`${game}-pile`} />
         {([1, 2] as const).map((player) => (
-          <DeckArea key={player} game={game} player={player} state={state} layout={layout} seat={seats[player]} subtitle={player === 2 && cpu ? CPU_LEVEL_LABELS[cpu] : null} upsideDown={twoPlayer && player === 2} />
+          <DeckArea key={player} game={game} player={player} state={state} layout={layout} seat={seats[player]} subtitle={player === 2 && cpu ? CPU_LEVEL_LABELS[cpu] : null} upsideDown={faceToFace && player === 2} />
         ))}
         {marks.map((mark) => (
           <SlapMarkView key={mark.key} mark={mark} />
         ))}
-        {call ? <CallText call={call} layout={layout} upsideDown={twoPlayer} /> : null}
+        {call ? <CallText call={call} layout={layout} upsideDown={faceToFace} /> : null}
 
         <TouchZones testID={game} twoPlayer={twoPlayer} splitY={layout.center.y} height={layout.height} enabled={enabled} onTouch={handleTouch} />
 
@@ -305,12 +310,11 @@ function SlapMarkView({ mark }: { mark: SlapMark }) {
   )
 }
 
-/** A player's deck near their own edge, with their name and card count, a ring while it's theirs to
- * play, and the challenge they face. Out of cards, an empty slot: they can still slap back in. */
+/** A player's deck near their own edge, with their name and card count, and the challenge they face (the glow under
+ * it while it's theirs to play is the table's, drawn under the cards). Out of cards, an empty slot: they can still slap back in. */
 function DeckArea({ game, player, state, layout, seat, subtitle, upsideDown }: { game: string; player: PlayerIndex; state: RatSlapState; layout: TableLayout; seat: Seat; subtitle: string | null; upsideDown: boolean }) {
   const deck = layout.decks[player]
   const count = state.hands[player - 1].length
-  const turn = toPlay(state) === player
   const challenge = state.challenge?.defender === player ? state.challenge : null
   const triesLeft = challenge ? challenge.requiredChances - challenge.chancesUsed : 0
   const cardStyle: ViewStyle = { left: deck.x - layout.cardWidth / 2, position: 'absolute', top: deck.y - layout.cardHeight / 2 }
@@ -319,8 +323,6 @@ function DeckArea({ game, player, state, layout, seat, subtitle, upsideDown }: {
   const challengeTop = player === 1 ? deck.y - layout.cardHeight / 2 - DECK_LABEL_ROOM : deck.y + layout.cardHeight / 2 + 6
   const flip: ViewStyle = upsideDown ? { transform: [{ rotate: '180deg' }] } : {}
   const top = state.hands[player - 1][count - 1]
-  // The hint ring's color: the one "act here" mark the solitaire games use.
-  const ringColor = useTableColors().hintGreen
   return (
     <View pointerEvents='none' style={StyleSheet.absoluteFill} testID={`${game}-deck-${player}`}>
       {count > 0 && top ? (
@@ -328,7 +330,6 @@ function DeckArea({ game, player, state, layout, seat, subtitle, upsideDown }: {
           {count > 2 ? <PlayingCard card={{ ...top, id: `${top.id}-under-2`, faceUp: false }} disabled style={[cardStyle, styles.under2]} /> : null}
           {count > 1 ? <PlayingCard card={{ ...top, id: `${top.id}-under-1`, faceUp: false }} disabled style={[cardStyle, styles.under1]} /> : null}
           <PlayingCard card={{ ...top, faceUp: false }} disabled style={cardStyle} />
-          {turn ? <View style={[styles.turnRing, { borderColor: ringColor, height: layout.cardHeight + TURN_RING_GAP * 2, left: deck.x - layout.cardWidth / 2 - TURN_RING_GAP, top: deck.y - layout.cardHeight / 2 - TURN_RING_GAP, width: layout.cardWidth + TURN_RING_GAP * 2 }]} /> : null}
         </>
       ) : (
         <EmptySlot style={cardStyle} />
@@ -392,7 +393,6 @@ const styles = StyleSheet.create({
   slapLabelText: { color: SLAP_LABEL_COLOR },
   slapMark: { alignItems: 'center', height: SLAP_MARK_SIZE, justifyContent: 'center', position: 'absolute', width: SLAP_MARK_SIZE },
   subtitle: { color: CHROME_FG_MUTED },
-  turnRing: { borderRadius: 12, borderWidth: 3, position: 'absolute' },
   under1: { transform: [{ translateX: 2.5 }, { translateY: 2.5 }] },
   under2: { transform: [{ translateX: 5 }, { translateY: 5 }] }
 })

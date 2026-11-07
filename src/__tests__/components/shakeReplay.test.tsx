@@ -134,14 +134,14 @@ type CellProps = { card: Card | null; exposed: boolean; shakeToken?: number }
 function pyramidCell({ card: c, exposed, shakeToken }: CellProps) {
   return (
     <CardSizeProvider width={64}>
-      <PyramidCell index={15} card={c} exposed={exposed} hidden={false} selected={false} hinted={false} shakeToken={shakeToken} dimHeld={false} left={0} top={0} zIndex={5} dropZones={cellRegistry} onSelect={() => {}} onDrop={async () => false} />
+      <PyramidCell index={15} card={c} exposed={exposed} hidden={false} selected={false} shakeToken={shakeToken} dimHeld={false} left={0} top={0} zIndex={5} dropZones={cellRegistry} onSelect={() => {}} onDrop={async () => false} />
     </CardSizeProvider>
   )
 }
 function tripeaksCell({ card: c, exposed, shakeToken }: CellProps) {
   return (
     <CardSizeProvider width={64}>
-      <TriPeaksCell index={9} card={c} exposed={exposed} hidden={false} hinted={false} shakeToken={shakeToken} left={0} top={0} zIndex={2} dropZones={cellRegistry} onTap={() => {}} onDrop={async () => false} />
+      <TriPeaksCell index={9} card={c} exposed={exposed} hidden={false} shakeToken={shakeToken} left={0} top={0} zIndex={2} dropZones={cellRegistry} onTap={() => {}} onDrop={async () => false} />
     </CardSizeProvider>
   )
 }

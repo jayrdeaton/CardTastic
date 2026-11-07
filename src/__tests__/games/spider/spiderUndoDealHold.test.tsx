@@ -25,7 +25,6 @@ import { resetGameInProgress, seedGameInProgress } from '../../../testUtils/game
 //   - Reanimated: a shared value assigned through withDelay takes its value after that delay (fake time) and re-renders its
 //     owner - the way the UI thread runs it - so a deal ghost turns visible at its real take-off, not at the render that
 //     launched it (the repo-wide mock resolves withDelay at once and never re-renders).
-//   - overlayFrame: measured (ready) at once, positions passed straight through.
 //   - PlayingCard: a ghost's face reports painted a passive effect after it mounts, unless a test holds it.
 //   - DragGhostLayer: a faithful card registry (a card measures only while some pile registers it).
 // "Drawn" = a PlayingCard whose host view has no ancestor at opacity 0.
@@ -89,11 +88,6 @@ jest.mock('react-native-reanimated', () => {
     }
   }
 })
-jest.mock('@/components/overlayFrame', () => ({
-  ...jest.requireActual('@/components/overlayFrame'),
-  useOverlayFrame: () => ({ overlayRef: { current: null }, frame: {}, ready: true }),
-  toLocal: (x: number, y: number) => ({ x, y })
-}))
 jest.mock('@/components/dragdrop/DragGhostLayer', () => ({ DragGhostProvider: ({ children }: { children: unknown }) => children, useDragGhost: () => mockGhost }))
 jest.mock('@/components/PlayingCard', () => {
   const { useContext, useEffect } = require('react')

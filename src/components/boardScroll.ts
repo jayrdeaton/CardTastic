@@ -23,7 +23,7 @@ import { LayoutChangeEvent, NativeScrollEvent, NativeSyntheticEvent, ScrollView 
  * least height (`holdHeight`): while the board is moving, everything it had when the movement began;
  * once it rests, what shows what is on screen (offset + viewport). The player scrolls back up
  * themselves, and once the board rests at the top the hold lets go and the board stops scrolling if it
- * fits. A new deal (the move count drops back) and a new footprint (a rotation) are laid out from
+ * fits. A new deal (the move count drops back) and a new footprint (the phone turned) are laid out from
  * scratch, so they start back at the top: a new deal remounts the scroll view (`boardKey`), so it is at
  * the top in the same commit that mounts the new board - before the deal measures where its cards go,
  * which a scrollTo could not guarantee (the native offset reaches the shadow tree a commit or more later).

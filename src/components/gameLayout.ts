@@ -1,5 +1,5 @@
 import { CARD_ASPECT, faceUpFanOffset } from '@tastic/cards'
-import { rotateInsets, useRotatedWindowDimensions, useRotation } from '@tastic/core'
+import { useWindowDimensions } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { CARD_GAP_MAX, CARD_GAP_MIN } from './cardLayout'
@@ -10,11 +10,11 @@ import { MIN_FACE_DOWN_FAN_SCALE, MIN_FACE_UP_FAN_SCALE } from './columnTops'
  *
  * Portrait chrome (GameChrome's title/corner band on top, moves/timer + footer band on the bottom)
  * reserves GAME_CONTENT_TOP_PADDING + GAME_CONTENT_BOTTOM_PADDING = 154pt of a screen that's ~870pt
- * tall, which is fine. Rotated to landscape the same screen is only ~402pt tall, and 154pt of that
- * gone to chrome (plus a card row sized from the much WIDER rotated width) left no room for a
+ * tall, which is fine. Turned to landscape the same screen is only ~402pt tall, and 154pt of that
+ * gone to chrome (plus a card row sized from the much WIDER width) left no room for a
  * board at all - the tableau scrolled off the short axis with its playable bottom cards out of view.
- * So a "wide" layout (any window whose rotated footprint is landscape - a phone held sideways, an
- * iPad, a desktop browser) drops the vertical chrome bands instead: the corner buttons stay put,
+ * So a "wide" layout (any window wider than tall - a phone held sideways, an iPad in landscape, a
+ * desktop browser) drops the vertical chrome bands instead: the corner buttons stay put,
  * the footer and the moves/timer readout move into narrow side gutters, and the cards are then
  * sized to whichever of width or HEIGHT runs out first (fitCardWidthToHeight) instead of width alone.
  * Portrait (any window taller than wide) is byte-for-byte what it always was.
@@ -53,12 +53,12 @@ export interface LayoutInsets {
 }
 
 export interface GameLayout {
-  /** The rotated footprint is landscape - the side-chrome layout is in effect. */
+  /** The window is wider than tall - the side-chrome layout is in effect. */
   isWide: boolean
-  /** The window's footprint AFTER rotation (width/height already swapped under a +/-90deg hold). */
+  /** The window's size. */
   windowWidth: number
   windowHeight: number
-  /** Safe-area insets remapped onto the rotated frame's own edges (see @tastic/core's rotateInsets). */
+  /** The safe-area insets. */
   insets: LayoutInsets
   /** Width reserved on the LEADING (local left, the moves/score/time readout) / TRAILING (local right, the
    * footer controls) side for the chrome columns -
@@ -68,7 +68,7 @@ export interface GameLayout {
   leftGutter: number
   rightGutter: number
   /** Width the board may occupy (the window minus both gutters, capped) - what a screen feeds
-   * cardLayoutForRow (minus GAME_CONTENT_PADDING*2) and what RotatedContentGutter caps its content column at. */
+   * cardLayoutForRow (minus GAME_CONTENT_PADDING*2) and what GameContentGutter caps its content column at. */
   contentWidth: number
   /** Vertical space reserved above/below the board (on top of the insets). */
   topPadding: number
@@ -89,14 +89,10 @@ export function computeGameLayout(windowWidth: number, windowHeight: number, ins
   return { isWide, windowWidth, windowHeight, insets, leftGutter, rightGutter, contentWidth, topPadding, bottomPadding, availableHeight }
 }
 
-/** The live layout for the current window + rotation. Reads useRotatedWindowDimensions()/rotateInsets()
- * rather than raw useWindowDimensions()/useSafeAreaInsets(), so it describes the footprint a rotated
- * game screen actually renders into (both are exact identities at 0deg / with no OrientationProvider). */
+/** The live layout for the current window and safe-area insets. */
 export function useGameLayout(): GameLayout {
-  const { width, height } = useRotatedWindowDimensions()
-  const rotation = useRotation()
-  const insets = rotateInsets(useSafeAreaInsets(), rotation)
-  return computeGameLayout(width, height, insets)
+  const { width, height } = useWindowDimensions()
+  return computeGameLayout(width, height, useSafeAreaInsets())
 }
 
 /* ---- board height model -------------------------------------------------------------------- */

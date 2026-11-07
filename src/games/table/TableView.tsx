@@ -1,5 +1,5 @@
 // A card table's view (Six-Card Golf, Trash, War, Speed, Gin Rummy, Four Crowns): the cards (TableCards: every card one view as it moves
-// between piles, a hand and a grid), a ring round each card the player whose move it is can tap, a tap target over it
+// between piles, a hand and a grid), a glow under each card the player whose move it is can tap (PileGlow), a tap target over it
 // (or, where two people play at once, the game's own touch zones), each player's name row and prompt line facing them,
 // the notes beside the middle row, and the Home and Settings buttons. What the cards are, which can be tapped and what
 // the lines say is each game's own (its screen); this only draws them.
@@ -9,15 +9,14 @@ import { Pressable, StyleSheet, View } from 'react-native'
 import { Text } from 'react-native-paper'
 
 import { EmptySlot } from '@/components/PlayingCard'
-import { CHROME_FG, CHROME_FG_MUTED, useTableColors } from '@/components/theme'
+import { CHROME_FG, CHROME_FG_MUTED } from '@/components/theme'
 
 import { cardRect, type Point, type Pose } from './geometry'
+import { PileGlow, usePileGlowPulse } from './PileGlow'
 import type { PlayerIndex } from './players'
 import { TableCards, type TableCardSpec } from './TableCards'
 import { type Seat, SeatBadge, TableSideButtons, tableStyles } from './TableChrome'
 
-/** The ring round a card that can be tapped sits this far outside it (a card has a white frame of its own). */
-const RING_GAP = 5
 const SPOT_LABEL_SIZE = 30
 /** A note's box, centered on its pose: room for Gin Rummy's "Hand 2 · Knock at 7 · Spades double". */
 const NOTE_WIDTH = 260
@@ -44,8 +43,8 @@ export interface TableTarget {
   at: Point
   label: string
   onPress: () => void
-  /** False for a card with no ring round it: every card in a hand you pick from (Gin Rummy's). */
-  ring?: boolean
+  /** False for a card with no glow under it: every card in a hand you pick from (Gin Rummy's). */
+  glow?: boolean
 }
 
 /** A player's name row: who they are, a muted subtitle (the CPU's level), their score on the right, and whether it's
@@ -77,7 +76,7 @@ export function TableView({
   cards,
   dealKey,
   targets = [],
-  rings = [],
+  glows = [],
   labels,
   prompts,
   notes,
@@ -94,10 +93,10 @@ export function TableView({
   cards: TableCardSpec[]
   /** Changes with every deal, so every card is drawn afresh and flies in from the stock. */
   dealKey: number
-  /** Cards that can be tapped, each ringed with a tap target over it. */
+  /** Cards that can be tapped, each glowing, with a tap target over it. */
   targets?: TableTarget[]
-  /** Cards ringed with no tap target of their own (a game whose touch zones take the taps). */
-  rings?: Point[]
+  /** Cards glowing with no tap target of their own (a game whose touch zones take the taps). */
+  glows?: Point[]
   /** Each seat's name row; a seat left out has no row, prompt or note (Four Crowns draws its other players' own). */
   labels: Partial<Record<PlayerIndex, TableLabel>>
   prompts: Partial<Record<PlayerIndex, string | null>>
@@ -114,13 +113,16 @@ export function TableView({
   /** Drawn over everything: a result card. */
   children?: ReactNode
 }) {
-  const ringColor = useTableColors().hintGreen
+  const pulse = usePileGlowPulse()
   const { cardWidth, cardHeight } = layout
   const slotStyle = (at: Point) => ({ left: at.x - cardWidth / 2, position: 'absolute' as const, top: at.y - cardHeight / 2 })
   return (
     <View style={StyleSheet.absoluteFill}>
       {emptySlots.map((at) => (
         <EmptySlot key={`${at.x}-${at.y}`} style={slotStyle(at)} />
+      ))}
+      {[...targets.filter((target) => target.glow !== false).map((target) => target.at), ...glows].map((at) => (
+        <PileGlow key={`glow-${at.x}-${at.y}`} at={at} cardWidth={cardWidth} cardHeight={cardHeight} pulse={pulse} testID={`${game}-glow`} />
       ))}
       <TableCards key={dealKey} cards={cards} cardWidth={cardWidth} cardHeight={cardHeight} testID={`${game}-cards`} />
       {overCards}
@@ -130,9 +132,6 @@ export function TableView({
             {text}
           </Text>
         </View>
-      ))}
-      {[...targets.filter((target) => target.ring !== false).map((target) => target.at), ...rings].map((at) => (
-        <View key={`ring-${at.x}-${at.y}`} pointerEvents='none' style={[styles.ring, { borderColor: ringColor, height: cardHeight + RING_GAP * 2, left: at.x - cardWidth / 2 - RING_GAP, top: at.y - cardHeight / 2 - RING_GAP, width: cardWidth + RING_GAP * 2 }]} />
       ))}
       {([1, 2] as const).map((player) => {
         const label = labels[player]
@@ -192,7 +191,6 @@ const styles = StyleSheet.create({
   name: { flexShrink: 1 },
   note: { alignItems: 'center', height: 20, position: 'absolute', width: NOTE_WIDTH },
   prompt: { color: CHROME_FG, flexShrink: 1, opacity: 0.85 },
-  ring: { borderRadius: 12, borderWidth: 3, position: 'absolute' },
   spotLabel: { alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.55)', borderRadius: SPOT_LABEL_SIZE / 2, height: SPOT_LABEL_SIZE, justifyContent: 'center', position: 'absolute', width: SPOT_LABEL_SIZE },
   spotLabelText: { color: '#fff' },
   target: { backgroundColor: 'transparent', position: 'absolute' }

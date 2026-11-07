@@ -1,6 +1,5 @@
 import { useKeepAwake } from '@rific/core'
 import { Pressable, withFeedback } from '@rific/feedback-press'
-import { rotateInsets, useRotation } from '@tastic/core'
 import { ConfirmDialog, CornerActionButtons } from '@tastic/hud/chrome'
 import { useRouter } from 'expo-router'
 import { ReactNode, useEffect, useRef, useState } from 'react'
@@ -18,10 +17,10 @@ import { HintHandler, useAutoHint } from './autoHint'
 import { useBoardScroll } from './boardScroll'
 import { CARD_FONT_FAMILY } from './cardFont'
 import { AUTO_PLAY_STAGGER_MS } from './dragdrop/dragSpring'
+import { GameContentGutter } from './GameContentGutter'
 import { GAME_CONTENT_BOTTOM_PADDING, GAME_CONTENT_MAX_WIDTH, GAME_CONTENT_PADDING, GAME_CONTENT_TOP_PADDING, useGameLayout } from './gameLayout'
 import { useHintHold } from './hintHold'
 import { HINT_GLIDE_LANDED_MS } from './hinting/HintGlideLayer'
-import { RotatedContentGutter } from './RotatedContentGutter'
 import { RulesDialog } from './RulesDialog'
 import { SettingsDialog } from './SettingsDialog'
 import { CHROME_FG } from './theme'
@@ -313,10 +312,7 @@ function ElapsedClock({ getElapsedSeconds, clockRunning, won, children }: { getE
  * one, and the header/footer regrouping that followed it) only has to happen once. */
 export function GameChrome({ title, subtitle, onNewGame, onUndo: undoMove, onUndoUsed, undoDisabled, onHint, autoHintKey, hintShowing, hintDisabled, won, winRevealed, hasProgress, getElapsedSeconds, pauseClock, par, clockRunning, movesCount, settingsContent, rules, children }: GameChromeProps) {
   const router = useRouter()
-  // The safe-area insets remapped onto the rotated frame's own edges (a no-op at rotation 0). The dialogs
-  // below need no rotation of their own - see the Portal.Host in withGameProviders.
-  const rotation = useRotation()
-  const insets = rotateInsets(useSafeAreaInsets(), rotation)
+  const insets = useSafeAreaInsets()
   const { isWide, windowWidth, leftGutter, topPadding, bottomPadding } = useGameLayout()
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [rulesOpen, setRulesOpen] = useState(false)
@@ -448,12 +444,11 @@ export function GameChrome({ title, subtitle, onNewGame, onUndo: undoMove, onUnd
 
   const hintButton = <FooterButton icon='lightbulb-on-outline' label='Hint' layout={footerLayout} disabled={hintDisabled && !won} inert={footerInert} onPress={() => onHint()} onLongPress={hintHold.onLongPress} onPressOut={hintHold.onPressOut} delayLongPress={HOLD_LONG_PRESS_MS} />
 
-  // The dialogs below (Settings, Rules, the New Game confirm) portal into the Portal.Host that
-  // withGameProviders mounts INSIDE the rotated frame - so they lay out against the rotated size and
-  // need no transform of their own (rotation={0}). See withGameProviders for why it lives there.
+  // The dialogs below (Settings, Rules, the New Game confirm) portal into the Portal.Host that withGameProviders mounts
+  // around the screen's providers, so they paint above every ghost overlay. See withGameProviders.
   return (
     <View style={styles.screen}>
-      <RotatedContentGutter maxContentWidth={GAME_CONTENT_MAX_WIDTH} style={styles.gutterRow}>
+      <GameContentGutter maxContentWidth={GAME_CONTENT_MAX_WIDTH} style={styles.gutterRow}>
         {/* No scrollbar on web (Jay, 2026-10-16): the board's scroller ends at the control column, so a scrollbar
         sat mid-window, left of the column and the Settings button, and a classic one also took ~15pt the board was
         sized for, cutting off the last column. The wheel and trackpad still scroll it, and Achievements/Profiles
@@ -466,7 +461,7 @@ export function GameChrome({ title, subtitle, onNewGame, onUndo: undoMove, onUnd
           hid it without the player noticing - the readout is the toggle now. */}
           <View style={[styles.boardWrap, { paddingBottom: (isWide ? bottomPadding : GAME_CONTENT_BOTTOM_PADDING) + insets.bottom }]}>{children}</View>
         </ScrollView>
-      </RotatedContentGutter>
+      </GameContentGutter>
 
       {/* Paired with the reserved Back button on the left, like a standard nav-bar title - still
       the rules trigger in portrait (the portrait footer has no Rules icon; the wide layout's column does),
@@ -645,7 +640,6 @@ export function GameChrome({ title, subtitle, onNewGame, onUndo: undoMove, onUnd
         confirmLabel='New Game'
         cancelLabel='Cancel'
         icon='alert-circle-outline'
-        rotation={0}
         onConfirm={() => {
           setConfirmNewGameVisible(false)
           onNewGame()

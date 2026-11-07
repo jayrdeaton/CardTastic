@@ -1,7 +1,6 @@
 import { useVibration } from '@rific/feedback-press'
 import { useToast } from '@rific/toaster'
 import { CardSizeProvider, faceUpFanOffset } from '@tastic/cards'
-import { useRotation } from '@tastic/core'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { StyleSheet, View } from 'react-native'
 
@@ -17,7 +16,7 @@ import { DropZone } from '@/components/dragdrop/DropZone'
 import { GAME_CONTENT_PADDING, GameChrome } from '@/components/GameChrome'
 import { useGameLayout } from '@/components/gameLayout'
 import { GameLoading } from '@/components/GameLoading'
-import { wasteFanScreenShift } from '@/components/overlayFrame'
+import { hintStacking } from '@/components/hintGlow'
 import { PileDragConfig, PileView } from '@/components/PileView'
 import { countHiddenUntilDealt } from '@/components/reducedMotionFlag'
 import type { StockRequestOptions } from '@/components/stockHold'
@@ -150,8 +149,8 @@ function KlondikeScreenInner() {
   // alongside the undo stack in startNewGame/restoreGame below.
   const hintsUsedRef = useRef(false)
   const session = useGameSession()
-  // Width the board may occupy - rotation-aware, and net of the side-chrome gutters in the wide (landscape)
-  // layout; the plain window width (capped) in portrait. See gameLayout.ts.
+  // Width the board may occupy - net of the side-chrome gutters in the wide (landscape) layout; the plain window width
+  // (capped) in portrait. See gameLayout.ts.
   const { contentWidth } = useGameLayout()
   // Sized by the width alone, in both layouts: in the wide layout a column too long for the ~400pt of height scrolls
   // rather than shrinking every card to fit it (Jay, 2026-10-14: big cards in landscape, and scroll a bit sometimes).
@@ -159,7 +158,6 @@ function KlondikeScreenInner() {
   const tableauMaxHeight = useTableauMaxHeight(cardWidth)
   const ghost = useDragGhost()
   const playHintGlide = useHintGlide(state, ghost.cardRegistry, dropZones)
-  const rotation = useRotation()
   const deal = useDealAnimator()
   const stockViewRef = useRef<View>(null)
   /** Waste slot's own wrapping View, for measuring its screen position as a group-ghost flight's
@@ -512,12 +510,13 @@ function KlondikeScreenInner() {
         const n = p.drawnCards.length
         const entries: DealCardSpec[] = p.drawnCards.map((card, i) => {
           const distanceFromTop = n - 1 - i // i=0 is the oldest/farthest card, i=n-1 is the new top
-          const shift = wasteFanScreenShift(fanOffset * distanceFromTop, rotation)
+          // The fan runs left of the top card.
+          const shift = fanOffset * distanceFromTop
           return {
             cardId: card.id,
             card: { ...card, faceUp: true },
             from: origin,
-            to: { x: topPos.x + shift.x, y: topPos.y + shift.y },
+            to: { x: topPos.x - shift, y: topPos.y },
             delayMs: i * DEAL_STAGGER_MS
           }
         })
@@ -928,11 +927,11 @@ function KlondikeScreenInner() {
           .slice()
           .reverse() // newest/top (last dealt) first
           .map((card, i) => {
-            const shift = wasteFanScreenShift(fanOffset * i, rotation)
+            const shift = fanOffset * i
             return {
               cardId: card.id,
               card: { ...card, faceUp: true },
-              from: { x: topPos.x + shift.x, y: topPos.y + shift.y },
+              from: { x: topPos.x - shift, y: topPos.y },
               to: stockDest,
               delayMs: i * DEAL_STAGGER_MS
             }
@@ -1525,7 +1524,7 @@ function KlondikeScreenInner() {
             }
             const hiddenCount = flying.filter((f) => f.to.zone === 'tableau' && f.to.index === colIndex).reduce((sum, f) => sum + f.count, 0)
             return (
-              <DropZone key={colIndex} registry={dropZones} pileRef={{ zone: 'tableau', index: colIndex }} style={[styles.tableauColumn, { width: cardWidth }]}>
+              <DropZone key={colIndex} registry={dropZones} pileRef={{ zone: 'tableau', index: colIndex }} style={[hintStacking(hintCountFor(activeHint, { zone: 'tableau', index: colIndex }) > 0), styles.tableauColumn, { width: cardWidth }]}>
                 <PileView cards={col} onPressCard={(card, indexFromTop, measure) => handleCardTap({ zone: 'tableau', index: colIndex }, card.id, measure, indexFromTop)} maxHeight={tableauMaxHeight} drag={dragConfig} hiddenCount={hiddenCount} hiddenCardIds={dealHiddenIds} shakeCardId={shake?.cardId} shakeCount={shake?.count} shakeToken={shake?.token} hintCount={hintCountFor(activeHint, { zone: 'tableau', index: colIndex })} />
               </DropZone>
             )

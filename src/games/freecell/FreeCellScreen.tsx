@@ -1,7 +1,6 @@
 import { useVibration } from '@rific/feedback-press'
 import { useToast } from '@rific/toaster'
 import { CardSizeProvider, faceUpFanOffset } from '@tastic/cards'
-import { useRotation } from '@tastic/core'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { StyleSheet, View } from 'react-native'
 
@@ -17,7 +16,7 @@ import { DropZone } from '@/components/dragdrop/DropZone'
 import { GAME_CONTENT_PADDING, GameChrome } from '@/components/GameChrome'
 import { CARD_HEIGHT_RATIO, useGameLayout } from '@/components/gameLayout'
 import { GameLoading } from '@/components/GameLoading'
-import { rectOffsetToScreenPoint } from '@/components/overlayFrame'
+import { hintStacking } from '@/components/hintGlow'
 import { PileDragConfig, PileView } from '@/components/PileView'
 import { EmptySlot, PlayingCard } from '@/components/PlayingCard'
 import type { UndoRequestOptions } from '@/components/undoHold'
@@ -116,7 +115,8 @@ export function FreecellCell({
   // freecell holds one card, so a card that leaves always leaves it empty (and the frozen copy is the empty slot).
   const flyingHere = isFlyingHere && !holding
   return (
-    <View>
+    // Under the piles beside it while it glows (hintStacking), so they cover its halo.
+    <View style={hintStacking(!!highlighted && !holding)}>
       {shown ? <DraggableCard card={shown} hidden={flyingHere} disabled={holding} registryId={holding ? (card?.id ?? null) : undefined} shakeToken={holding ? undefined : shakeToken} hinted={highlighted && !holding} emptyFallback={<EmptySlot />} onPress={holding ? undefined : onPress} onDrop={onDrop} /> : <EmptySlot hinted={highlighted} />}
       {flyingHere && (
         <View style={StyleSheet.absoluteFill} pointerEvents='none'>
@@ -152,10 +152,9 @@ function FreeCellScreenInner() {
   // alongside the undo stack in startNewGame/restoreGame below.
   const hintsUsedRef = useRef(false)
   const session = useGameSession()
-  // Width the board may occupy - rotation-aware, and net of the side-chrome gutters in the wide (landscape)
-  // layout; the plain window width (capped) in portrait. See gameLayout.ts.
+  // Width the board may occupy - net of the side-chrome gutters in the wide (landscape) layout; the plain window width
+  // (capped) in portrait. See gameLayout.ts.
   const { contentWidth } = useGameLayout()
-  const rotation = useRotation()
   // The tableau's gap floor is doubled so the top row can squeeze its foundations and freecells to half of it and
   // pool the rest between the two groups - see SPLIT_TOP_ROW_MIN_GAP.
   // Sized by the width alone, in both layouts: in the wide layout a column too long for the ~400pt of height scrolls
@@ -305,13 +304,11 @@ function FreeCellScreenInner() {
         return
       }
       const top = columnTopsFor[step.colIndex][step.rowIndex]
-      // The column rect is a screen-space bounding box: under a fake landscape rotation the fan runs along another screen
-      // axis, so the offset is composed through the column's centre (see rectOffsetToScreenPoint) - not `rect.y + top`.
       built.push({
         cardId: step.cardId,
         card: step.card,
         from: origin,
-        to: rectOffsetToScreenPoint(rect, 0, top, cardWidth, cardHeight, rotation),
+        to: { x: rect.x, y: rect.y + top },
         delayMs: step.visitOrder * dealStaggerMs(sequence.length)
       })
     })
@@ -1085,7 +1082,7 @@ function FreeCellScreenInner() {
           {state.tableau.map((col, colIndex) => {
             const hiddenCount = flying.filter((f) => f.to.zone === 'tableau' && f.to.index === colIndex).reduce((sum, f) => sum + f.count, 0)
             return (
-              <DropZone key={colIndex} registry={dropZones} pileRef={{ zone: 'tableau', index: colIndex }} style={[styles.tableauColumn, { width: cardWidth }]}>
+              <DropZone key={colIndex} registry={dropZones} pileRef={{ zone: 'tableau', index: colIndex }} style={[hintStacking(hintCountFor(activeHint, { zone: 'tableau', index: colIndex }) > 0), styles.tableauColumn, { width: cardWidth }]}>
                 <PileView cards={col} onPressCard={onPressCardConfigs[colIndex]} maxHeight={tableauMaxHeight} drag={dragConfigs[colIndex]} runCountKey={supermoveCap} hiddenCount={hiddenCount} hiddenCardIds={dealHiddenIds} dimUnplayable={settings.dimUnplayable && !dimAfterDeal.held} shakeCardId={shake?.cardId} shakeCount={shake?.count} shakeToken={shake?.token} hintCount={hintCountFor(activeHint, { zone: 'tableau', index: colIndex })} />
               </DropZone>
             )

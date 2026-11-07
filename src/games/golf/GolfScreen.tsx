@@ -19,6 +19,7 @@ import { DropZone } from '@/components/dragdrop/DropZone'
 import { GAME_CONTENT_PADDING, GameChrome } from '@/components/GameChrome'
 import { useFittedCardWidth, useFittedGap, useGameLayout } from '@/components/gameLayout'
 import { GameLoading } from '@/components/GameLoading'
+import { hintStacking } from '@/components/hintGlow'
 import { PileDragConfig, PileView } from '@/components/PileView'
 import { StockWaste } from '@/components/StockWaste'
 import type { UndoRequestOptions } from '@/components/undoHold'
@@ -80,8 +81,8 @@ function GolfScreenInner() {
   // The deal's game under the rule it was dealt with: what its stats and par are kept for (engine/variants.ts).
   const variant = golfVariant(golfRankWrap)
   const controller = useMemo(() => createGolfController(golfRankWrap), [golfRankWrap])
-  // Width the board may occupy - rotation-aware, and net of the side-chrome gutters in the wide (landscape)
-  // layout; the plain window width (capped) in portrait. See gameLayout.ts.
+  // Width the board may occupy - net of the side-chrome gutters in the wide (landscape) layout; the plain window width
+  // (capped) in portrait. See gameLayout.ts.
   const { contentWidth, isWide } = useGameLayout()
   const { cardWidth: widthCardWidth, gap: widthGap } = cardLayoutForRow(contentWidth - GAME_CONTENT_PADDING * 2, TABLEAU_COLUMNS)
   // The width-derived size in portrait (unchanged); in the wide layout also shrunk until the whole board
@@ -121,11 +122,8 @@ function GolfScreenInner() {
   const playHintGlide = useHintGlide(state, ghost.cardRegistry, dropZones)
   const deal = useDealAnimator()
   const stockViewRef = useRef<View>(null)
-  // The waste slot itself (StockWaste's wasteRef) - exactly card-sized, which matters under a rotated
-  // (landscape) board: a measured bounding box is only convertible into the overlay's frame when it has
-  // the card's own footprint (see overlayFrameMath's toLocal), and wrapping the whole two-card stock/waste
-  // pair instead would measure to the wrong corner at +/-90deg. Used as the win cascade's single chain
-  // origin (see runWinCascade) - the real waste top card is hidden once the win is revealed
+  // The waste slot itself (StockWaste's wasteRef) - exactly card-sized, so its measured rect is the card's own. Used as the
+  // win cascade's single chain origin (see runWinCascade) - the real waste top card is hidden once the win is revealed
   // (wasteTopCard below), same as every other game's own foundation/discard pile during its cascade.
   const wasteViewRef = useRef<View>(null)
   const [dealHiddenIds, setDealHiddenIds] = useState<Set<string>>(new Set())
@@ -699,7 +697,7 @@ function GolfScreenInner() {
             // move's destination is always the waste pile, never a tableau column.
             const hiddenCount = flying.filter((f) => f.to.zone === 'tableau' && f.to.index === colIndex).reduce((sum, f) => sum + f.count, 0)
             return (
-              <DropZone key={colIndex} registry={dropZones} pileRef={{ zone: 'tableau', index: colIndex }} style={[styles.tableauColumn, { width: cardWidth }]}>
+              <DropZone key={colIndex} registry={dropZones} pileRef={{ zone: 'tableau', index: colIndex }} style={[hintStacking(hintCountFor(activeHint, { zone: 'tableau', index: colIndex }) > 0), styles.tableauColumn, { width: cardWidth }]}>
                 {/* dimUnplayable: Golf has no multi-card runs at all - getRunCount below is
                 unconditionally 1 for the true top card and 0 for everything else, so every buried
                 card in a column is permanently unplayable, not just sometimes-stuck like

@@ -76,8 +76,7 @@ export function LoadingIndicator() {
 /** The full-screen loading state every game screen returns while it waits on its saved-board read
  * (`if (!state) return <GameLoading />`): the indicator dead center both ways, over the app-wide felt
  * (TableBackground, mounted once behind the whole Stack - so this needs no background of its own, and
- * the felt doesn't change when the board replaces it). Fills whatever it's rendered in, so it sits
- * inside the rotated frame (@tastic/core's FakeLandscapeView) and centers within it at any angle. */
+ * the felt doesn't change when the board replaces it). Fills whatever it's rendered in. */
 export function GameLoading() {
   return (
     <View style={styles.screen}>

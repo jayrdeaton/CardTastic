@@ -151,20 +151,3 @@ describe('every way seat 1 changes hands', () => {
     expect(store.getState().playerSettings[GUEST_PLAYER_ID]).toBeUndefined()
   })
 })
-
-// Lock Orientation went with @tastic/shell 0.5 (2026-11-06, the OS turns the screen). A lock filed with a player's
-// settings (by 1.2.8, or since the CardTastic move) is never loaded, and a 1.2.8 lock left in `settings` stays as it was.
-describe('a lock filed before Lock Orientation went', () => {
-  it("isn't loaded with the player's settings, and leaves a 1.2.8 lock in `settings` as it was", () => {
-    // As 1.2.8 filed it: the lock inside the settings.
-    const filed = JSON.parse(JSON.stringify({ settings: { ...DEFAULT_SETTINGS, klondikeDraw: 3, lockOrientation: true, lockedRotation: 180 }, sound: { enabled: true }, haptic: { vibrate: true }, keepAwake: { enabled: true }, theme: { appearance: 'system', blur: true } })) as PlayerSettings
-    const store = makeStore({ playerSettings: { [kid.id]: filed } })
-    // The lock a 1.2.8 store left in `settings`, kept for a rollback.
-    store.send({ type: 'persist/REHYDRATE', key: 'root', payload: { settings: { ...DEFAULT_SETTINGS, lockOrientation: false } } } as Action)
-
-    store.pick(kid.id)
-
-    expect(store.getState().settings).toMatchObject({ klondikeDraw: 3, lockOrientation: false })
-    expect(store.getState().settings).not.toHaveProperty('lockedRotation')
-  })
-})

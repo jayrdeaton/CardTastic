@@ -22,6 +22,9 @@ export const trash: GameDefinition = {
   blurb: 'Fill your spots, Ace to 10.',
   reducers: { trashGuide: trashGuide.reducer },
   seatTwo: ['cpu', 'person'],
+  // Face to face on a phone or tablet; at a computer the two people sit side by side, here and at the table, where player 2's side is
+  // drawn upright (useFaceToFace).
+  sideBySideAtComputer: true,
   useLoadout: useTrashLoadout,
   resumable: false,
   keepStatusBar: false,

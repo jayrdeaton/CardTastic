@@ -1,5 +1,3 @@
-import type { ViewRotation } from '@tastic/core'
-
 import type { EightsDrawRule, EightsHandRule, EightsSpecials } from '@/games/crazyeights/engine/types'
 import type { CrownsDeck, CrownsFaces, CrownsLastTurns } from '@/games/fourcrowns/engine/types'
 import type { GinBonusRule, GinHelp, GinKnockRule, GinTarget } from '@/games/ginrummy/engine/types'
@@ -129,19 +127,9 @@ export interface Settings {
   // red/black ink as light mode) stays the default look; this is an opt-in alternative, not a
   // replacement.
   invertDarkModeColors: boolean
-  // Lock Orientation is gone (2026-11-06: @tastic/core 0.15 and @tastic/shell 0.5, the OS turns the screen and its own
-  // rotation lock replaces it). A store saved by 1.2.8 keeps it in `settings` for one release (LegacySettingsLock).
   // The Settings row's own Reduce Motion. Applied together with the device's setting (either one turns it on), see
   // components/reducedMotion.tsx for what it does. Defaults false.
   reduceMotion: boolean
-}
-
-/** Lock Orientation as Settings held it until the CardTastic move (2026-10-29): what a store saved by 1.2.8 has in
- * `settings`, kept there untouched for one release so an OTA rolled back to 1.2.8 finds the lock, and what a player's
- * filed settings may carry (redux/playerSettingsSlice.ts, which never loads it). Nothing reads it since 2026-11-06. */
-export interface LegacySettingsLock {
-  lockOrientation?: boolean
-  lockedRotation?: ViewRotation
 }
 
 /** The Auto Hint setting's choices, in the order its Settings row cycles through them. */

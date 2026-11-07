@@ -6,7 +6,6 @@ import Animated, { useAnimatedStyle, useSharedValue } from 'react-native-reanima
 import { FaceLoadTrackingContext, useGhostPaintGate } from '@/components/cardFacePaint'
 import { scaledMs } from '@/components/dragdrop/dragSpring'
 import { startHintGlide } from '@/components/hintAnimation'
-import { OverlayFrame, toLocal, useOverlayFrame } from '@/components/overlayFrame'
 import { PlayingCard } from '@/components/PlayingCard'
 import { Card } from '@/engine/types'
 
@@ -26,7 +25,7 @@ export interface HintGlideSpec {
   from: ScreenRect
   /** Where the anchor lands: the card it lands on (with `toOffsetY` the fan step below it) or an empty slot. */
   to: ScreenRect
-  /** Added to the landing point in the board's own (rotated) frame: the fan step when landing on a fanned card, else 0. */
+  /** Added to the landing point: the fan step when landing on a fanned card, else 0. */
   toOffsetY: number
   /** The fan step between the cards of a run, in the board's own frame (0 for one card). */
   step: number
@@ -59,19 +58,12 @@ export function useHintGlideLayer(): HintGlideController | null {
   return useContext(HintGlideContext)
 }
 
-/** A rect's size in the board's own frame: a quarter turn swaps the axes of a screen-space bounding box. */
-function localSize(rect: ScreenRect, frame: OverlayFrame): { width: number; height: number } {
-  const rot = frame.rotation.value
-  return rot === 90 || rot === -90 ? { width: rect.height, height: rect.width } : { width: rect.width, height: rect.height }
-}
-
 /**
  * The hint's see-through glide, drawn over the board and under every flight ghost (it sits inside the other ghost
  * providers, see withGameProviders). At most one glide at a time: a new one replaces it. It never registers anything,
  * hides anything or claims a flight, so nothing about the game waits on it.
  */
 export function HintGlideProvider({ children }: { children: ReactNode }) {
-  const { overlayRef, frame } = useOverlayFrame()
   const [glide, setGlide] = useState<{ gen: number; spec: HintGlideSpec } | null>(null)
   const genRef = useRef(0)
   const play = useCallback((spec: HintGlideSpec) => setGlide({ gen: ++genRef.current, spec }), [])
@@ -81,23 +73,18 @@ export function HintGlideProvider({ children }: { children: ReactNode }) {
   return (
     <HintGlideContext.Provider value={controller}>
       {children}
-      <View ref={overlayRef} pointerEvents='none' style={StyleSheet.absoluteFill}>
-        {glide ? <HintGlideGhost key={glide.gen} gen={glide.gen} spec={glide.spec} frame={frame} onDone={handleDone} /> : null}
+      <View pointerEvents='none' style={StyleSheet.absoluteFill}>
+        {glide ? <HintGlideGhost key={glide.gen} gen={glide.gen} spec={glide.spec} onDone={handleDone} /> : null}
       </View>
     </HintGlideContext.Provider>
   )
 }
 
-function HintGlideGhost({ gen, spec, frame, onDone }: { gen: number; spec: HintGlideSpec; frame: OverlayFrame; onDone: (gen: number) => void }) {
+function HintGlideGhost({ gen, spec, onDone }: { gen: number; spec: HintGlideSpec; onDone: (gen: number) => void }) {
   const cardHeight = spec.cardWidth / CARD_ASPECT
-  // Worked out once, at mount: the glide is a short preview of a board that isn't moving.
-  const [path] = useState(() => {
-    const fromSize = localSize(spec.from, frame)
-    const toSize = localSize(spec.to, frame)
-    const a = toLocal(spec.from.x, spec.from.y, fromSize.width, fromSize.height, frame)
-    const b = toLocal(spec.to.x, spec.to.y, toSize.width, toSize.height, frame)
-    return { from: a, to: { x: b.x, y: b.y + spec.toOffsetY } }
-  })
+  // Worked out once, at mount: the glide is a short preview of a board that isn't moving. The measured window coordinates
+  // are this overlay's own: it fills the game screen, which starts at the window's origin.
+  const [path] = useState(() => ({ from: { x: spec.from.x, y: spec.from.y }, to: { x: spec.to.x, y: spec.to.y + spec.toOffsetY } }))
   const x = useSharedValue(path.from.x)
   const y = useSharedValue(path.from.y)
   const opacity = useSharedValue(0)
