@@ -86,9 +86,24 @@ export interface DayTally {
   seconds: number
 }
 
+/** Deals that ended in one hour of a day, and how many were won. */
+export interface HourTally {
+  played: number
+  won: number
+}
+
+/** One hour's play, and each game's share of it. */
+export interface HourRecord extends HourTally {
+  games: Partial<Record<SolitaireGameId, HourTally>>
+}
+
 /** One calendar day's play, and each game's share of it (the Stats screen's game picker narrows the calendar to one). */
 export interface DayRecord extends DayTally {
   games: Partial<Record<SolitaireGameId, DayTally>>
+  // By the local hour a deal ended in, '0' to '23', for the calendar's hourly view. Kept from 2026-11-08, and only for
+  // the last HOUR_LOG_DAYS days (statsEngine.ts): the hourly view shows a week at most, and a year of hours would grow the
+  // saved stats several times over. Absent on older days.
+  hours?: Record<string, HourRecord>
 }
 
 export interface ProfileStats extends DayStreakState {

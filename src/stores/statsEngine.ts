@@ -3,7 +3,7 @@ import { applyDayPlayed, applyResult, applyWinStreak, DEFAULT_DAY_STREAK, DEFAUL
 import { parFor } from '@/engine/par'
 import { gameOfVariant, VARIANT_IDS, VariantId, variantsOfGame } from '@/engine/variants'
 
-import { DayRecord, DayTally, DealMetrics, ProfileStats, SOLITAIRE_GAME_IDS, SolitaireGameId, StatsState, VariantStats } from './statsTypes'
+import { DayRecord, DayTally, DealMetrics, HourRecord, HourTally, ProfileStats, SOLITAIRE_GAME_IDS, SolitaireGameId, StatsState, VariantStats } from './statsTypes'
 import { DEFAULT_PROFILE_STATS, DEFAULT_VARIANT } from './statsValidation'
 
 // An abandoned deal (see statsTypes.ts) has no win metrics to record.
@@ -42,11 +42,37 @@ function bumpTally(tally: DayTally, result: 'win' | 'loss', metrics: DealMetrics
   return { played: tally.played + 1, won: tally.won + (result === 'win' ? 1 : 0), seconds: tally.seconds + (metrics.seconds ?? 0) }
 }
 
-// One more deal on the day it ended (local date), for the day and for its game.
+/** How many days back a day keeps its hours (DayRecord.hours): the hourly view reaches back nine days at most (a 640pt
+ * column of 18pt columns, four to a day), so a month leaves plenty. */
+export const HOUR_LOG_DAYS = 31
+
+const EMPTY_HOUR: HourRecord = { played: 0, won: 0, games: {} }
+
+function bumpHourTally(tally: HourTally, result: 'win' | 'loss'): HourTally {
+  return { played: tally.played + 1, won: tally.won + (result === 'win' ? 1 : 0) }
+}
+
+// The day key HOUR_LOG_DAYS days before `now`'s: a day before it has its hours dropped.
+function hourLogCutoff(now: Date): string {
+  return localDateString(new Date(now.getFullYear(), now.getMonth(), now.getDate() - HOUR_LOG_DAYS))
+}
+
+// One more deal on the day and in the hour it ended (local), for each and for its game. The hours of a day past
+// HOUR_LOG_DAYS go as the next deal ends.
 function bumpDay(days: Record<string, DayRecord>, game: SolitaireGameId, result: 'win' | 'loss', metrics: DealMetrics, now: Date): Record<string, DayRecord> {
   const date = localDateString(now)
   const day = days[date] ?? EMPTY_DAY
-  return { ...days, [date]: { ...bumpTally(day, result, metrics), games: { ...day.games, [game]: bumpTally(day.games[game] ?? EMPTY_TALLY, result, metrics) } } }
+  const hourKey = String(now.getHours())
+  const hour = day.hours?.[hourKey] ?? EMPTY_HOUR
+  const next = { ...days, [date]: { ...bumpTally(day, result, metrics), games: { ...day.games, [game]: bumpTally(day.games[game] ?? EMPTY_TALLY, result, metrics) }, hours: { ...day.hours, [hourKey]: { ...bumpHourTally(hour, result), games: { ...hour.games, [game]: bumpHourTally(hour.games[game] ?? EMPTY_HOUR, result) } } } } }
+  const cutoff = hourLogCutoff(now)
+  for (const key of Object.keys(next)) {
+    if (key < cutoff && next[key].hours) {
+      const { hours: _dropped, ...rest } = next[key]
+      next[key] = rest
+    }
+  }
+  return next
 }
 
 function bumpBucket(prev: ProfileStats, variant: VariantId, result: 'win' | 'loss', metrics: DealMetrics, now: Date): ProfileStats {
@@ -190,7 +216,15 @@ export function getGameView(stats: ProfileStats, game: SolitaireGameId): Profile
   const days: Record<string, DayRecord> = {}
   for (const [date, day] of Object.entries(stats.days)) {
     const tally = day.games[game]
-    if (tally && tally.played > 0) days[date] = { ...tally, games: { [game]: tally } }
+    if (!tally || tally.played === 0) continue
+    days[date] = { ...tally, games: { [game]: tally } }
+    if (!day.hours) continue
+    const hours: Record<string, HourRecord> = {}
+    for (const [hour, record] of Object.entries(day.hours)) {
+      const share = record.games[game]
+      if (share && share.played > 0) hours[hour] = { ...share, games: { [game]: share } }
+    }
+    days[date].hours = hours
   }
   const streaks = Object.keys(days)
     .sort()

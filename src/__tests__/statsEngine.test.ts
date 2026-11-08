@@ -1,5 +1,5 @@
 import { parFor } from '@/engine/par'
-import { applyDealAbandoned, applyDealWon, applyHintUsed, applyUndoUsed, getAverageWin, getBestParRatio, getBestStreak, getBusiestDay, getCardsDealt, getGamesWon, getGameView, getGameWins, getLeastPlayedGame, getMostPlayedGame, getTotalHintsUsed, getTotalMoves, getTotalPlayed, getTotalSeconds, getTotalUndosUsed, getTotalWins, getTotalWinsWithoutHint } from '@/stores/statsEngine'
+import { applyDealAbandoned, applyDealWon, applyHintUsed, applyUndoUsed, getAverageWin, getBestParRatio, getBestStreak, getBusiestDay, getCardsDealt, getGamesWon, getGameView, getGameWins, getLeastPlayedGame, getMostPlayedGame, getTotalHintsUsed, getTotalMoves, getTotalPlayed, getTotalSeconds, getTotalUndosUsed, getTotalWins, getTotalWinsWithoutHint, HOUR_LOG_DAYS } from '@/stores/statsEngine'
 import type { StatsState } from '@/stores/statsTypes'
 import { DEFAULT_STATS, isValidStats, migrateStats } from '@/stores/statsValidation'
 
@@ -190,15 +190,27 @@ describe('days and the all-games win streak', () => {
   const won = { seconds: 100, moves: 80, score: 180, usedHint: false }
   const day = (d: number, h = 12) => new Date(2026, 9, d, h)
 
-  it('logs each deal that ended on its local day, with its game, win and seconds', () => {
+  it('logs each deal that ended on its local day and in its local hour, with its game, win and seconds', () => {
     let stats = applyDealWon(DEFAULT_STATS, 'klondike', won, null, day(22, 9))
     stats = applyDealAbandoned(stats, 'spider-4suit', null, day(22, 23), { seconds: 40, moves: 12 })
     stats = applyDealWon(stats, 'klondike-draw3', won, null, day(23, 1))
+    stats = applyDealAbandoned(stats, 'klondike', null, new Date(2026, 9, 23, 1, 59), { seconds: 20, moves: 5 })
     expect(stats.days).toEqual({
-      '2026-10-22': { played: 2, won: 1, seconds: 140, games: { klondike: { played: 1, won: 1, seconds: 100 }, spider: { played: 1, won: 0, seconds: 40 } } },
-      '2026-10-23': { played: 1, won: 1, seconds: 100, games: { klondike: { played: 1, won: 1, seconds: 100 } } }
+      '2026-10-22': { played: 2, won: 1, seconds: 140, games: { klondike: { played: 1, won: 1, seconds: 100 }, spider: { played: 1, won: 0, seconds: 40 } }, hours: { '9': { played: 1, won: 1, games: { klondike: { played: 1, won: 1 } } }, '23': { played: 1, won: 0, games: { spider: { played: 1, won: 0 } } } } },
+      '2026-10-23': { played: 2, won: 1, seconds: 120, games: { klondike: { played: 2, won: 1, seconds: 120 } }, hours: { '1': { played: 2, won: 1, games: { klondike: { played: 2, won: 1 } } } } }
     })
     expect(getBusiestDay(stats)).toEqual({ date: '2026-10-22', played: 2 })
+  })
+
+  it("drops a day's hours once it is a month back, keeping the day", () => {
+    let stats = applyDealWon(DEFAULT_STATS, 'klondike', won, null, new Date(2026, 9, 1, 9))
+    stats = applyDealWon(stats, 'klondike', won, null, new Date(2026, 9, 2, 9))
+    // HOUR_LOG_DAYS (31) days after Oct 2: Oct 1 is past it, Oct 2 isn't yet.
+    stats = applyDealWon(stats, 'klondike', won, null, new Date(2026, 10, 2, 9))
+    expect(HOUR_LOG_DAYS).toBe(31)
+    expect(stats.days['2026-10-01']).toEqual({ played: 1, won: 1, seconds: 100, games: { klondike: { played: 1, won: 1, seconds: 100 } } })
+    expect(stats.days['2026-10-02'].hours).toEqual({ '9': { played: 1, won: 1, games: { klondike: { played: 1, won: 1 } } } })
+    expect(stats.days['2026-11-02'].hours?.['9']?.played).toBe(1)
   })
 
   it('keeps one win streak across every game and rule set, which a loss in any of them breaks', () => {
@@ -227,7 +239,13 @@ describe('days and the all-games win streak', () => {
     expect(spider.variants.klondike.record.played).toBe(0)
     expect(spider.variants['spider-4suit'].record.played).toBe(1)
     expect(Object.keys(spider.days).sort()).toEqual(['2026-10-20', '2026-10-21', '2026-10-22'])
-    expect(spider.days['2026-10-21']).toEqual({ played: 1, won: 0, seconds: 30, games: { spider: { played: 1, won: 0, seconds: 30 } } })
+    expect(spider.days['2026-10-21']).toEqual({ played: 1, won: 0, seconds: 30, games: { spider: { played: 1, won: 0, seconds: 30 } }, hours: { '12': { played: 1, won: 0, games: { spider: { played: 1, won: 0 } } } } })
+    // A day from before the hour log keeps none, and a game with no share of the day's kept hours gets an empty log.
+    const { hours: _h, ...unlogged } = stats.days['2026-10-20']
+    const partial = { ...stats.days['2026-10-21'], hours: { '15': { played: 1, won: 1, games: { klondike: { played: 1, won: 1 } } } } }
+    const older = getGameView({ ...stats, days: { ...stats.days, '2026-10-20': unlogged, '2026-10-21': partial } }, 'spider')
+    expect(older.days['2026-10-20'].hours).toBeUndefined()
+    expect(older.days['2026-10-21'].hours).toEqual({})
     expect(spider).toMatchObject({ distinctDaysPlayed: 3, currentDayStreak: 3, bestDayStreak: 3, lastPlayedDate: '2026-10-22' })
     const klondike = getGameView(stats, 'klondike')
     expect(klondike).toMatchObject({ distinctDaysPlayed: 2, currentDayStreak: 1, bestDayStreak: 1 })
