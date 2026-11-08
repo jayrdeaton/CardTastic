@@ -61,4 +61,19 @@ describe('useGinMatch', () => {
     })
     expect(result.current.state.phase).toBe('discard')
   })
+
+  // A rule changed in the match's Settings sheet "Applies to next game" (Jay, 2026-11-08): Rematch deals on the rules it's
+  // handed, and keeps the last match's when handed none.
+  it('a rematch plays on the rules it is handed, or the last match’s', async () => {
+    const { result } = await renderHook(() => useGinMatch({ rules: DEFAULT_GIN_RULES, cpu: null, paused: false, dealMs: 0, changed: jest.fn(), initialState: createGinMatch(7) }))
+    await act(async () => {
+      result.current.rematch()
+    })
+    expect(result.current.state.rules).toEqual(DEFAULT_GIN_RULES)
+    const oklahomaToFifty = { ...DEFAULT_GIN_RULES, target: 50 as const, knock: 'oklahoma' as const }
+    await act(async () => {
+      result.current.rematch(oklahomaToFifty)
+    })
+    expect(result.current.state.rules).toEqual(oklahomaToFifty)
+  })
 })

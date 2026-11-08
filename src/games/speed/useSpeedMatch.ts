@@ -57,8 +57,8 @@ export function useSpeedMatch({ rules, cpu, paused, dealMs, changed, seed = rand
   /** Drawing by hand: a card from the player's draw pile into an empty spot. */
   const draw = useCallback((player: PlayerIndex) => dealt && apply(drawCard(stateRef.current, player)), [dealt, apply])
 
-  const rematch = useCallback(() => {
-    const next = createSpeedMatch(latest.current.seed(), stateRef.current.rules)
+  const rematch = useCallback((rules?: SpeedRules) => {
+    const next = createSpeedMatch(latest.current.seed(), rules ?? stateRef.current.rules)
     stateRef.current = next
     setState(next)
     setDeal((n) => n + 1)

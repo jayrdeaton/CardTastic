@@ -24,12 +24,14 @@ import { otherPlayer, type PlayerIndex, TWO_PLAYER_HUMANS, VS_CPU_HUMANS } from 
 import { type TableCardSpec } from '@/games/table/TableCards'
 import { type Seat, type TableCardContent, TableOverlay, useAppActive, useFaceToFace, useTableSeats } from '@/games/table/TableChrome'
 import { type TableLabel, type TableTarget, TableView } from '@/games/table/TableView'
+import { useNextRound } from '@/games/table/useNextRound'
 import { useSettled, useTableSize } from '@/games/table/useTable'
 import { useSettings } from '@/hooks/useSettings'
 import { matchStatsActions } from '@/redux/matchStatsSlice'
 
 import { gridOf, matchWinner, showingScore, toMove, totals } from './engine/rules'
 import { type GolfState, GRID_COLUMNS, GRID_SIZE } from './engine/types'
+import { SIX_CARD_GOLF_RULE_KEYS } from './ruleSettings'
 import { useGolfMatch } from './useGolfMatch'
 import { type SixCardGolfRoundSettings } from './useSixCardGolfLoadout'
 
@@ -86,6 +88,7 @@ export function SixCardGolfScreen() {
 
   // The CPU holds while a dialog is open or the app is away, and while cards are being dealt (useGolfMatch). A hole's
   // scores show once its cards have been turned over long enough to read.
+  const nextRound = useNextRound('sixcardgolf', mode, round, SIX_CARD_GOLF_RULE_KEYS)
   const match = useGolfMatch({ holes: round.sixCardGolfHoles, cpu, paused: settingsOpen || !appActive, dealMs: reduceMotion ? 0 : DEAL_MS, changed })
   const { state, dealt } = match
   const holeDone = state.phase === 'holeOver' || state.phase === 'matchOver'
@@ -140,7 +143,7 @@ export function SixCardGolfScreen() {
       <View style={styles.screen} onLayout={onLayout}>
         <TableView game='sixcardgolf' layout={layout} cards={cards} dealKey={match.deal} targets={targets} labels={{ 1: label(1), 2: label(2) }} prompts={prompts} notes={notes} call={null} emptySlots={[...(state.stock.length === 0 ? [layout.stock] : []), ...(state.discard.length === 0 ? [layout.discard] : [])]} onSettings={() => setSettingsOpen(true)}>
           {scoresShown && state.phase === 'holeOver' ? <TableOverlay humans={humans} content={(viewer) => holeContent(state, viewer, seats)} actionLabel='Next Hole' onAction={match.nextHole} testID='sixcardgolf-hole' /> : null}
-          {scoresShown && state.phase === 'matchOver' ? <TableOverlay humans={humans} content={(viewer) => matchContent(state, viewer, seats)} actionLabel='Rematch' onAction={match.rematch} testID='sixcardgolf-result' /> : null}
+          {scoresShown && state.phase === 'matchOver' ? <TableOverlay humans={humans} content={(viewer) => matchContent(state, viewer, seats)} actionLabel='Rematch' onAction={() => match.rematch(nextRound().sixCardGolfHoles)} testID='sixcardgolf-result' /> : null}
           {scoresShown && state.phase === 'matchOver' && winner !== null && humans.includes(winner) ? <PipFireworks /> : null}
         </TableView>
       </View>

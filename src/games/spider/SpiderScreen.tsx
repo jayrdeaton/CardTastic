@@ -58,7 +58,6 @@ import { loadGameInProgress, SavedGame, saveGameInProgress } from '@/stores/game
 
 import { buildSpiderDealSequence } from './dealSequence'
 import { createSpiderController, SpiderState } from './rules'
-import { SpiderSettingsSection } from './SpiderSettingsSection'
 
 const TABLEAU_COLUMNS = 10
 // Stock always starts a game with exactly 50 cards (104 total minus the 54 dealt into the tableau,
@@ -1843,7 +1842,7 @@ function SpiderScreenInner() {
 
   return (
     <CardSizeProvider width={cardWidth}>
-      <GameChrome onUndoUsed={() => recordUndoUsed(variant)} title='Spider' subtitle={`${numSuits} Suit${numSuits > 1 ? 's' : ''}`} onNewGame={handleNewGame} onUndo={handleUndo} undoDisabled={history.length === 0} onHint={handleHint} autoHintKey={state} hintShowing={!!activeHint} hintDisabled={won || stuck} won={won} winRevealed={winRevealed} hasProgress={session.moves > 0} getElapsedSeconds={session.getElapsed} pauseClock={session.setPaused} par={parFor(variant)} clockRunning={session.started && !won && !stuck} movesCount={session.moves} settingsContent={<SpiderSettingsSection />} rules={SPIDER_RULES}>
+      <GameChrome onUndoUsed={() => recordUndoUsed(variant)} title='Spider' subtitle={`${numSuits} Suit${numSuits > 1 ? 's' : ''}`} onNewGame={handleNewGame} onUndo={handleUndo} undoDisabled={history.length === 0} onHint={handleHint} autoHintKey={state} hintShowing={!!activeHint} hintDisabled={won || stuck} won={won} winRevealed={winRevealed} hasProgress={session.moves > 0} getElapsedSeconds={session.getElapsed} pauseClock={session.setPaused} par={parFor(variant)} clockRunning={session.started && !won && !stuck} movesCount={session.moves} rules={SPIDER_RULES}>
         <View style={[styles.topRow, { width: cardWidth * TABLEAU_COLUMNS + gap * (TABLEAU_COLUMNS - 1) }]}>
           <View style={[styles.completedGroup, { gap }]}>
             {Array.from({ length: 8 }).map((_, i) => {

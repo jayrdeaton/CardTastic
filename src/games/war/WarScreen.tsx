@@ -22,6 +22,7 @@ import { type TableCardSpec } from '@/games/table/TableCards'
 import { type Seat, type TableCardContent, TableOverlay, useAppActive, useFaceToFace, useTableSeats } from '@/games/table/TableChrome'
 import { type TableLabel, TableView } from '@/games/table/TableView'
 import { TouchZones } from '@/games/table/TouchZones'
+import { useNextRound } from '@/games/table/useNextRound'
 import { useSettled, useTableSize } from '@/games/table/useTable'
 import { useSettings } from '@/hooks/useSettings'
 import { matchStatsActions } from '@/redux/matchStatsSlice'
@@ -29,6 +30,7 @@ import { matchStatsActions } from '@/redux/matchStatsSlice'
 import { canPlay, handOf } from './engine/rules'
 import { SHORT_GAME_BATTLES, type WarState } from './engine/types'
 import { battleCardPose, type WarLayout, warLayout } from './layout'
+import { WAR_RULE_KEYS } from './ruleSettings'
 import { type WarRoundSettings } from './useWarLoadout'
 import { useWarMatch } from './useWarMatch'
 
@@ -103,12 +105,14 @@ export function WarScreen() {
     [twoPlayer, layout, play, hapticCard]
   )
 
+  const nextRound = useNextRound('war', mode, round, WAR_RULE_KEYS)
   const rematch = useCallback(() => {
     battlesWon.current = { 1: 0, 2: 0 }
     setDepartures([])
     setGames((n) => n + 1)
-    newMatch()
-  }, [newMatch])
+    const next = nextRound()
+    newMatch({ length: next.warLength, down: next.warDown })
+  }, [newMatch, nextRound])
 
   const label = (player: PlayerIndex): TableLabel => ({ seat: seats[player], subtitle: null, score: cardsLabel(handOf(state, player).length), active: canPlay(state, player) })
   const prompts: Partial<Record<PlayerIndex, string | null>> = {}

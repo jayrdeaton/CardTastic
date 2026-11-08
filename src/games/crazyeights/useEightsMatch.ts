@@ -61,9 +61,9 @@ export function useEightsMatch({ cpus, rules, paused, holder, dealMs, changed, s
   const drawCard = useCallback((player: number) => apply(draw(stateRef.current, player)), [apply])
   const name = useCallback((player: number, suit: Suit) => apply(nameSuit(stateRef.current, player, suit)), [apply])
 
-  /** The next game: the next player first. */
-  const again = useCallback(() => {
-    const next = rematch(stateRef.current, latest.current.seed())
+  /** The next game: the next player first, on `rules` (the last game's if left out). */
+  const again = useCallback((rules?: EightsRules) => {
+    const next = rematch(stateRef.current, latest.current.seed(), rules)
     stateRef.current = next
     setState(next)
     setDeal((n) => n + 1)

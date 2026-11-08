@@ -4,7 +4,7 @@ Everything the iOS listing needs. The text lives in `store.config.json` (repo ro
 
 ## Pushed by EAS Metadata (`store.config.json`)
 
-Title, subtitle, promotional text, description, keywords, marketing/support/privacy URLs, copyright, categories (Games > Card, Casual) and the age rating answers (all None, so 4+).
+Title, subtitle, promotional text, description, keywords, marketing/support/privacy URLs, copyright and categories (Games > Card, Casual). Not the age rating: eas-cli (27.5.0 on 2026-11-08) can't send Apple's Social Media answer, which Apple requires since September 2026, so a push with the age rating in it fails on "You must provide a value for the attribute 'socialMedia'". It's set by hand (below).
 
 ```bash
 eas metadata:lint
@@ -14,13 +14,15 @@ eas metadata:lint
 eas metadata:push
 ```
 
-`push` needs the app record to exist in App Store Connect and edits its editable version, setting its number to `store.config.json`'s `apple.version`. Keep that equal to `app.json`'s `expo.version` and bump both together: without it, push sends no version number and Apple refuses the version step (copyright, promo text, description, keywords, support and marketing URLs) while the rest goes through. The first `eas submit` creates the record (named by `eas.json`'s `submit.production.ios.appName`) when you sign in with your Apple ID. Apple's API can't create apps, so with an API key create it first: My Apps > + > New App, bundle ID `com.infinitetoken.solitaire`, primary language English (U.S.). The record exists: it was created as SolitaireTastic for 1.2.5, and the next `push` renames it CardTastic (`title`), which App Store Connect refuses if another app already has that name.
+`push` needs the app record to exist in App Store Connect and edits its editable version, setting its number to `store.config.json`'s `apple.version`. Keep that equal to `app.json`'s `expo.version` and bump both together: without it, push sends no version number and Apple refuses the version step (copyright, promo text, description, keywords, support and marketing URLs) while the rest goes through. The first `eas submit` creates the record (named by `eas.json`'s `submit.production.ios.appName`) when you sign in with your Apple ID. Apple's API can't create apps, so with an API key create it first: My Apps > + > New App, bundle ID `com.infinitetoken.solitaire`, primary language English (U.S.). The record exists: it was created as SolitaireTastic for 1.2.5. **"CardTastic" alone is taken** (2026-11-08: the push failed with "The app name you entered is already being used", though no app by that name shows in an App Store search, so it's another developer's unreleased record), so the store name is "CardTastic: Solitaire & More" and the label under the icon (`app.json`'s `expo.name`) stays CardTastic. Apple only says a name is taken when it's saved, and saves the name, subtitle and privacy URL in one step, so a taken name holds back all three; the version's own text still goes. Push edits the version that is still editable. 1.2.5 was submitted for a manual release and never went live: if it's sitting in Pending Developer Release, cancel that release first (the version becomes editable again and push renumbers it to `apple.version`).
 
-Limits: title 30, subtitle 30, promotional text 170 (editable any time without review), description 4000, keywords 100 in total with the commas. Keywords don't repeat words already in the title or subtitle ("solitaire", "games", "ads" are indexed from the subtitle; "CardTastic" is one word, so it does NOT match a search for "card" or "cards" on its own).
+Limits: title 30, subtitle 30, promotional text 170 (editable any time without review), description 4000, keywords 100 in total with the commas. Keywords don't repeat words already in the title or subtitle ("solitaire" is indexed from the title, "ad", "free", "card" and "games" from the subtitle; "CardTastic" is one word, so it does NOT match a search for "card" or "cards" on its own).
 
-`releaseNotes` (What's New) is left out for the first version, which has none. Add it to `info.en-US` for every later version.
+`releaseNotes` (What's New) is left out while no version has gone live (nothing has as of 2026-11-08, so the CardTastic version is still the first). Add it to `info.en-US` for every version after the first one released.
 
 ## Screenshots (uploaded by hand)
+
+**Out of date since the CardTastic rename (2026-11-05):** the set below is 1.2.5's. Home now says CardTastic and has Solitaire and Two Player tabs, the stats screen has tabs and pickers, the hint is a glow, "11 Games in One App" is no longer true, and no shot shows a two-player game. Retake them on the build that goes for review, along with the search art ("11 Classic Solitaire Games").
 
 `store/screenshots/iphone-medium/` (1206x2622) goes in the "iPhone 6.1" or 6.3" displays" slot, which App Store Connect requires (a 1320x2868 file there fails with "File dimensions are invalid"). `store/screenshots/iphone/` (1320x2868) is for the optional 6.9" slot, and `store/screenshots/ipad/` (2064x2752) for the 13" iPad slot. Apple scales these to every smaller device. The iPad set is required because `ios.supportsTablet` is on. The order in the folder is the upload order; the first three are what search results show.
 
@@ -56,21 +58,25 @@ Upload in the version's Product Page Information > Header and Search Results (He
 
 **App Privacy:** "No, we don't collect data from this app" (Data Not Collected). Nothing leaves the device except the Expo update check, which carries no personal data (the app version, platform and a random installation ID used to serve the right update), and there is no tracking, so no App Tracking Transparency prompt either. This matches the privacy policy at https://games.infinitetoken.com/privacy. Revisit it if analytics, crash reporting, ads or accounts are ever added.
 
+**Age rating:** every content question None (Simulated Gambling None: no game has bets, chips or money, and Gin Rummy and Four Crowns keep points only), and Messaging and Chat, User-Generated Content, Social Media, Unrestricted Web Access, Advertising, Gambling, Loot Boxes, Parental Controls, Age Assurance and Health or Wellness all No, so 4+. Set by hand in App Information > Age Rating until eas-cli can send the Social Media answer; 1.2.5's answers carry over, but Apple may ask the newer questions before the next submission. Check the rating App Store Connect works out.
+
 **App Review Information:** sign-in not required. Contact: name, email and phone (the phone stays out of `store.config.json`, which is public). Notes:
 
 > No account or sign-in is needed, and there are no in-app purchases or ads.
 >
-> The app turns its own screen using the motion sensor, so the system orientation stays portrait and the app runs full screen on iPad. Turn the device to see the landscape layout. Lock Orientation is in Settings (the cog on the Home screen).
+> Home has two tabs. Solitaire holds eleven one-player games. Two Player holds nine games played against the computer or with other people on the same device: RatSlap, Slapjack, Speed, War, Six-Card Golf and Trash with two people face to face across the screen, and Gin Rummy, Crazy Eights and Four Crowns passing the device between turns (Crazy Eights and Four Crowns take up to four players). Tap a two-player game, leave the opponent as the computer, and tap Ready to play alone.
+>
+> The solitaire games turn with the device. The two-player games stay in portrait on iPhone, since two people sit at either end of the phone.
 >
 > Player profiles are shared through an App Group with other Tastic games by the same developer, if any are installed. No profile, progress or other game data leaves the device.
 >
-> On first launch a three-card How to Play guide appears. Tap Skip to go straight to the games.
+> On first launch a three-card How to Play guide appears, and each two-player game has its own the first time it's opened. Tap Skip to go straight to the game.
 
 **Content Rights:** yes, the app contains third-party content, and the rights are covered: the card artwork is based on SVG-cards by David Bellot and Huub de Beer (LGPL-2.1, credited in Settings), and the card font is DejaVu Serif (Bitstream Vera license).
 
 **License Agreement:** Apple's standard EULA (the default). A custom one only matters for subscriptions, accounts or user content, none of which this app has.
 
-**Pricing and Availability:** Free (0.00 USD base price), 173 countries or regions: every one except China mainland (needs a government game approval number) and Vietnam (needs a game license from a local company). Apple Silicon Mac and Apple Vision Pro availability unticked: the app has never been run on a Mac (no accelerometer, untested window sizing), and Apple marks 1.2.5 as not compatible with Vision Pro. Distribution method Public. Tax category left at the default. No In-App Purchases, Subscriptions, App Store Server Notifications, Game Center or Growth & Marketing items; Age Suitability URL, User Privacy Choices URL and Accessibility URL left blank.
+**Pricing and Availability:** Free (0.00 USD base price), 173 countries or regions: every one except China mainland (needs a government game approval number) and Vietnam (needs a game license from a local company). Apple Silicon Mac and Apple Vision Pro availability unticked: the app has never been run on a Mac (untested window sizing and touch tables), and Apple marks 1.2.5 as not compatible with Vision Pro. Distribution method Public. Tax category left at the default. No In-App Purchases, Subscriptions, App Store Server Notifications, Game Center or Growth & Marketing items; Age Suitability URL, User Privacy Choices URL and Accessibility URL left blank.
 
 **Export compliance:** already answered by `ITSAppUsesNonExemptEncryption: false` in `app.json`, so App Store Connect doesn't ask.
 
@@ -81,8 +87,9 @@ Upload in the version's Product Page Information > Header and Search Results (He
 ## Shipping a version
 
 1. `npm run verify`
-2. `jrd ship build production`
-3. `eas submit -p ios --profile production` (uploads the build to TestFlight)
-4. `eas metadata:push`
-5. Upload the screenshots, and the header and search art, if they changed
-6. In App Store Connect: pick the build, fill in anything new above, and Add for Review
+2. Keep `store.config.json`'s `apple.version` equal to `app.json`'s `expo.version` (a `jrd ship release` bumps app.json; bump store.config.json with it)
+3. `jrd ship build production` (the CardTastic name, the OS rotation and the native package bumps all need a new native build; a local build needs `npx expo prebuild --clean` first, since `ios/` is still `Solitaire.xcodeproj`)
+4. `eas submit -p ios --profile production` (uploads the build to TestFlight)
+5. `eas metadata:push`
+6. Upload the screenshots, and the header and search art, if they changed
+7. In App Store Connect: pick the build, answer the age rating, fill in anything new above, and Add for Review

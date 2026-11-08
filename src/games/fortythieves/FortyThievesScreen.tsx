@@ -65,7 +65,6 @@ import { useSettings } from '@/hooks/useSettings'
 import { loadGameInProgress, SavedGame, saveGameInProgress } from '@/stores/gameInProgress'
 
 import { buildFortyThievesDealSequence } from './dealSequence'
-import { FortyThievesSettingsSection } from './FortyThievesSettingsSection'
 import { canAutoFinish, createFortyThievesController, FortyThievesState, isFullyAutoCompletableWithDraws, nextAutoCompleteMoveWithDraws, nextFinishMove } from './rules'
 
 const TABLEAU_COLUMNS = 10
@@ -799,7 +798,7 @@ function FortyThievesScreenInner() {
 
   return (
     <CardSizeProvider width={cardWidth}>
-      <GameChrome onUndoUsed={() => recordUndoUsed(variant)} title='Forty Thieves' onNewGame={handleNewGame} onUndo={handleUndo} undoDisabled={undoStack.length === 0} onHint={handleHint} autoHintKey={state} hintShowing={!!activeHint} hintDisabled={won || stuck} won={won} winRevealed={winRevealed} hasProgress={session.moves > 0} getElapsedSeconds={session.getElapsed} pauseClock={session.setPaused} par={parFor(variant)} clockRunning={session.started && !won && !stuck} movesCount={session.moves} settingsContent={<FortyThievesSettingsSection />} rules={FORTYTHIEVES_RULES}>
+      <GameChrome onUndoUsed={() => recordUndoUsed(variant)} title='Forty Thieves' onNewGame={handleNewGame} onUndo={handleUndo} undoDisabled={undoStack.length === 0} onHint={handleHint} autoHintKey={state} hintShowing={!!activeHint} hintDisabled={won || stuck} won={won} winRevealed={winRevealed} hasProgress={session.moves > 0} getElapsedSeconds={session.getElapsed} pauseClock={session.setPaused} par={parFor(variant)} clockRunning={session.started && !won && !stuck} movesCount={session.moves} rules={FORTYTHIEVES_RULES}>
         {/* As wide as the tableau, the foundations at its left edge and the waste/stock pair at its right. It used to
         put a fixed 18pt between the two in portrait, which made it 16pt wider than the tableau: it ran off both
         edges of a phone. */}

@@ -3,6 +3,7 @@ import { createElement } from 'react'
 
 import { RulesDialog } from '@/components/RulesDialog'
 import { TRASH_RULES } from '@/constants/gameRules'
+import { MATCH_GAME_TITLES } from '@/games/matchGameTitles'
 import type { RootState } from '@/redux/store'
 
 import { TRASH_GUIDE_VERSION, trashGuide } from './guide'
@@ -12,7 +13,7 @@ import { TrashScreen } from './TrashScreen'
 import { TrashStatsSections } from './TrashStats'
 import { useTrashLoadout } from './useTrashLoadout'
 
-export const TRASH_TITLE = 'Trash'
+export const TRASH_TITLE = MATCH_GAME_TITLES.trash
 
 /** Trash in the pack (pack.ts): for two players, or one against the CPU, seated as in RatSlap. Nothing is hidden from
  * anyone, so it plays on one phone. Its setup screen picks seat 2 and the starting spots; a match isn't saved. */

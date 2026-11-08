@@ -1,7 +1,8 @@
-// A table game's rules on the shell's setup screen: one dropdown pill per rule, the same pill as the seat buttons beside
-// them (@tastic/profile's OptionPicker on the theme's surface), showing the choice in effect. A game with several rules
-// (Crazy Eights, Gin Rummy, Four Crowns) can't give each a row of pills: three rows and the seats run off a phone held
-// sideways. Every choice is a Setting, so it follows the player; a match plays on the snapshot taken at Ready.
+// Seats 3 and 4 on a table game's setup screen (Four Crowns, Crazy Eights: games/table/extraSeats.ts), and the CPUs'
+// level when seat 2's menu can't set it: one dropdown pill each, the same pill as the seat buttons beside them
+// (@tastic/profile's OptionPicker on the theme's surface), showing the choice in effect. They're who's playing; a game's
+// rules are in Settings (components/RuleRows.tsx, Jay, 2026-11-08), summed up on the setup screen by MatchSetup.tsx.
+// Every choice is a Setting, so it follows the player; a match plays on the snapshot taken at Ready.
 
 import { useAutoPaperTheme } from '@rific/auto-paper'
 import { getOptionPickerContentSize, OptionPicker, type OptionPickerOption } from '@tastic/profile'
@@ -10,9 +11,9 @@ import { StyleSheet, View } from 'react-native'
 
 import { useFrameAutoAlign } from '@/components/useFrameAutoAlign'
 
-/** One rule: its menu's choices and the one in effect. Each choice's label says the rule on its own ("Draw One",
- * "Knock at 10"), since the pill shows only the choice, and fits the menu's row: about 140px of the app font at 14
- * (@tastic/profile's menu is 220 wide; "Gin 25, Under 25" is 134, "Draw Until One Fits" 156 is cut off). */
+/** One pill: its menu's choices and the one in effect. Each choice's label says it on its own ("Player 3: CPU"), since
+ * the pill shows only the choice, and fits the menu's row: about 140px of the app font at 14 (@tastic/profile's menu
+ * is 220 wide). */
 export interface TableRule<T extends string = string> {
   key: string
   /** The pill's chip: what kind of rule it is. */
@@ -32,7 +33,7 @@ export function rulePickerIds(game: string, keys: readonly string[]): string[] {
   return keys.map((key) => rulePickerId(game, key))
 }
 
-/** The rules as a wrapping row of dropdown pills, centered. One parent for every pill, so an open menu stacks over the
+/** The pills as a wrapping row, centered. One parent for every pill, so an open menu stacks over the
  * pills after it. */
 export function RulePickers({ game, rules, host, accentColor, dark }: Pick<LoadoutOptionsProps, 'host' | 'accentColor' | 'dark'> & { game: string; rules: TableRule[] }) {
   // Against the CPU the setup screen stacks this row over the seat buttons, a later sibling it only lifts for its own

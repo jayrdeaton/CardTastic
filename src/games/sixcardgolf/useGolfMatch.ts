@@ -66,10 +66,10 @@ export function useGolfMatch({ holes, cpu, paused, dealMs, changed, seed = rando
   }, [apply])
 
   /** A new match: the last one's loser plays first (after a tie, whoever didn't start the last hole). */
-  const rematch = useCallback(() => {
+  const rematch = useCallback((holes?: number) => {
     const last = stateRef.current
     const winner = matchWinner(last)
-    const next = createGolfMatch(latest.current.seed(), latest.current.holes, winner ? otherPlayer(winner) : otherPlayer(last.starter))
+    const next = createGolfMatch(latest.current.seed(), holes ?? latest.current.holes, winner ? otherPlayer(winner) : otherPlayer(last.starter))
     stateRef.current = next
     setState(next)
     setDeal((n) => n + 1)

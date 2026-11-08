@@ -57,7 +57,6 @@ import { loadGameInProgress, SavedGame, saveGameInProgress } from '@/stores/game
 
 import { BOARD_MODEL } from './boardModel'
 import { buildGolfDealSequence } from './dealSequence'
-import { GolfSettingsSection } from './GolfSettingsSection'
 import { createGolfController, GolfState } from './rules'
 
 const TABLEAU_COLUMNS = 7
@@ -632,7 +631,7 @@ function GolfScreenInner() {
 
   return (
     <CardSizeProvider width={cardWidth}>
-      <GameChrome onUndoUsed={() => recordUndoUsed(variant)} title='Golf' onNewGame={handleNewGame} onUndo={handleUndo} undoDisabled={undoStack.length === 0} onHint={handleHint} autoHintKey={state} hintShowing={!!activeHint} hintDisabled={won || stuck} won={won} winRevealed={winRevealed} hasProgress={session.moves > 0} getElapsedSeconds={session.getElapsed} pauseClock={session.setPaused} par={parFor(variant)} clockRunning={session.started && !won && !stuck} movesCount={session.moves} settingsContent={<GolfSettingsSection />} rules={GOLF_RULES}>
+      <GameChrome onUndoUsed={() => recordUndoUsed(variant)} title='Golf' onNewGame={handleNewGame} onUndo={handleUndo} undoDisabled={undoStack.length === 0} onHint={handleHint} autoHintKey={state} hintShowing={!!activeHint} hintDisabled={won || stuck} won={won} winRevealed={winRevealed} hasProgress={session.moves > 0} getElapsedSeconds={session.getElapsed} pauseClock={session.setPaused} par={parFor(variant)} clockRunning={session.started && !won && !stuck} movesCount={session.moves} rules={GOLF_RULES}>
         {/* No foundation row at all (unlike Klondike/FreeCell/Yukon) - Golf has no suit-based
         foundation, just the stock/waste pair. Narrower than the tableau below, so it's centered
         above it by GameChrome's own content styling rather than stretched/pinned to an edge. */}

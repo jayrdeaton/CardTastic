@@ -34,6 +34,7 @@ import { VS_CPU_HUMANS } from '@/games/table/players'
 import { type TableCardSpec } from '@/games/table/TableCards'
 import { SeatBadge, type TableCardContent, TableOverlay, useAppActive, useTableSeats } from '@/games/table/TableChrome'
 import { type TableLabel, type TableTarget, TableView } from '@/games/table/TableView'
+import { useNextRound } from '@/games/table/useNextRound'
 import { useSettled, useTableSize } from '@/games/table/useTable'
 import { useSettings } from '@/hooks/useSettings'
 import { type MatchSeatResult, matchStatsActions } from '@/redux/matchStatsSlice'
@@ -41,6 +42,7 @@ import { type MatchSeatResult, matchStatsActions } from '@/redux/matchStatsSlice
 import { canDraw, canPass, discardTop, drawLimit, fits, handSizeFor, seatAfter, toMove } from './engine/rules'
 import { type EightsState, type EightsTurn } from './engine/types'
 import { type EightsLayout, eightsLayout, fanPoses, handPoses } from './layout'
+import { EIGHTS_RULE_KEYS } from './ruleSettings'
 import { type EightsRoundSettings, eightsRules } from './useEightsLoadout'
 import { useEightsMatch } from './useEightsMatch'
 
@@ -75,6 +77,7 @@ export function CrazyEightsScreen() {
   const { seats, statsIds } = useTableSeats(seat2Person)
   const players = useMemo(() => tablePlayers(seats, seat2Person, round.eightsSeat3, round.eightsSeat4, dark), [seats, seat2Person, round.eightsSeat3, round.eightsSeat4, dark])
   const rules = useMemo(() => eightsRules(round), [round])
+  const nextRound = useNextRound('crazyeights', mode, round, EIGHTS_RULE_KEYS)
   const cpus = useMemo(() => players.map((player): CpuLevel | null => (player.kind === 'cpu' ? round.eightsCpu : null)), [players, round.eightsCpu])
   const passAndPlay = players.filter((player) => player.kind === 'person').length > 1
 
@@ -193,7 +196,7 @@ export function CrazyEightsScreen() {
             />
           ) : null}
           {covered ? <PassCover seat={players[moving!].seat} message={passMessage(state, moving!, players)} onReady={() => setHolder(moving!)} testID='crazyeights-pass' /> : null}
-          {resultShown && over ? <TableOverlay humans={VS_CPU_HUMANS} content={() => resultContent(state, players, passAndPlay)} actionLabel='Rematch' onAction={match.rematch} testID='crazyeights-result' /> : null}
+          {resultShown && over ? <TableOverlay humans={VS_CPU_HUMANS} content={() => resultContent(state, players, passAndPlay)} actionLabel='Rematch' onAction={() => match.rematch(eightsRules(nextRound()))} testID='crazyeights-result' /> : null}
           {resultShown && over && celebrate ? <PipFireworks /> : null}
         </TableView>
       </View>

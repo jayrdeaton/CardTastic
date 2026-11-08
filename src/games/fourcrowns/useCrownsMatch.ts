@@ -57,9 +57,9 @@ export function useCrownsMatch({ cpus, rules, paused, dealMs, changed, seed = ra
   }, [apply])
 
   /** A new match, the last one's highest total playing first. */
-  const rematch = useCallback(() => {
+  const rematch = useCallback((rules?: CrownsRules) => {
     const { totals } = stateRef.current
-    const next = createCrownsMatch(latest.current.seed(), totals.length, totals.indexOf(Math.max(...totals)), stateRef.current.rules)
+    const next = createCrownsMatch(latest.current.seed(), totals.length, totals.indexOf(Math.max(...totals)), rules ?? stateRef.current.rules)
     stateRef.current = next
     setState(next)
     setDeal((n) => n + 1)

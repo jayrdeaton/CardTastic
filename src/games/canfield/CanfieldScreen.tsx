@@ -73,7 +73,6 @@ import { withGameProviders } from '@/games/shared/withGameProviders'
 import { useSettings } from '@/hooks/useSettings'
 import { loadGameInProgress, SavedGame, saveGameInProgress } from '@/stores/gameInProgress'
 
-import { CanfieldSettingsSection } from './CanfieldSettingsSection'
 import { buildCanfieldDealSequence } from './dealSequence'
 import { canAutoFinish, CanfieldState, createCanfieldController, findSafeAutoPlay, isDescendingAltColorCyclic, nextFinishMove } from './rules'
 // LAYOUT DECISION: the board is a grid of 7 card slots - Klondike's. The top row IS Klondike's: the 4
@@ -1121,7 +1120,7 @@ function CanfieldScreenInner() {
 
   return (
     <CardSizeProvider width={cardWidth}>
-      <GameChrome onUndoUsed={() => recordUndoUsed(variant)} title='Canfield' subtitle={`Draw ${canfieldDraw}`} onNewGame={handleNewGame} onUndo={handleUndo} undoDisabled={undoStack.length === 0} onHint={handleHint} autoHintKey={state} hintShowing={!!activeHint} hintDisabled={won || stuck} won={won} winRevealed={winRevealed} hasProgress={session.moves > 0} getElapsedSeconds={session.getElapsed} pauseClock={session.setPaused} par={parFor(variant)} clockRunning={session.started && !won && !stuck} movesCount={session.moves} settingsContent={<CanfieldSettingsSection />} rules={CANFIELD_RULES}>
+      <GameChrome onUndoUsed={() => recordUndoUsed(variant)} title='Canfield' subtitle={`Draw ${canfieldDraw}`} onNewGame={handleNewGame} onUndo={handleUndo} undoDisabled={undoStack.length === 0} onHint={handleHint} autoHintKey={state} hintShowing={!!activeHint} hintDisabled={won || stuck} won={won} winRevealed={winRevealed} hasProgress={session.moves > 0} getElapsedSeconds={session.getElapsed} pauseClock={session.setPaused} par={parFor(variant)} clockRunning={session.started && !won && !stuck} movesCount={session.moves} rules={CANFIELD_RULES}>
         <View style={[styles.topRow, { width: rowWidth }]}>
           <View style={[styles.foundationsGroup, { gap }]}>
             {state.foundation.map((pile, i) => {

@@ -59,10 +59,10 @@ export function useGinMatch({ rules, cpu, paused, dealMs, changed, seed = random
     if (apply(nextHand(stateRef.current))) setDeal((n) => n + 1)
   }, [apply])
 
-  /** A new match, the last one's loser playing first. */
-  const rematch = useCallback(() => {
+  /** A new match, the last one's loser playing first, on `rules` (the last match's if left out). */
+  const rematch = useCallback((rules?: GinRules) => {
     const { winner } = stateRef.current
-    const next = createGinMatch(latest.current.seed(), stateRef.current.rules, winner ? otherPlayer(winner) : 1)
+    const next = createGinMatch(latest.current.seed(), rules ?? stateRef.current.rules, winner ? otherPlayer(winner) : 1)
     stateRef.current = next
     setState(next)
     setDeal((n) => n + 1)

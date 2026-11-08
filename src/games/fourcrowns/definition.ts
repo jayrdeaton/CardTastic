@@ -3,6 +3,7 @@ import { createElement } from 'react'
 
 import { RulesDialog } from '@/components/RulesDialog'
 import { FOUR_CROWNS_RULES } from '@/constants/gameRules'
+import { MATCH_GAME_TITLES } from '@/games/matchGameTitles'
 import type { RootState } from '@/redux/store'
 
 import { FourCrownsPreview } from './FourCrownsPreview'
@@ -12,7 +13,7 @@ import { CROWNS_GUIDE_VERSION, fourCrownsGuide } from './guide'
 import { type CrownsGuideInput, getCrownsGuideSteps } from './guideSteps'
 import { useCrownsLoadout } from './useCrownsLoadout'
 
-export const FOUR_CROWNS_TITLE = 'Four Crowns'
+export const FOUR_CROWNS_TITLE = MATCH_GAME_TITLES.fourcrowns
 
 /** Four Crowns in the pack (pack.ts): the family's rummy with a wild that changes every round, for two to four players.
  * Seat 2 is the shell's (a CPU or a person); seats 3 and 4 are picked on its setup screen. With one person and CPUs it's

@@ -8,8 +8,10 @@ import { Icon, Text } from 'react-native-paper'
 
 import { CardBackArt } from '@/components/CardBackArt'
 import { useSystemReduceMotion } from '@/components/reducedMotion'
+import { GameRulesSection, RuleRows } from '@/components/RuleRows'
 import { SettingsSection } from '@/components/SettingsSection'
 import { useTableColors } from '@/components/theme'
+import { GAME_RULE_SETTINGS, ruleGameForPath } from '@/games/ruleSettings'
 import { useSettings } from '@/hooks/useSettings'
 import { MATCH_GAME_IDS } from '@/redux/matchStatsSlice'
 import { usePlayer } from '@/stores/profiles'
@@ -65,20 +67,16 @@ function PreviewOption({ active, onPress, accessibilityLabel, children }: { acti
   )
 }
 
-/** The Auto Hint row's next choice: Off, 15s, 30s, then Off again. */
-function nextAutoHint(current: AutoHintSeconds): AutoHintSeconds {
-  return AUTO_HINT_CHOICES[(AUTO_HINT_CHOICES.indexOf(current) + 1) % AUTO_HINT_CHOICES.length]
-}
-
 /** The Auto Hint row's caption: Off, After 15 seconds, After 30 seconds. */
 function autoHintCaption(seconds: AutoHintSeconds): string {
   return seconds === 0 ? 'Off' : `After ${seconds} seconds`
 }
 
 /** Solitaire's own Settings sections (the pack's `SettingsSections`), under the rows @tastic/shell's Settings dialog
- * draws itself (Lock Orientation, How to Play on Home, appearance, Blur, sound, haptics, Keep Awake, the version) and
- * under a game's own rule rows: GAMEPLAY (play aids) and CARDS (how the cards look). Every setting here follows the
- * player (playerSettingsSlice.ts). */
+ * draws itself (How to Play on a setup screen, appearance, Blur, sound, haptics, Keep Awake, the version): the rules of
+ * the game the sheet is opened in, if it has any (games/ruleSettings.ts, found from the route, so a game's play screen
+ * and its setup screen show the same), then GAMEPLAY (play aids) and CARDS (how the cards look). Home's sheet has no
+ * game, so no rules. Every setting here follows the player (playerSettingsSlice.ts). */
 export function SettingsSections() {
   const { settings, setSettings } = useSettings()
   const systemReduceMotion = useSystemReduceMotion()
@@ -90,9 +88,12 @@ export function SettingsSections() {
   // unplayable cards, none of which they have.
   const path = usePathname()
   const solitaireRows = !MATCH_GAME_IDS.some((id) => path.endsWith(`/${id}`))
+  const ruleGame = ruleGameForPath(path)
+  const gameRules = ruleGame ? GAME_RULE_SETTINGS[ruleGame] : null
 
   return (
     <>
+      {gameRules && <GameRulesSection title={gameRules.title} rules={gameRules.rules(settings, setSettings)} />}
       {/* Two labeled sections, like hud's APPEARANCE above them (Jay, 2026-10-15: an unlabeled
       section left a bare 24pt gap after the Blur row). Toggle rows sit 4pt apart, hud's own
       toggle-group spacing. */}
@@ -132,26 +133,23 @@ export function SettingsSections() {
               </View>
             </TouchableRipple>
           )}
-          {/* Same bare-row shape as the toggles above, but three-way: each tap steps to the next choice
-          (Off, 15s, 30s, then Off again), and the choice is the row's caption, in the same spot as
-          the other rows' captions (Jay, 2026-10-15: it used to sit on the right, the only row that
-          did). See types/index.ts's own doc comment on autoHintSeconds. */}
+          {/* A choice of three, so a rule row (components/RuleRows.tsx: its choices open in place under it), the shape every
+          game's rules take too; its badge is off while Auto Hint is. See types/index.ts's own doc comment on
+          autoHintSeconds. */}
           {solitaireRows && (
-            <TouchableRipple onPress={() => setSettings({ autoHintSeconds: nextAutoHint(settings.autoHintSeconds) })} style={styles.toggleButton} accessibilityLabel={`Auto hint ${autoHintCaption(settings.autoHintSeconds).toLowerCase()}`}>
-              <View style={styles.toggleContent}>
-                <View style={[styles.iconBadge, { backgroundColor: settings.autoHintSeconds > 0 ? paperColors.tertiaryContainer : paperColors.surfaceVariant }]}>
-                  <Icon source={settings.autoHintSeconds > 0 ? 'lightbulb-auto' : 'lightbulb-off-outline'} size={18} color={settings.autoHintSeconds > 0 ? paperColors.tertiary : paperColors.onSurfaceVariant} />
-                </View>
-                <View style={styles.flexShrink}>
-                  <Text variant='bodyLarge' style={{ color: paperColors.onSurface }}>
-                    Auto Hint
-                  </Text>
-                  <Text variant='bodySmall' numberOfLines={1} style={{ color: paperColors.onSurfaceVariant }}>
-                    {autoHintCaption(settings.autoHintSeconds)}
-                  </Text>
-                </View>
-              </View>
-            </TouchableRipple>
+            <RuleRows
+              rules={[
+                {
+                  key: 'autoHint',
+                  label: 'Auto Hint',
+                  icon: settings.autoHintSeconds > 0 ? 'lightbulb-auto' : 'lightbulb-off-outline',
+                  active: settings.autoHintSeconds > 0,
+                  value: String(settings.autoHintSeconds),
+                  choices: AUTO_HINT_CHOICES.map((seconds) => ({ value: String(seconds), label: autoHintCaption(seconds) })),
+                  onChange: (value) => setSettings({ autoHintSeconds: Number(value) as AutoHintSeconds })
+                }
+              ]}
+            />
           )}
           {/* Same bare-row shape as the toggles above (see components/reducedMotion.tsx for what it does). It shows Reduce Motion
           as the app applies it: on while the device's own setting is, with no tap (the device's setting wins) and a caption saying

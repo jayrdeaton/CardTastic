@@ -63,7 +63,6 @@ import { useSettings } from '@/hooks/useSettings'
 import { loadGameInProgress, SavedGame, saveGameInProgress } from '@/stores/gameInProgress'
 
 import { buildKlondikeDealSequence } from './dealSequence'
-import { KlondikeSettingsSection } from './KlondikeSettingsSection'
 import { canAutoFinish, createKlondikeController, KlondikeState, nextFinishMove } from './rules'
 const TABLEAU_COLUMNS = 7
 const WASTE: PileRef = { zone: 'waste', index: 0 }
@@ -1466,7 +1465,7 @@ function KlondikeScreenInner() {
 
   return (
     <CardSizeProvider width={cardWidth}>
-      <GameChrome onUndoUsed={() => recordUndoUsed(variant)} title='Klondike' subtitle={`Draw ${klondikeDraw}`} onNewGame={handleNewGame} onUndo={handleUndo} undoDisabled={undoStack.length === 0} onHint={handleHint} autoHintKey={state} hintShowing={!!activeHint} hintDisabled={won || stuck} won={won} winRevealed={winRevealed} hasProgress={session.moves > 0} getElapsedSeconds={session.getElapsed} pauseClock={session.setPaused} par={parFor(variant)} clockRunning={session.started && !won && !stuck} movesCount={session.moves} settingsContent={<KlondikeSettingsSection />} rules={KLONDIKE_RULES}>
+      <GameChrome onUndoUsed={() => recordUndoUsed(variant)} title='Klondike' subtitle={`Draw ${klondikeDraw}`} onNewGame={handleNewGame} onUndo={handleUndo} undoDisabled={undoStack.length === 0} onHint={handleHint} autoHintKey={state} hintShowing={!!activeHint} hintDisabled={won || stuck} won={won} winRevealed={winRevealed} hasProgress={session.moves > 0} getElapsedSeconds={session.getElapsed} pauseClock={session.setPaused} par={parFor(variant)} clockRunning={session.started && !won && !stuck} movesCount={session.moves} rules={KLONDIKE_RULES}>
         <View style={[styles.topRow, { width: cardWidth * TABLEAU_COLUMNS + gap * (TABLEAU_COLUMNS - 1) }]}>
           <View style={[styles.foundationsGroup, { gap }]}>
             {state.foundation.map((pile, i) => {

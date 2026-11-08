@@ -27,6 +27,7 @@ import { otherPlayer, type PlayerIndex, VS_CPU_HUMANS } from '@/games/table/play
 import { type TableCardSpec } from '@/games/table/TableCards'
 import { type Seat, type TableCardContent, TableOverlay, useAppActive, useTableSeats } from '@/games/table/TableChrome'
 import { type TableLabel, type TableTarget, TableView } from '@/games/table/TableView'
+import { useNextRound } from '@/games/table/useNextRound'
 import { useSettled, useTableSize } from '@/games/table/useTable'
 import { useSettings } from '@/hooks/useSettings'
 import { matchStatsActions } from '@/redux/matchStatsSlice'
@@ -35,6 +36,7 @@ import { bestArrangement } from './engine/melds'
 import { canBigGin, canDrawStock, canKnock, canTakeDiscard, canThrow, deadwoodAfterThrow, discardTop, handOf, isDoubled, knockLimit, toMove } from './engine/rules'
 import { GIN_BONUSES, type GinHelp, type GinState, type GinTarget, type GinTurn, KNOCK_LIMIT } from './engine/types'
 import { type GinLayout, ginLayout, handPoses } from './layout'
+import { GIN_RULE_KEYS } from './ruleSettings'
 import { type GinRoundSettings, ginRules } from './useGinLoadout'
 import { useGinMatch } from './useGinMatch'
 
@@ -62,6 +64,7 @@ export function GinRummyScreen() {
   // against the CPU.
   const { mode, settings: round } = useActiveRound<GinRoundSettings>('ginrummy', { ginTarget: settings.ginTarget, ginKnock: settings.ginKnock, ginBonus: settings.ginBonus, ginHelp: settings.ginHelp, ginCpu: settings.ginCpu })
   const rules = useMemo(() => ginRules(round), [round])
+  const nextRound = useNextRound('ginrummy', mode, round, GIN_RULE_KEYS)
   const help = round.ginHelp
   const twoPlayer = mode === 'twoPlayer'
   const cpu = twoPlayer ? null : round.ginCpu
@@ -218,7 +221,7 @@ export function GinRummyScreen() {
           {actions.length > 0 ? <ActionRow game='ginrummy' actions={actions} y={layout.actionY} /> : null}
           {covered ? <PassCover seat={seats[moving!]} message={passMessage(state, moving!, seats)} onReady={() => setHolder(moving!)} testID='ginrummy-pass' /> : null}
           {resultShown && state.phase === 'handOver' ? <TableOverlay humans={VS_CPU_HUMANS} content={() => handContent(state, you, seats)} actionLabel='Next Hand' onAction={match.nextHand} testID='ginrummy-hand' /> : null}
-          {resultShown && state.phase === 'matchOver' ? <TableOverlay humans={VS_CPU_HUMANS} content={() => matchContent(state, you, seats)} actionLabel='Rematch' onAction={match.rematch} testID='ginrummy-result' /> : null}
+          {resultShown && state.phase === 'matchOver' ? <TableOverlay humans={VS_CPU_HUMANS} content={() => matchContent(state, you, seats)} actionLabel='Rematch' onAction={() => match.rematch(ginRules(nextRound()))} testID='ginrummy-result' /> : null}
           {resultShown && state.phase === 'matchOver' && (twoPlayer || state.winner === 1) ? <PipFireworks /> : null}
         </TableView>
       </View>

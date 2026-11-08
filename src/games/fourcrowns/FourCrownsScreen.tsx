@@ -33,6 +33,7 @@ import { VS_CPU_HUMANS } from '@/games/table/players'
 import { type TableCardSpec } from '@/games/table/TableCards'
 import { SeatBadge, type TableCardContent, TableOverlay, useAppActive, useTableSeats } from '@/games/table/TableChrome'
 import { type TableLabel, type TableTarget, TableView } from '@/games/table/TableView'
+import { useNextRound } from '@/games/table/useNextRound'
 import { useSettled, useTableSize } from '@/games/table/useTable'
 import { useSettings } from '@/hooks/useSettings'
 import { type MatchSeatResult, matchStatsActions } from '@/redux/matchStatsSlice'
@@ -41,6 +42,7 @@ import { bestArrangement, isWild } from './engine/melds'
 import { canDrawStock, canGoOut, canTakeDiscard, canThrow, discardTop, handSizeFor, pointsAfterThrow, toMove, wildRank } from './engine/rules'
 import { type CrownsState, type CrownsTurn, ROUNDS } from './engine/types'
 import { type CrownsLayout, crownsLayout, fanPoses } from './layout'
+import { CROWNS_RULE_KEYS } from './ruleSettings'
 import { type CrownsRoundSettings, crownsRules } from './useCrownsLoadout'
 import { useCrownsMatch } from './useCrownsMatch'
 
@@ -74,6 +76,7 @@ export function FourCrownsScreen() {
   const { seats, statsIds } = useTableSeats(seat2Person)
   const players = useMemo(() => tablePlayers(seats, seat2Person, round.crownsSeat3, round.crownsSeat4, dark), [seats, seat2Person, round.crownsSeat3, round.crownsSeat4, dark])
   const rules = useMemo(() => crownsRules(round), [round])
+  const nextRound = useNextRound('fourcrowns', mode, round, CROWNS_RULE_KEYS)
   const cpus = useMemo(() => players.map((player): CpuLevel | null => (player.kind === 'cpu' ? round.crownsCpu : null)), [players, round.crownsCpu])
   const people = players.flatMap((player, i) => (player.kind === 'person' ? [i] : []))
   const passAndPlay = people.length > 1
@@ -195,7 +198,7 @@ export function FourCrownsScreen() {
         >
           {actions.length > 0 ? <ActionRow game='fourcrowns' actions={actions} y={layout.actionY} /> : null}
           {covered ? <PassCover seat={players[moving!].seat} message={passMessage(state, moving!, players)} onReady={() => setHolder(moving!)} testID='fourcrowns-pass' /> : null}
-          {resultShown && state.phase === 'matchOver' ? <TableOverlay humans={VS_CPU_HUMANS} content={() => matchContent(state, players, passAndPlay)} actionLabel='Rematch' onAction={match.rematch} testID='fourcrowns-result' /> : null}
+          {resultShown && state.phase === 'matchOver' ? <TableOverlay humans={VS_CPU_HUMANS} content={() => matchContent(state, players, passAndPlay)} actionLabel='Rematch' onAction={() => match.rematch(crownsRules(nextRound()))} testID='fourcrowns-result' /> : null}
           {resultShown && state.phase === 'matchOver' && celebrate ? <PipFireworks /> : null}
         </TableView>
       </View>

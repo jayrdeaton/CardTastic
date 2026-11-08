@@ -3,6 +3,7 @@ import { createElement } from 'react'
 
 import { RulesDialog } from '@/components/RulesDialog'
 import { CRAZY_EIGHTS_RULES } from '@/constants/gameRules'
+import { MATCH_GAME_TITLES } from '@/games/matchGameTitles'
 import type { RootState } from '@/redux/store'
 
 import { CrazyEightsPreview } from './CrazyEightsPreview'
@@ -12,7 +13,7 @@ import { crazyEightsGuide, EIGHTS_GUIDE_VERSION } from './guide'
 import { type EightsGuideInput, getEightsGuideSteps } from './guideSteps'
 import { useEightsLoadout } from './useEightsLoadout'
 
-export const CRAZY_EIGHTS_TITLE = 'Crazy Eights'
+export const CRAZY_EIGHTS_TITLE = MATCH_GAME_TITLES.crazyeights
 
 /** Crazy Eights in the pack (pack.ts): match the pile, 8s wild, first out wins, for two to four players. Seat 2 is the
  * shell's (a CPU or a person); seats 3 and 4 and the house rules are picked on its setup screen. With one person and

@@ -3,6 +3,7 @@ import { createElement } from 'react'
 
 import { RulesDialog } from '@/components/RulesDialog'
 import { WAR_RULES } from '@/constants/gameRules'
+import { MATCH_GAME_TITLES } from '@/games/matchGameTitles'
 import type { RootState } from '@/redux/store'
 
 import { WAR_GUIDE_VERSION, warGuide } from './guide'
@@ -12,7 +13,7 @@ import { WarPreview } from './WarPreview'
 import { WarScreen } from './WarScreen'
 import { WarStatsSections } from './WarStats'
 
-export const WAR_TITLE = 'War'
+export const WAR_TITLE = MATCH_GAME_TITLES.war
 
 /** War in the pack (pack.ts): for two players face to face, or one against a CPU that just plays along (War has no
  * decisions). Its setup screen picks seat 2 and the match's length; a match isn't saved. */

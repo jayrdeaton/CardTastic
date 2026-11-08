@@ -3,6 +3,7 @@ import { createElement } from 'react'
 
 import { RulesDialog } from '@/components/RulesDialog'
 import { RATSLAP_RULES } from '@/constants/gameRules'
+import { MATCH_GAME_TITLES } from '@/games/matchGameTitles'
 import type { RootState } from '@/redux/store'
 
 import { RATSLAP_GUIDE_VERSION, ratslapGuide } from './guide'
@@ -12,7 +13,7 @@ import { RatSlapScreen } from './RatSlapScreen'
 import { RatSlapStatsSections } from './RatSlapStats'
 import { useRatSlapLoadout } from './useRatSlapLoadout'
 
-export const RATSLAP_TITLE = 'RatSlap'
+export const RATSLAP_TITLE = MATCH_GAME_TITLES.ratslap
 
 /** RatSlap in the pack (pack.ts): the first game here for two players, seat 2 the CPU or a person, chosen with the rules
  * on the shell's setup screen (useRatSlapLoadout). Two people sit face to face at the phone's short edges, in a phone's or

@@ -63,7 +63,6 @@ import { loadGameInProgress, SavedGame, saveGameInProgress } from '@/stores/game
 import { buildTriPeaksDealSequence } from './dealSequence'
 import { BASE_WIDTH, boardHeight, boardWidth, buildCardPositions, CONTROL_ROW_MARGIN_BOTTOM, peaksCardScreenPoint, tripeaksCardWidth } from './geometry'
 import { cardAt, createTriPeaksController, isExposed, rowColOf, TriPeaksState } from './rules'
-import { TriPeaksSettingsSection } from './TriPeaksSettingsSection'
 
 export default withGameProviders(TriPeaksScreenInner)
 
@@ -725,7 +724,7 @@ function TriPeaksScreenInner() {
 
   return (
     <CardSizeProvider width={cardWidth}>
-      <GameChrome onUndoUsed={() => recordUndoUsed(variant)} title='TriPeaks' onNewGame={handleNewGame} onUndo={handleUndo} undoDisabled={undoStack.length === 0} onHint={handleHint} autoHintKey={state} hintShowing={!!activeHint} hintDisabled={won || stuck} won={won} winRevealed={winRevealed} hasProgress={session.moves > 0} getElapsedSeconds={session.getElapsed} pauseClock={session.setPaused} par={parFor(variant)} clockRunning={session.started && !won && !stuck} movesCount={session.moves} settingsContent={<TriPeaksSettingsSection />} rules={TRIPEAKS_RULES}>
+      <GameChrome onUndoUsed={() => recordUndoUsed(variant)} title='TriPeaks' onNewGame={handleNewGame} onUndo={handleUndo} undoDisabled={undoStack.length === 0} onHint={handleHint} autoHintKey={state} hintShowing={!!activeHint} hintDisabled={won || stuck} won={won} winRevealed={winRevealed} hasProgress={session.moves > 0} getElapsedSeconds={session.getElapsed} pauseClock={session.setPaused} par={parFor(variant)} clockRunning={session.started && !won && !stuck} movesCount={session.moves} rules={TRIPEAKS_RULES}>
         <View style={styles.board}>
           <View style={styles.controlRow}>
             <StockWaste

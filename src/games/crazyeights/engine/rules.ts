@@ -56,8 +56,8 @@ export function createEightsMatch(seed: number, players: number, rules: EightsRu
 }
 
 /** The next game: the next player plays first. */
-export function rematch(state: EightsState, seed: number): EightsState {
-  return createEightsMatch(seed, state.players, state.rules, (state.first + 1) % state.players)
+export function rematch(state: EightsState, seed: number, rules: EightsRules = state.rules): EightsState {
+  return createEightsMatch(seed, state.players, rules, (state.first + 1) % state.players)
 }
 
 /** Whose move it is, or null once the game is over. */

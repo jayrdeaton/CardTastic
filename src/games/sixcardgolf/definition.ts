@@ -3,6 +3,7 @@ import { createElement } from 'react'
 
 import { RulesDialog } from '@/components/RulesDialog'
 import { SIX_CARD_GOLF_RULES } from '@/constants/gameRules'
+import { MATCH_GAME_TITLES } from '@/games/matchGameTitles'
 
 import { SIX_CARD_GOLF_GUIDE_VERSION, sixCardGolfGuide } from './guide'
 import { getSixCardGolfGuideSteps } from './guideSteps'
@@ -12,7 +13,7 @@ import { SixCardGolfStatsSections } from './SixCardGolfStats'
 import { useSixCardGolfLoadout } from './useSixCardGolfLoadout'
 
 /** Not plain Golf: that's the solitaire game, which keeps the name. */
-export const SIX_CARD_GOLF_TITLE = 'Six-Card Golf'
+export const SIX_CARD_GOLF_TITLE = MATCH_GAME_TITLES.sixcardgolf
 
 /** Six-Card Golf in the pack (pack.ts): for two players, or one against the CPU, seated as in RatSlap. Nothing is hidden
  * from anyone (Jay, 2026-11-04), so it plays on one phone. Its setup screen picks seat 2 and the holes; a match isn't

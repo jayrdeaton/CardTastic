@@ -45,6 +45,9 @@ describe('the deal', () => {
     const state = createEightsMatch(3, 3, DEFAULT_EIGHTS_RULES, 2)
     expect(rematch(state, 9).turn).toBe(0)
     expect(rematch(state, 9).rules).toBe(state.rules)
+    // On the rules it's handed: a rule changed in Settings since the last game.
+    const twos = { ...state.rules, specials: 'twos' as const }
+    expect(rematch(state, 9, twos).rules).toBe(twos)
   })
 })
 

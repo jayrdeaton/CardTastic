@@ -49,8 +49,8 @@ export function useWarMatch({ length, down, cpu, paused, changed, seed = randomS
 
   const play = useCallback((player: PlayerIndex) => apply(playStep(stateRef.current, player)), [apply])
 
-  const rematch = useCallback(() => {
-    const next = createWarMatch(latest.current.seed(), latest.current.length, stateRef.current.down)
+  const rematch = useCallback((rules?: { length: WarLength; down: WarDown }) => {
+    const next = createWarMatch(latest.current.seed(), rules?.length ?? latest.current.length, rules?.down ?? stateRef.current.down)
     stateRef.current = next
     setState(next)
   }, [])

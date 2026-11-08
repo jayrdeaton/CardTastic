@@ -23,12 +23,14 @@ import { otherPlayer, type PlayerIndex, TWO_PLAYER_HUMANS, VS_CPU_HUMANS } from 
 import { type TableCardSpec } from '@/games/table/TableCards'
 import { type Seat, type TableCardContent, TableOverlay, useAppActive, useFaceToFace, useTableSeats } from '@/games/table/TableChrome'
 import { type TableLabel, type TableSpotLabel, type TableTarget, TableView } from '@/games/table/TableView'
+import { useNextRound } from '@/games/table/useNextRound'
 import { useSettled, useTableSize } from '@/games/table/useTable'
 import { useSettings } from '@/hooks/useSettings'
 import { matchStatsActions } from '@/redux/matchStatsSlice'
 
 import { canTakeDiscard, heldSpots, isWild, layoutOf, spotsLeft, toMove, wildName } from './engine/rules'
 import { SPOTS_PER_ROW, type TrashState } from './engine/types'
+import { TRASH_RULE_KEYS } from './ruleSettings'
 import { type TrashRoundSettings } from './useTrashLoadout'
 import { useTrashMatch } from './useTrashMatch'
 
@@ -82,6 +84,7 @@ export function TrashScreen() {
 
   const dealMs = reduceMotion ? 0 : (startSpots * 2 + 1) * DEAL_STAGGER_MS + MOVE_MS + 100
   const roundDone = (s: TrashState) => s.phase === 'roundOver' || s.phase === 'matchOver'
+  const nextRound = useNextRound('trash', mode, round, TRASH_RULE_KEYS)
   const match = useTrashMatch({ spots: startSpots, wild: round.trashWild, cpu, paused: settingsOpen || !appActive, dealMs, changed })
   const { state, dealt } = match
   const resultShown = useSettled(roundDone(state) ? `${match.deal}-${state.round}` : null, reduceMotion ? 300 : RESULT_MS)
@@ -126,7 +129,18 @@ export function TrashScreen() {
       <View style={styles.screen} onLayout={onLayout}>
         <TableView game='trash' layout={layout} cards={cards} dealKey={match.deal} targets={targets} labels={{ 1: label(1), 2: label(2) }} prompts={prompts} notes={notes} call={null} spotLabels={spotLabels} emptySlots={[...(state.stock.length === 0 ? [layout.stock] : []), ...(state.discard.length === 0 ? [layout.discard] : [])]} onSettings={() => setSettingsOpen(true)}>
           {resultShown && state.phase === 'roundOver' ? <TableOverlay humans={humans} content={(viewer) => roundContent(state, viewer, seats)} actionLabel='Next Round' onAction={match.nextRound} testID='trash-round' /> : null}
-          {resultShown && state.phase === 'matchOver' ? <TableOverlay humans={humans} content={(viewer) => matchContent(state, viewer, seats)} actionLabel='Rematch' onAction={match.rematch} testID='trash-result' /> : null}
+          {resultShown && state.phase === 'matchOver' ? (
+            <TableOverlay
+              humans={humans}
+              content={(viewer) => matchContent(state, viewer, seats)}
+              actionLabel='Rematch'
+              onAction={() => {
+                const next = nextRound()
+                match.rematch({ spots: next.trashCards, wild: next.trashWild })
+              }}
+              testID='trash-result'
+            />
+          ) : null}
           {resultShown && state.phase === 'matchOver' && state.winner !== null && humans.includes(state.winner) ? <PipFireworks /> : null}
         </TableView>
       </View>

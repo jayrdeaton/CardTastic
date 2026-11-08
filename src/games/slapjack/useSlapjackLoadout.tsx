@@ -1,14 +1,16 @@
-// Slapjack's part of the shell's setup screen (GameDefinition.useLoadout): the CPU's level on seat 2's menu, and what a
-// wrong slap costs (Jay, 2026-11-04 picked burning a card, like RatSlap; giving it to the other player is the classic
-// rule). Both are Settings, so they follow the player; the match plays on the snapshot taken when everyone readies up.
+// Slapjack's part of the shell's setup screen (GameDefinition.useLoadout): the CPU's level on seat 2's menu, and the
+// game's name over what a wrong slap costs (games/table/MatchSetup.tsx; changed in Settings: ruleSettings.ts). Both are
+// Settings, so they follow the player; the match plays on the snapshot taken when everyone readies up.
 
 import type { GameLoadout, LoadoutOptionsProps, RoundMode } from '@tastic/shell'
 
-import type { SlapPenalty } from '@/games/ratslap/engine/types'
+import { MATCH_GAME_TITLES } from '@/games/matchGameTitles'
 import { CPU_OPTIONS, type CpuLevel } from '@/games/table/cpuLevel'
-import { rulePickerIds, RulePickers } from '@/games/table/RulePickers'
+import { MatchSetup } from '@/games/table/MatchSetup'
 import { useSettings } from '@/hooks/useSettings'
 import type { Settings } from '@/types'
+
+import { slapjackRuleSettings } from './ruleSettings'
 
 /** The settings a Slapjack match runs on. */
 export type SlapjackRoundSettings = Pick<Settings, 'slapjackPenalty' | 'slapjackCpu'>
@@ -18,25 +20,8 @@ export function useSlapjackLoadout(_mode: RoundMode): GameLoadout {
   const roundSettings: SlapjackRoundSettings = { slapjackPenalty: settings.slapjackPenalty, slapjackCpu: settings.slapjackCpu }
   return {
     roundSettings,
-    options: (props: LoadoutOptionsProps) => (
-      <RulePickers
-        {...props}
-        game='slapjack'
-        rules={[
-          {
-            key: 'penalty',
-            icon: 'hand-back-right-outline',
-            value: settings.slapjackPenalty,
-            choices: [
-              { value: 'burn', label: 'Burn a Card' },
-              { value: 'give', label: 'Give a Card' }
-            ],
-            onChange: (value) => setSettings({ slapjackPenalty: value as SlapPenalty })
-          }
-        ]}
-      />
-    ),
-    optionIds: rulePickerIds('slapjack', ['penalty']),
+    options: (props: LoadoutOptionsProps) => <MatchSetup {...props} game='slapjack' title={MATCH_GAME_TITLES.slapjack} rules={slapjackRuleSettings(settings, setSettings)} />,
+    optionIds: [],
     randomize: () => undefined,
     reset: () => setSettings({ slapjackPenalty: 'burn' }),
     seatControl: () => undefined,

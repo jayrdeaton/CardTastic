@@ -250,13 +250,9 @@ interface GameChromeProps {
    * false, so a not-yet-started (0:00) or just-frozen post-win value shows immediately. */
   clockRunning: boolean
   movesCount: number
-  /** Game-specific settings section (Klondike draw count, Spider suit count, ...), rendered above
-   * the global Solitaire settings inside the shared dialog. Omitted by FreeCell/Pyramid, which
-   * have no game-specific settings. */
-  settingsContent?: ReactNode
   /** This game's own "how to play" bullets (see constants/gameRules.ts) - shown by the rules icon
-   * below via RulesDialog. Owned by each screen, same as settingsContent, rather than GameChrome
-   * looking a gameId up itself. */
+   * below via RulesDialog. Owned by each screen rather than GameChrome looking a gameId up itself. (The game's rule
+   * choices are in the Settings sheet, which finds them from the route: components/SettingsSections.tsx.) */
   rules: string[]
   /** The deal's variant's par (engine/par.ts), told in the Rules sheet's Scoring paragraph. */
   par: Par
@@ -310,7 +306,7 @@ function ElapsedClock({ getElapsedSeconds, clockRunning, won, children }: { getE
  * Previously each of the four game screens hand-rolled its own version of this row (and Pyramid's
  * had drifted to a bottom button row entirely) - unifying it here means a layout tweak (like this
  * one, and the header/footer regrouping that followed it) only has to happen once. */
-export function GameChrome({ title, subtitle, onNewGame, onUndo: undoMove, onUndoUsed, undoDisabled, onHint, autoHintKey, hintShowing, hintDisabled, won, winRevealed, hasProgress, getElapsedSeconds, pauseClock, par, clockRunning, movesCount, settingsContent, rules, children }: GameChromeProps) {
+export function GameChrome({ title, subtitle, onNewGame, onUndo: undoMove, onUndoUsed, undoDisabled, onHint, autoHintKey, hintShowing, hintDisabled, won, winRevealed, hasProgress, getElapsedSeconds, pauseClock, par, clockRunning, movesCount, rules, children }: GameChromeProps) {
   const router = useRouter()
   const insets = useSafeAreaInsets()
   const { isWide, windowWidth, leftGutter, topPadding, bottomPadding } = useGameLayout()
@@ -627,9 +623,7 @@ export function GameChrome({ title, subtitle, onNewGame, onUndo: undoMove, onUnd
         </Animated.View>
       )}
 
-      <SettingsDialog visible={settingsOpen} onDismiss={() => setSettingsOpen(false)}>
-        {settingsContent}
-      </SettingsDialog>
+      <SettingsDialog visible={settingsOpen} onDismiss={() => setSettingsOpen(false)} />
 
       <RulesDialog visible={rulesOpen} onDismiss={() => setRulesOpen(false)} title={title} rules={rules} par={par} />
 

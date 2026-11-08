@@ -19,10 +19,14 @@ jest.mock('@/components/theme', () => {
 jest.mock('@/components/cardFont', () => ({ CARD_FONT_FAMILY: 'TestSerif' }))
 // The Monogram back's preview shows the selected player's tag; a guest has none.
 jest.mock('@/stores/profiles', () => ({ usePlayer: () => ({ profile: null }) }))
+// The sheet shows the rules of the game it's opened in, found from the route.
+let mockPath = '/'
+jest.mock('expo-router', () => ({ usePathname: () => mockPath }))
 
 beforeEach(() => {
   mockSetSettings.mockClear()
   mockAutoHintSeconds = 0
+  mockPath = '/'
 })
 
 async function renderSections() {
@@ -37,12 +41,16 @@ describe("Solitaire's own Settings sections", () => {
     expect(screen.getByText('CARDS')).toBeTruthy()
   })
 
-  it("shows Auto Hint's choice as the row's caption, and steps to the next one on a tap", async () => {
+  it("shows Auto Hint's choice as the row's caption, and opens its choices in place on a tap", async () => {
     await renderSections()
     expect(screen.getByText('Off')).toBeTruthy()
+    expect(screen.queryByText('After 15 seconds')).toBeNull()
 
     await fireEvent.press(screen.getByText('Auto Hint'))
+    await fireEvent.press(screen.getByText('After 15 seconds'))
     expect(mockSetSettings).toHaveBeenCalledWith({ autoHintSeconds: 15 })
+    // Picking one closes the choices again.
+    expect(screen.queryByText('After 15 seconds')).toBeNull()
   })
 
   it('spells the wait out in the caption', async () => {
@@ -50,5 +58,63 @@ describe("Solitaire's own Settings sections", () => {
     await renderSections()
 
     expect(screen.getByText('After 30 seconds')).toBeTruthy()
+  })
+})
+
+// Jay, 2026-11-08: every game's rules live in the Settings sheet, the solitaire games' and the two-player games' alike,
+// each a row naming the rule with the choice in effect under it, and a line saying a change waits for the next game.
+describe("the game's rules in Settings", () => {
+  it('has no rules on Home', async () => {
+    await renderSections()
+
+    expect(screen.queryByText('Applies to next game')).toBeNull()
+    expect(screen.queryByText('KLONDIKE')).toBeNull()
+  })
+
+  it("shows a solitaire game's rules in its own section above Gameplay, waiting for the next game", async () => {
+    mockPath = '/play/klondike'
+    await renderSections()
+
+    expect(screen.getByText('KLONDIKE')).toBeTruthy()
+    expect(screen.getByText('Applies to next game')).toBeTruthy()
+    expect(screen.getByText('Draw')).toBeTruthy()
+    expect(screen.getByText('Draw 1')).toBeTruthy()
+
+    await fireEvent.press(screen.getByText('Draw'))
+    await fireEvent.press(screen.getByText('Draw 3'))
+    expect(mockSetSettings).toHaveBeenCalledWith({ klondikeDraw: 3 })
+  })
+
+  it.each(['/loadout/ginrummy', '/play/ginrummy'])("shows a two-player game's rules the same on its setup screen and in its match (%s)", async (path) => {
+    mockPath = path
+    await renderSections()
+
+    expect(screen.getByText('GIN RUMMY')).toBeTruthy()
+    for (const label of ['Match', 'Knocking', 'Bonuses', 'Meld Help']) expect(screen.getByText(label)).toBeTruthy()
+    // No hint rows in a two-player game.
+    expect(screen.queryByText('Auto Hint')).toBeNull()
+  })
+
+  it('opens one rule at a time, and picking the choice already in effect writes nothing', async () => {
+    mockPath = '/play/ginrummy'
+    await renderSections()
+
+    await fireEvent.press(screen.getByText('Knocking'))
+    expect(screen.getByText('Oklahoma')).toBeTruthy()
+    await fireEvent.press(screen.getByText('Bonuses'))
+    expect(screen.queryByText('Oklahoma')).toBeNull()
+    // The choice in effect, in the list under its row (the row's caption says it too).
+    const inEffect = screen.getAllByText('Gin 25, Under 25')
+    expect(inEffect).toHaveLength(2)
+    await fireEvent.press(inEffect[1])
+    expect(mockSetSettings).not.toHaveBeenCalled()
+  })
+
+  it('has no section for a game without rules', async () => {
+    mockPath = '/play/freecell'
+    await renderSections()
+
+    expect(screen.queryByText('Applies to next game')).toBeNull()
+    expect(screen.getByText('Auto Hint')).toBeTruthy()
   })
 })

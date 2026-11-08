@@ -63,7 +63,8 @@ type Departure = { key: number; player: PlayerIndex; cards: AnyCard[]; from?: Po
 type SlapMark = { key: number; x: number; y: number; upsideDown: boolean }
 
 /** One slap game's table, on the rules and seat 2 its setup screen committed. */
-export function SlapTable({ game, twoPlayer, rules, cpu }: { game: 'ratslap' | 'slapjack'; twoPlayer: boolean; rules: RatSlapRules; cpu: CpuLevel | null }) {
+/** `nextRules`: a Rematch's rules, taken from Settings as they are when it's pressed (games/table/useNextRound.ts). */
+export function SlapTable({ game, twoPlayer, rules, nextRules, cpu }: { game: 'ratslap' | 'slapjack'; twoPlayer: boolean; rules: RatSlapRules; nextRules: () => RatSlapRules; cpu: CpuLevel | null }) {
   useKeepAwake('game')
   const dispatch = useDispatch()
   // Sized from the table's own box, not the window: on the web the window's reading can lag a resize.
@@ -224,8 +225,8 @@ export function SlapTable({ game, twoPlayer, rules, cpu }: { game: 'ratslap' | '
     setOrigins(new Map())
     setDepartures([])
     setMarks([])
-    newDeal()
-  }, [newDeal])
+    newDeal(nextRules())
+  }, [newDeal, nextRules])
 
   const glowPulse = usePileGlowPulse()
   const tableCards = useMemo(() => tableCardSpecs(state, layout, origins, departures, reduceMotion), [state, layout, origins, departures, reduceMotion])

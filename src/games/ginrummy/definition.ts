@@ -3,6 +3,7 @@ import { createElement } from 'react'
 
 import { RulesDialog } from '@/components/RulesDialog'
 import { GIN_RUMMY_RULES } from '@/constants/gameRules'
+import { MATCH_GAME_TITLES } from '@/games/matchGameTitles'
 import type { RootState } from '@/redux/store'
 
 import { GinRummyPreview } from './GinRummyPreview'
@@ -12,7 +13,7 @@ import { GIN_GUIDE_VERSION, ginRummyGuide } from './guide'
 import { getGinGuideSteps, type GinGuideInput } from './guideSteps'
 import { useGinLoadout } from './useGinLoadout'
 
-export const GIN_RUMMY_TITLE = 'Gin Rummy'
+export const GIN_RUMMY_TITLE = MATCH_GAME_TITLES.ginrummy
 
 /** Gin Rummy in the pack (pack.ts): the first game here with hands kept hidden. Against the CPU (three levels) it's one
  * person's table; two people pass the phone, the table drawn for whoever's turn it is and covered while it changes hands.

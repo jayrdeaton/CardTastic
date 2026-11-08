@@ -97,9 +97,9 @@ export function useRatSlapMatch({ rules, cpu, paused, events, seed = randomSeed,
   )
 
   /** A new deal, the loser of the last match playing first. */
-  const rematch = useCallback(() => {
+  const rematch = useCallback((rules?: RatSlapRules) => {
     const { winner } = stateRef.current
-    const next = createInitialState(latest.current.seed(), latest.current.rules, winner ? otherPlayer(winner) : 1)
+    const next = createInitialState(latest.current.seed(), rules ?? latest.current.rules, winner ? otherPlayer(winner) : 1)
     stateRef.current = next
     setState(next)
   }, [])

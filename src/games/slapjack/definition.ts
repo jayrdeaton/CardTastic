@@ -4,6 +4,7 @@ import { createElement } from 'react'
 
 import { RulesDialog } from '@/components/RulesDialog'
 import { SLAPJACK_RULES } from '@/constants/gameRules'
+import { MATCH_GAME_TITLES } from '@/games/matchGameTitles'
 import { SlapPreview } from '@/games/ratslap/RatSlapPreview'
 import { SlapStatsSection } from '@/games/ratslap/RatSlapStats'
 import type { RootState } from '@/redux/store'
@@ -13,7 +14,7 @@ import { getSlapjackGuideSteps, type SlapjackGuideInput } from './guideSteps'
 import { SlapjackScreen } from './SlapjackScreen'
 import { useSlapjackLoadout } from './useSlapjackLoadout'
 
-export const SLAPJACK_TITLE = 'Slapjack'
+export const SLAPJACK_TITLE = MATCH_GAME_TITLES.slapjack
 
 const FOUR_OF_CLUBS: AnyCard = { id: 'preview-clubs-4', suit: 'clubs', rank: 4, faceUp: true }
 const JACK_OF_HEARTS: AnyCard = { id: 'preview-hearts-11', suit: 'hearts', rank: 11, faceUp: true }

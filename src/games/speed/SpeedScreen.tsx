@@ -25,6 +25,7 @@ import { type TableCardSpec } from '@/games/table/TableCards'
 import { type Seat, type TableCardContent, TableOverlay, useAppActive, useFaceToFace, useTableSeats } from '@/games/table/TableChrome'
 import { type TableLabel, TableView } from '@/games/table/TableView'
 import { TouchZones } from '@/games/table/TouchZones'
+import { useNextRound } from '@/games/table/useNextRound'
 import { useSettled, useTableSize } from '@/games/table/useTable'
 import { useSettings } from '@/hooks/useSettings'
 import { matchStatsActions } from '@/redux/matchStatsSlice'
@@ -32,6 +33,7 @@ import { matchStatsActions } from '@/redux/matchStatsSlice'
 import { canDraw, cardsLeft, handOf, hasMove, isStuck } from './engine/rules'
 import { HAND_SIZE, type SpeedState } from './engine/types'
 import { type SpeedLayout, speedLayout } from './layout'
+import { SPEED_RULE_KEYS } from './ruleSettings'
 import { type SpeedRoundSettings } from './useSpeedLoadout'
 import { useSpeedMatch } from './useSpeedMatch'
 
@@ -58,6 +60,7 @@ export function SpeedScreen() {
   // The round the setup screen committed (seat 2, the rules); a direct link plays the player's own settings.
   const { mode, settings: round } = useActiveRound<SpeedRoundSettings>('speed', { speedWrap: settings.speedWrap, speedRefill: settings.speedRefill, speedCpu: settings.speedCpu })
   const rules = useMemo(() => ({ wrap: round.speedWrap, refill: round.speedRefill }), [round.speedWrap, round.speedRefill])
+  const nextRound = useNextRound('speed', mode, round, SPEED_RULE_KEYS)
   const twoPlayer = mode === 'twoPlayer'
   const cpu = twoPlayer ? null : round.speedCpu
   const humans = twoPlayer ? TWO_PLAYER_HUMANS : VS_CPU_HUMANS
@@ -121,7 +124,18 @@ export function SpeedScreen() {
     <CardSizeProvider width={layout.cardWidth}>
       <View style={styles.screen} onLayout={onLayout}>
         <TableView game='speed' layout={layout} cards={cards} dealKey={match.deal} glows={glows} labels={{ 1: label(1), 2: label(2) }} prompts={prompts} notes={{}} call={null} emptySlots={emptySlots} touch={<TouchZones testID='speed' twoPlayer={twoPlayer} splitY={layout.center.y} height={layout.height} enabled={dealt && !settingsOpen && !resultShown && winner === null} onTouch={handleTouch} />} onSettings={() => setSettingsOpen(true)}>
-          {resultShown && winner !== null ? <TableOverlay humans={humans} content={(viewer) => resultContent(state, viewer, seats)} actionLabel='Rematch' onAction={rematch} testID='speed-result' /> : null}
+          {resultShown && winner !== null ? (
+            <TableOverlay
+              humans={humans}
+              content={(viewer) => resultContent(state, viewer, seats)}
+              actionLabel='Rematch'
+              onAction={() => {
+                const next = nextRound()
+                rematch({ wrap: next.speedWrap, refill: next.speedRefill })
+              }}
+              testID='speed-result'
+            />
+          ) : null}
           {resultShown && winner !== null && winner !== 'tie' && humans.includes(winner) ? <PipFireworks /> : null}
         </TableView>
       </View>

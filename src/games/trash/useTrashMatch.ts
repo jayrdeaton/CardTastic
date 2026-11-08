@@ -62,9 +62,9 @@ export function useTrashMatch({ spots, wild, cpu, paused, dealMs, changed, seed 
   }, [apply])
 
   /** A new match, the last one's loser playing first. */
-  const rematch = useCallback(() => {
+  const rematch = useCallback((rules?: { spots: number; wild: TrashWild }) => {
     const { winner } = stateRef.current
-    const next = createTrashMatch(latest.current.seed(), latest.current.spots, winner ? otherPlayer(winner) : 1, stateRef.current.wild)
+    const next = createTrashMatch(latest.current.seed(), rules?.spots ?? latest.current.spots, winner ? otherPlayer(winner) : 1, rules?.wild ?? stateRef.current.wild)
     stateRef.current = next
     setState(next)
     setDeal((n) => n + 1)
