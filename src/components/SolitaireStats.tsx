@@ -8,6 +8,7 @@ import { SegmentedButtons, useTheme } from 'react-native-paper'
 
 import { PlayCalendar } from '@/components/PlayCalendar'
 import { type GameFilter, RecordsList } from '@/components/RecordsList'
+import { SEGMENT_RADIUS, SEGMENT_THEME } from '@/components/segmentedButtons'
 import { GUEST_PLAYER_ID } from '@/constants/player'
 import { parFor, playerParFor, vsParShort } from '@/engine/par'
 import type { TopWinsBoard } from '@/engine/topWins'
@@ -181,7 +182,7 @@ export function RecordsTab({ profileId, gameId }: PackStatsSectionsProps) {
   const [board, setBoard] = useState<TopWinsBoard>('score')
   return (
     <>
-      <SegmentedButtons value={board} onValueChange={(value) => setBoard(value as TopWinsBoard)} buttons={BOARDS} style={[styles.boards, { backgroundColor: colors.surface }]} />
+      <SegmentedButtons value={board} onValueChange={(value) => setBoard(value as TopWinsBoard)} buttons={BOARDS} theme={SEGMENT_THEME} style={[styles.boards, { backgroundColor: colors.surface }]} />
       <RecordsList board={board} topWins={topWins} stats={stats} profiles={profiles} profileId={profileId} game={(gameId ?? 'all') as GameFilter} />
     </>
   )
@@ -217,8 +218,8 @@ export const statsReset: PackStatsReset = {
 }
 
 const styles = StyleSheet.create({
-  // SegmentedButtons' own rounding, so the surface behind it is the same pill.
+  // The switch's own rounding (segmentedButtons.ts), so the surface behind it is the same pill.
   boards: {
-    borderRadius: 20
+    borderRadius: SEGMENT_RADIUS
   }
 })

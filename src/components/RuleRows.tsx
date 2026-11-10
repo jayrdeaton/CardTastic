@@ -1,8 +1,9 @@
-// A game's rules in the Settings sheet (Jay, 2026-11-08: every game's rules live in Settings, the solitaire games' and
-// the two-player games' alike, never on a setup screen). Each rule is a row in the sheet's own shape (the badge, the
-// label and the caption of SettingsSections' rows): the rule's name, the choice in effect as its caption, and a caret.
-// A tap opens its choices in place under it, a tap on one picks it and closes them. In place rather than a popover: the
-// sheet scrolls and fades at its edges, which would clip a menu hung off a row. One rule open at a time.
+// A game's rules, first in the Settings sheet (Jay, 2026-11-08: every game's rules in Settings; 2026-11-10: at the top of
+// it, and on a two-player game's setup screen too, games/table/MatchSetup.tsx). Each rule is a row in the sheet's own
+// shape (the badge, the label and the caption of SettingsSections' rows): the rule's name, the choice in effect as its
+// caption, and a caret. A tap opens its choices in place under it, a tap on one picks it and closes them. In place rather
+// than a popover: the sheet and the setup screen's card scroll and fade at their edges, which would clip a menu hung off a
+// row. One rule open at a time.
 
 import { useAutoPaperTheme } from '@rific/auto-paper'
 import { TouchableRipple } from '@rific/feedback-press'

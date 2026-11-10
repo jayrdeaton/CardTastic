@@ -6,27 +6,15 @@ import { MatchSetup } from '@/games/table/MatchSetup'
 import { useNextRound } from '@/games/table/useNextRound'
 import { DEFAULT_SETTINGS } from '@/redux/settingsSlice'
 
-// A two-player game's setup screen (Jay, 2026-11-08): the game's name and its house rules in effect on one line, which
-// opens the Settings sheet where they're changed; the rules themselves are never on the setup screen. And a Rematch
-// takes the rules from Settings as they are when it's pressed (games/table/useNextRound.ts).
+// A two-player game's setup screen (Jay, 2026-11-10: "both places"): the game's name, then its rules as the same rows
+// the Settings sheet has, a tap opening a rule's choices right there. Seats 3 and 4 stay pills, since they're players.
+// And a Rematch takes the rules from Settings as they are when it's pressed (games/table/useNextRound.ts).
 
-const mockOpenFor = jest.fn()
 const mockDispatch = jest.fn()
 let mockSettings = { ...DEFAULT_SETTINGS }
 
 jest.mock('@tastic/shell', () => ({
-  useGameGuide: () => ({ openFor: mockOpenFor }),
   liveplayActions: { setActiveRound: (round: object) => ({ type: 'liveplay/setActiveRound', payload: round }) }
-}))
-jest.mock('@/components/SettingsDialog', () => ({
-  SettingsDialog: ({ visible, onShowHowToPlay }: { visible: boolean; onShowHowToPlay: () => void }) => {
-    const { Text: MockText } = jest.requireActual('react-native')
-    return visible ? (
-      <MockText testID='settings-sheet' onPress={onShowHowToPlay}>
-        Settings
-      </MockText>
-    ) : null
-  }
 }))
 jest.mock('@/games/table/RulePickers', () => ({
   RulePickers: ({ rules }: { rules: { key: string }[] }) => {
@@ -40,26 +28,39 @@ jest.mock('react-redux', () => ({ useDispatch: () => mockDispatch }))
 const optionsProps = { host: { openId: null, open: jest.fn(), close: jest.fn(), toggle: jest.fn() }, accentColor: '#fff', mutedColor: '#888', onAccentColor: '#000', dark: true } as unknown as LoadoutOptionsProps
 
 beforeEach(() => {
-  mockOpenFor.mockClear()
   mockDispatch.mockClear()
   mockSettings = { ...DEFAULT_SETTINGS }
 })
 
 describe('MatchSetup', () => {
-  it("names the game and sums its house rules up, opening Settings (with this game's How to Play) on a tap", async () => {
+  it('names the game and shows each rule as a row, its name over the choice in effect, as in Settings', async () => {
     await render(<MatchSetup {...optionsProps} game='crazyeights' title='Crazy Eights' rules={eightsRuleSettings(DEFAULT_SETTINGS, jest.fn())} />)
 
     expect(screen.getByText('Crazy Eights')).toBeTruthy()
+    expect(screen.getByTestId('crazyeights-rules')).toBeTruthy()
+    for (const label of ['When Nothing Fits', 'Special Cards', 'Hand Size']) expect(screen.getByText(label)).toBeTruthy()
     for (const choice of ['Keep Drawing', 'Only 8s', '7 Cards, 5 for 3+']) expect(screen.getByText(choice)).toBeTruthy()
-    expect(screen.queryByTestId('settings-sheet')).toBeNull()
-
-    await fireEvent.press(screen.getByText('Only 8s'))
-    expect(screen.getByTestId('settings-sheet')).toBeTruthy()
-    await fireEvent.press(screen.getByTestId('settings-sheet'))
-    expect(mockOpenFor).toHaveBeenCalledWith('crazyeights')
   })
 
-  it("keeps seats 3 and 4 on the setup screen, since they're who's playing", async () => {
+  it("opens a rule's choices right there, and a pick writes the setting the Settings sheet shows", async () => {
+    const setSettings = jest.fn()
+    await render(<MatchSetup {...optionsProps} game='crazyeights' title='Crazy Eights' rules={eightsRuleSettings(DEFAULT_SETTINGS, setSettings)} />)
+
+    expect(screen.queryByText('2s Draw Two')).toBeNull()
+    await fireEvent.press(screen.getByText('Special Cards'))
+    await fireEvent.press(screen.getByText('2s Draw Two'))
+    expect(setSettings).toHaveBeenCalledWith({ eightsSpecials: 'twos' })
+    expect(screen.queryByText('2s Draw Two')).toBeNull()
+  })
+
+  it('has no card for a game without rules', async () => {
+    await render(<MatchSetup {...optionsProps} game='war' title='War' rules={[]} />)
+
+    expect(screen.getByText('War')).toBeTruthy()
+    expect(screen.queryByTestId('war-rules')).toBeNull()
+  })
+
+  it("keeps seats 3 and 4 on the setup screen as pills, since they're who's playing", async () => {
     await render(<MatchSetup {...optionsProps} game='crazyeights' title='Crazy Eights' rules={[]} extraSeats={[{ key: 'seat3', icon: 'account', value: 'off', choices: [], onChange: jest.fn() }]} />)
 
     expect(screen.getByText('seat pill seat3')).toBeTruthy()

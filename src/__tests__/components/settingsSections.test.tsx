@@ -1,6 +1,6 @@
-import { fireEvent, render, screen } from '@testing-library/react-native'
+import { fireEvent, render, renderHook, screen } from '@testing-library/react-native'
 
-import { SettingsSections } from '@/components/SettingsSections'
+import { SettingsSections, useSettingsRules } from '@/components/SettingsSections'
 
 // Solitaire's own Settings rows (Jay, 2026-10-15): two labeled sections like hud's APPEARANCE, so no
 // bare gap follows the Blur row, and Auto Hint's choice is the row's caption like every other row's.
@@ -29,8 +29,20 @@ beforeEach(() => {
   mockPath = '/'
 })
 
+// The sheet as @tastic/shell lays it out: the game's rules first (the pack's useSettingsRules), its own rows (left out
+// here), then Solitaire's sections.
+function Sheet() {
+  const rules = useSettingsRules()
+  return (
+    <>
+      {rules}
+      <SettingsSections />
+    </>
+  )
+}
+
 async function renderSections() {
-  await render(<SettingsSections />)
+  await render(<Sheet />)
 }
 
 describe("Solitaire's own Settings sections", () => {
@@ -63,9 +75,12 @@ describe("Solitaire's own Settings sections", () => {
 
 // Jay, 2026-11-08: every game's rules live in the Settings sheet, the solitaire games' and the two-player games' alike,
 // each a row naming the rule with the choice in effect under it, and a line saying a change waits for the next game.
+// Since 2026-11-10 they lead the sheet, above the shell's own rows (the pack's useSettingsRules).
 describe("the game's rules in Settings", () => {
-  it('has no rules on Home', async () => {
+  it('has no rules on Home, so nothing leads the sheet there', async () => {
     await renderSections()
+    const { result } = await renderHook(() => useSettingsRules())
+    expect(result.current).toBeNull()
 
     expect(screen.queryByText('Applies to next game')).toBeNull()
     expect(screen.queryByText('KLONDIKE')).toBeNull()

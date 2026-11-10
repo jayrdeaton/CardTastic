@@ -9,6 +9,7 @@ import type { DayRecord } from '@/stores/statsTypes'
 import { commaString } from '@/utils/commaString'
 
 import { isMotionReduced } from './reducedMotionFlag'
+import { SEGMENT_THEME } from './segmentedButtons'
 import { useTableColors } from './theme'
 
 /** How much of the felt an empty day keeps, over the well's surface: a softened ("disabled") felt that still reads as felt in dark mode (at 0.45 it all but vanished there). */
@@ -247,7 +248,7 @@ export function PlayCalendar({ days }: { days: Record<string, DayRecord> }) {
       ) : (
         <View style={styles.hours} />
       )}
-      <SegmentedButtons value={unit} onValueChange={switchUnit} buttons={UNITS} density='small' />
+      <SegmentedButtons value={unit} onValueChange={switchUnit} buttons={UNITS} theme={SEGMENT_THEME} />
     </View>
   )
 }

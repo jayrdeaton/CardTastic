@@ -3,7 +3,7 @@ import type { PackDefinition, PackGameDefinition } from '@tastic/shell'
 import { CARD_FONT_FAMILY, CARD_FONTS } from '@/components/cardFont'
 import { HeroTitle } from '@/components/HeroTitle'
 import { packGuide, SolitaireProvider, useFeedbackSounds, useScreenOptions } from '@/components/packRoot'
-import { SettingsSections } from '@/components/SettingsSections'
+import { SettingsSections, useSettingsRules } from '@/components/SettingsSections'
 import { RecordsTab, SolitaireAchievementList, SolitaireStatsSections, statsReset } from '@/components/SolitaireStats'
 import { TableBackground } from '@/components/TableBackground'
 import { CHROME_FG, previewCardBack } from '@/components/theme'
@@ -64,7 +64,8 @@ const solitaire = {
   nullLabel: 'Guest',
   // hud measures a turned button against the upright window, so held sideways it can open a menu off the screen.
   usePickerAlign: useFrameAutoAlign,
-  // Gameplay and Cards, under the shell's own rows in every Settings sheet.
+  // The game's rules, first in its Settings sheet (above the shell's own rows); Gameplay and Cards under them.
+  useSettingsRules,
   SettingsSections,
   // The stats screen (app/stats.tsx, components/SolitaireStats.tsx): guest's stats are their own (a Guest entry once a
   // profile exists, and the screen opens on whoever is playing); the calendar, totals and Activity across every game first

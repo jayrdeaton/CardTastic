@@ -1,4 +1,4 @@
-import { ruleChoiceLabel, ruleSummary } from '@/components/gameRule'
+import { ruleChoiceLabel } from '@/components/gameRule'
 import { GAME_RULE_SETTINGS, ruleGameForPath } from '@/games/ruleSettings'
 import { MATCH_GAME_IDS } from '@/redux/matchStatsSlice'
 import { DEFAULT_SETTINGS } from '@/redux/settingsSlice'
@@ -42,12 +42,5 @@ describe('ruleGameForPath', () => {
     expect(ruleGameForPath('/')).toBeNull()
     expect(ruleGameForPath('/stats')).toBeNull()
     expect(ruleGameForPath('/play/constructor')).toBeNull()
-  })
-})
-
-describe('ruleSummary', () => {
-  it("joins the choices in effect, as a setup screen sums a game's rules up", () => {
-    const rules = GAME_RULE_SETTINGS.crazyeights.rules(DEFAULT_SETTINGS, () => undefined)
-    expect(ruleSummary(rules)).toBe('Keep Drawing · Only 8s · 7 Cards, 5 for 3+')
   })
 })

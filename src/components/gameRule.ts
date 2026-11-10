@@ -1,6 +1,6 @@
-// One rule a game can be played under (Klondike's draw, Gin Rummy's knocking), as every game's rules are shown: rows in
-// the Settings sheet (components/RuleRows.tsx, Jay, 2026-11-08: every game's rules in Settings, none on a setup screen),
-// and a two-player game's setup screen sums them up on one line (games/table/MatchSetup.tsx). Each game builds its own
+// One rule a game can be played under (Klondike's draw, Gin Rummy's knocking), as every game's rules are shown: rows
+// (components/RuleRows.tsx) at the top of the Settings sheet, and on a two-player game's setup screen too (games/table/
+// MatchSetup.tsx; Jay, 2026-11-10: "both places", after two days of Settings alone). Each game builds its own
 // from the live settings (its ruleSettings.ts; games/ruleSettings.ts finds them by game id). Pure: no UI, so a rule
 // list can be built and tested without loading Paper or the shell.
 
@@ -8,7 +8,7 @@ import type { Settings } from '@/types'
 
 export interface GameRuleChoice<T extends string = string> {
   value: T
-  /** Says the rule on its own ("Knock at 10", "Draw 3"): it's the row's caption and a word in a setup screen's summary. */
+  /** Says the rule on its own ("Knock at 10", "Draw 3"): it's the row's caption. */
   label: string
 }
 
@@ -32,11 +32,6 @@ export type GameRuleBuilder = (settings: Settings, setSettings: SetSettings) => 
 /** The label of the choice in effect (the value itself if no choice has it). */
 export function ruleChoiceLabel(rule: Pick<GameRule, 'value' | 'choices'>): string {
   return rule.choices.find((choice) => choice.value === rule.value)?.label ?? rule.value
-}
-
-/** The choices in effect, one line: "Keep Drawing · Only 8s · 7 Cards, 5 for 3+". */
-export function ruleSummary(rules: Pick<GameRule, 'value' | 'choices'>[]): string {
-  return rules.map(ruleChoiceLabel).join(' · ')
 }
 
 /** Under each game's rules in Settings (Jay, 2026-11-08): a rule never changes the deal or match being played. Every

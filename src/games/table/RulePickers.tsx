@@ -1,13 +1,13 @@
 // Seats 3 and 4 on a table game's setup screen (Four Crowns, Crazy Eights: games/table/extraSeats.ts), and the CPUs'
 // level when seat 2's menu can't set it: one dropdown pill each, the same pill as the seat buttons beside them
 // (@tastic/profile's OptionPicker on the theme's surface), showing the choice in effect. They're who's playing; a game's
-// rules are in Settings (components/RuleRows.tsx, Jay, 2026-11-08), summed up on the setup screen by MatchSetup.tsx.
+// rules are rows (components/RuleRows.tsx), on a card above these pills (MatchSetup.tsx) and first in Settings.
 // Every choice is a Setting, so it follows the player; a match plays on the snapshot taken at Ready.
 
 import { useAutoPaperTheme } from '@rific/auto-paper'
 import { getOptionPickerContentSize, OptionPicker, type OptionPickerOption } from '@tastic/profile'
 import type { LoadoutOptionsProps } from '@tastic/shell'
-import { StyleSheet, View } from 'react-native'
+import { StyleSheet, View, type ViewProps } from 'react-native'
 
 import { useFrameAutoAlign } from '@/components/useFrameAutoAlign'
 
@@ -35,12 +35,12 @@ export function rulePickerIds(game: string, keys: readonly string[]): string[] {
 
 /** The pills as a wrapping row, centered. One parent for every pill, so an open menu stacks over the
  * pills after it. */
-export function RulePickers({ game, rules, host, accentColor, dark }: Pick<LoadoutOptionsProps, 'host' | 'accentColor' | 'dark'> & { game: string; rules: TableRule[] }) {
+export function RulePickers({ game, rules, host, accentColor, dark, onLayout }: Pick<LoadoutOptionsProps, 'host' | 'accentColor' | 'dark'> & { game: string; rules: TableRule[]; onLayout?: ViewProps['onLayout'] }) {
   // Against the CPU the setup screen stacks this row over the seat buttons, a later sibling it only lifts for its own
   // menus: an open rule menu lifts the row itself, or the seat buttons draw over the menu.
   const open = host.openId?.startsWith(`${game}-rule-`) ?? false
   return (
-    <View style={[styles.row, open && styles.rowOpen]} testID={`${game}-rules`}>
+    <View style={[styles.row, open && styles.rowOpen]} onLayout={onLayout} testID={`${game}-seat-pills`}>
       {rules.map((rule) => (
         <RulePicker key={rule.key} game={game} rule={rule} host={host} color={accentColor} dark={dark} />
       ))}

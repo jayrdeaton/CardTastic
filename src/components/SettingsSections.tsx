@@ -72,11 +72,21 @@ function autoHintCaption(seconds: AutoHintSeconds): string {
   return seconds === 0 ? 'Off' : `After ${seconds} seconds`
 }
 
+/** The rules of the game the Settings sheet is opened in (games/ruleSettings.ts, found from the route, so a game's play
+ * screen and its setup screen show the same), as the pack's `useSettingsRules`: @tastic/shell puts them FIRST, above its
+ * own rows (Jay, 2026-11-10: below Sound, How to Play and Appearance they went unfound). Null on Home, which has no game,
+ * and in a game without rules. They follow the player like every other setting (playerSettingsSlice.ts). */
+export function useSettingsRules(): ReactNode {
+  const { settings, setSettings } = useSettings()
+  const ruleGame = ruleGameForPath(usePathname())
+  const gameRules = ruleGame ? GAME_RULE_SETTINGS[ruleGame] : null
+  return gameRules ? <GameRulesSection title={gameRules.title} rules={gameRules.rules(settings, setSettings)} /> : null
+}
+
 /** Solitaire's own Settings sections (the pack's `SettingsSections`), under the rows @tastic/shell's Settings dialog
- * draws itself (How to Play on a setup screen, appearance, Blur, sound, haptics, Keep Awake, the version): the rules of
- * the game the sheet is opened in, if it has any (games/ruleSettings.ts, found from the route, so a game's play screen
- * and its setup screen show the same), then GAMEPLAY (play aids) and CARDS (how the cards look). Home's sheet has no
- * game, so no rules. Every setting here follows the player (playerSettingsSlice.ts). */
+ * draws itself (How to Play on a setup screen, appearance, Blur, sound, haptics, Keep Awake, the version): GAMEPLAY
+ * (play aids) and CARDS (how the cards look). The game's rules are `useSettingsRules`, at the top of the sheet. Every
+ * setting here follows the player (playerSettingsSlice.ts). */
 export function SettingsSections() {
   const { settings, setSettings } = useSettings()
   const systemReduceMotion = useSystemReduceMotion()
@@ -88,12 +98,9 @@ export function SettingsSections() {
   // unplayable cards, none of which they have.
   const path = usePathname()
   const solitaireRows = !MATCH_GAME_IDS.some((id) => path.endsWith(`/${id}`))
-  const ruleGame = ruleGameForPath(path)
-  const gameRules = ruleGame ? GAME_RULE_SETTINGS[ruleGame] : null
 
   return (
     <>
-      {gameRules && <GameRulesSection title={gameRules.title} rules={gameRules.rules(settings, setSettings)} />}
       {/* Two labeled sections, like hud's APPEARANCE above them (Jay, 2026-10-15: an unlabeled
       section left a bare 24pt gap after the Blur row). Toggle rows sit 4pt apart, hud's own
       toggle-group spacing. */}
