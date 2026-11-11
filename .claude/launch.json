@@ -2,7 +2,7 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "solitaire-web",
+      "name": "cardtastic-web",
       "runtimeExecutable": "npx",
       "runtimeArgs": [
         "expo",
@@ -15,7 +15,7 @@
       "autoPort": true
     },
     {
-      "name": "solitaire-dev-client",
+      "name": "cardtastic-dev-client",
       "runtimeExecutable": "npx",
       "runtimeArgs": [
         "expo",

@@ -7,6 +7,7 @@ import { SLAPJACK_RULES } from '@/constants/gameRules'
 import { MATCH_GAME_TITLES } from '@/games/matchGameTitles'
 import { SlapPreview } from '@/games/ratslap/RatSlapPreview'
 import { SlapStatsSection } from '@/games/ratslap/RatSlapStats'
+import { realTimeSeatTwo } from '@/games/table/realTimeSeats'
 import type { RootState } from '@/redux/store'
 
 import { SLAPJACK_GUIDE_VERSION, slapjackGuide } from './guide'
@@ -26,10 +27,11 @@ export const slapjack: GameDefinition = {
   title: SLAPJACK_TITLE,
   blurb: 'Slap every Jack.',
   reducers: { slapjackGuide: slapjackGuide.reducer },
-  seatTwo: ['cpu', 'person'],
-  // Face to face on a phone or tablet; at a computer the two people sit side by side, here and at the table, where player 2's side is
-  // drawn upright (useFaceToFace).
-  sideBySideAtComputer: true,
+  // The CPU or a person on a phone or tablet, face to face; only the CPU at a computer, whose one mouse can't take two
+  // people's taps at the same moment (realTimeSeatTwo).
+  get seatTwo() {
+    return realTimeSeatTwo()
+  },
   useLoadout: useSlapjackLoadout,
   resumable: false,
   keepStatusBar: false,

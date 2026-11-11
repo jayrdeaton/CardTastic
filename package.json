@@ -1,14 +1,14 @@
 {
-  "name": "solitaire-app",
+  "name": "cardtastic",
   "version": "1.2.8",
   "private": true,
-  "description": "Eleven classic solitaire games in one app (Klondike, Spider, FreeCell, Pyramid and more), ad-free, built with Expo.",
+  "description": "CardTastic: twenty card games in one ad-free app, eleven solitaire games and nine for two to four players, built with Expo.",
   "type": "commonjs",
   "main": "expo-router/entry",
   "scripts": {
     "android": "expo run:android",
     "build": "eas build",
-    "build:web": "npm run verify && WEB_BASE_URL=/solitaire expo export -p web --output-dir web-build/solitaire",
+    "build:web": "npm run verify && WEB_BASE_URL=/cardtastic expo export -p web --output-dir web-build/cardtastic",
     "client": "expo start --dev-client",
     "doctor": "expo install --fix && npx expo-doctor@latest",
     "fingerprint:compare": "eas fingerprint:compare",

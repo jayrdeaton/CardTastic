@@ -1,15 +1,15 @@
 # CardTastic
 
-Eleven classic solitaire games and four games for two players in one ad-free app, from Klondike and FreeCell to RatSlap and Six-Card Golf.
+Eleven classic solitaire games and nine games for two to four players in one ad-free app, from Klondike and FreeCell to Gin Rummy, Crazy Eights and RatSlap.
 
-CardTastic (SolitaireTastic on the App Store until the next release, and this repository's name) is a card game collection for iPhone, iPad, Android, and web, with no ads and no accounts. Built with Expo, React Native, Reanimated, and Redux Toolkit, it's part of a family of games built on my open-source `@tastic` game-engine and `@rific` Expo utility packages. App Store and Google Play release in progress.
+CardTastic (SolitaireTastic on the App Store until the next release) is a card game collection for iPhone, iPad, Android, and web, with no ads and no accounts. Built with Expo, React Native, Reanimated, and Redux Toolkit, it's part of a family of games built on my open-source `@tastic` game-engine and `@rific` Expo utility packages. App Store and Google Play release in progress.
 
 <!-- TODO: add gameplay GIF/screenshot here -->
 
 ## Features
 
 - **Eleven solitaire games:** Klondike, FreeCell, Yukon, Canfield, Forty Thieves, Spider, Scorpion, Pyramid, Golf, TriPeaks, and Aces Up. Each Home tile shows a thumbnail of the game's opening deal, and its rules are one tap away (the info button on the tile, or the game's title during play).
-- **Four games for two players:** RatSlap (Egyptian Ratscrew), Slapjack, Six-Card Golf, and Trash, against the computer at three levels or face to face on one device. Home splits the games into Solitaire and Two Player tabs.
+- **Nine games for two to four players:** RatSlap (Egyptian Ratscrew), Slapjack, Speed, War, Six-Card Golf, and Trash face to face on one device, and Gin Rummy, Crazy Eights, and Four Crowns passing it between turns, against people or the computer. Home splits the games into Solitaire and Two Player tabs.
 - **Rule variants:** Draw 1 or Draw 3 for Klondike and Canfield, 1, 2, or 4 suits for Spider, No Wrap or K-A Wrap for Golf and TriPeaks, Assisted or Classic for Scorpion (Assisted holds three cards back to deal in later), and Single Card or Allow Runs for Forty Thieves. Each is set from that game's Settings dialog.
 - **Tap or drag:** tap a card to send it to its best move, or drag it (along with the cards on top of it, where the rules allow) to the pile you want. In Pyramid, tap two exposed cards that add up to 13, or a lone King. A tapped card with nowhere to go shakes, and an illegal drop springs back.
 - **Undo, Hint, and New Game:** undo has no limit, and holding Undo keeps rewinding one move at a time. Hint rings a legal move, or the stock when drawing is the move. New Game asks for confirmation before abandoning a deal in progress.

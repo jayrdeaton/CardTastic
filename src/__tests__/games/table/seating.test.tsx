@@ -1,5 +1,6 @@
 import { renderHook } from '@testing-library/react-native'
 
+import { isAtComputer, realTimeSeatTwo } from '@/games/table/realTimeSeats'
 import { useFaceToFace } from '@/games/table/TableChrome'
 import { games } from '@/pack'
 
@@ -30,10 +31,61 @@ describe('useFaceToFace', () => {
   })
 })
 
+const REAL_TIME = ['ratslap', 'slapjack', 'speed']
+
 describe("the setup screen's seating", () => {
-  it('sits side by side at a computer in every two-player game', () => {
+  it('offers Player in every two-player game on a phone or tablet', () => {
     const twoPlayer = games.filter((game) => game.seatTwo?.includes('person'))
-    expect(twoPlayer.map((game) => game.id)).toEqual(['ratslap', 'slapjack', 'speed', 'war', 'sixcardgolf', 'trash', 'ginrummy', 'fourcrowns', 'crazyeights'])
-    for (const game of twoPlayer) expect(game.sideBySideAtComputer).toBe(true)
+    expect(twoPlayer.map((game) => game.id)).toEqual([...REAL_TIME, 'war', 'sixcardgolf', 'trash', 'ginrummy', 'fourcrowns', 'crazyeights'])
+  })
+
+  it('sits side by side at a computer in every game that offers Player there', () => {
+    for (const game of games.filter((g) => g.seatTwo?.includes('person') && !REAL_TIME.includes(g.id))) expect(game.sideBySideAtComputer).toBe(true)
+  })
+})
+
+// RatSlap, Slapjack and Speed are played in real time, and a computer has one mouse, so two people can't both slap or play
+// at once there: seat 2 is only the CPU (Jay, 2026-11-11). Turn-based and pass-and-play games keep Player.
+describe('the real-time games at a computer', () => {
+  it('offer only the CPU at a computer, and the CPU or a person elsewhere', () => {
+    expect(realTimeSeatTwo(true)).toEqual(['cpu'])
+    expect(realTimeSeatTwo(false)).toEqual(['cpu', 'person'])
+  })
+
+  it('read the choice each time, so the setup screen follows the device it runs on', () => {
+    for (const id of REAL_TIME) {
+      const game = games.find((g) => g.id === id)
+      const getter = game && Object.getOwnPropertyDescriptor(game, 'seatTwo')?.get
+      expect(getter).toBeDefined()
+    }
+  })
+
+  it('treat the web without a touch-first screen as a computer, and never a phone or tablet app', () => {
+    const { Platform } = jest.requireActual<typeof import('react-native')>('react-native')
+    const os = Platform.OS
+    const matchMedia = window.matchMedia
+    const touchPoints = Object.getOwnPropertyDescriptor(navigator, 'maxTouchPoints')
+    const setTouch = (points: number, fine: boolean, coarse: boolean) => {
+      Object.defineProperty(navigator, 'maxTouchPoints', { configurable: true, value: points })
+      window.matchMedia = ((query: string) => ({ matches: query === '(pointer: fine)' ? fine : query === '(pointer: coarse)' ? coarse : false })) as typeof window.matchMedia
+    }
+    try {
+      Platform.OS = 'ios'
+      setTouch(0, true, false)
+      expect(isAtComputer()).toBe(false)
+      Platform.OS = 'web'
+      expect(isAtComputer()).toBe(true)
+      setTouch(5, true, false)
+      expect(isAtComputer()).toBe(true)
+      setTouch(5, false, true)
+      expect(isAtComputer()).toBe(false)
+      setTouch(0, false, true)
+      expect(isAtComputer()).toBe(false)
+    } finally {
+      Platform.OS = os
+      window.matchMedia = matchMedia
+      if (touchPoints) Object.defineProperty(navigator, 'maxTouchPoints', touchPoints)
+      else delete (navigator as { maxTouchPoints?: number }).maxTouchPoints
+    }
   })
 })

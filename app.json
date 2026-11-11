@@ -2,7 +2,7 @@
   "expo": {
     "name": "CardTastic",
     "slug": "Solitaire",
-    "scheme": "solitaire",
+    "scheme": "cardtastic",
     "version": "1.2.8",
     "runtimeVersion": {
       "policy": "fingerprint"
@@ -31,7 +31,7 @@
       }
     },
     "android": {
-      "package": "com.infinitetoken.solitaire",
+      "package": "com.infinitetoken.cardtastic",
       "predictiveBackGestureEnabled": false
     },
     "web": {

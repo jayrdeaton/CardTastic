@@ -4,6 +4,7 @@ import { createElement } from 'react'
 import { RulesDialog } from '@/components/RulesDialog'
 import { RATSLAP_RULES } from '@/constants/gameRules'
 import { MATCH_GAME_TITLES } from '@/games/matchGameTitles'
+import { realTimeSeatTwo } from '@/games/table/realTimeSeats'
 import type { RootState } from '@/redux/store'
 
 import { RATSLAP_GUIDE_VERSION, ratslapGuide } from './guide'
@@ -17,7 +18,7 @@ export const RATSLAP_TITLE = MATCH_GAME_TITLES.ratslap
 
 /** RatSlap in the pack (pack.ts): the first game here for two players, seat 2 the CPU or a person, chosen with the rules
  * on the shell's setup screen (useRatSlapLoadout). Two people sit face to face at the phone's short edges, in a phone's or
- * tablet's browser too; at a computer they sit side by side, player 2's side of the table upright (useFaceToFace).
+ * tablet's browser too; at a computer it's only against the CPU (realTimeSeatTwo).
  * A match isn't saved, so a cold launch never comes back to one, and it hides the status bar (the table lies flat; nothing
  * reads it). Its own How to Play shows on the tile's first tap (guideSteps.tsx). */
 export const ratslap: GameDefinition = {
@@ -25,10 +26,11 @@ export const ratslap: GameDefinition = {
   title: RATSLAP_TITLE,
   blurb: 'Slap doubles and sandwiches.',
   reducers: { ratslapGuide: ratslapGuide.reducer },
-  seatTwo: ['cpu', 'person'],
-  // Face to face on a phone or tablet; at a computer the two people sit side by side, here and at the table, where player 2's side is
-  // drawn upright (useFaceToFace).
-  sideBySideAtComputer: true,
+  // The CPU or a person on a phone or tablet, face to face; only the CPU at a computer, whose one mouse can't take two
+  // people's taps at the same moment (realTimeSeatTwo).
+  get seatTwo() {
+    return realTimeSeatTwo()
+  },
   useLoadout: useRatSlapLoadout,
   resumable: false,
   keepStatusBar: false,

@@ -4,6 +4,7 @@ import { createElement } from 'react'
 import { RulesDialog } from '@/components/RulesDialog'
 import { SPEED_RULES } from '@/constants/gameRules'
 import { MATCH_GAME_TITLES } from '@/games/matchGameTitles'
+import { realTimeSeatTwo } from '@/games/table/realTimeSeats'
 import type { RootState } from '@/redux/store'
 
 import { SPEED_GUIDE_VERSION, speedGuide } from './guide'
@@ -22,10 +23,11 @@ export const speed: GameDefinition = {
   title: SPEED_TITLE,
   blurb: 'No turns. One up or down, fast.',
   reducers: { speedGuide: speedGuide.reducer },
-  seatTwo: ['cpu', 'person'],
-  // Face to face on a phone or tablet; at a computer the two people sit side by side, here and at the table, where player 2's side is
-  // drawn upright (useFaceToFace).
-  sideBySideAtComputer: true,
+  // The CPU or a person on a phone or tablet, face to face; only the CPU at a computer, whose one mouse can't take two
+  // people's taps at the same moment (realTimeSeatTwo).
+  get seatTwo() {
+    return realTimeSeatTwo()
+  },
   useLoadout: useSpeedLoadout,
   resumable: false,
   keepStatusBar: false,
