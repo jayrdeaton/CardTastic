@@ -1,0 +1,170 @@
+# Google Play
+
+CardTastic for Android ships through Google Play, from the Infinite Token organization developer account (opened 2026-11-11). The Android app is this repo's Expo app, package `com.infinitetoken.cardtastic`, built by EAS as an app bundle (`.aab`); Google signs it for the store with the Play App Signing key, and EAS keeps the upload key. It has never been on Play, so this is a first submission.
+
+Checked 2026-11-11 against Play Console Help and the Developer Program Policies (the app-store-prep skill's Google Play reference).
+
+## What Google asks of CardTastic
+
+- **No closed test:** the 12-tester, 14-day closed test only binds personal accounts made after November 13, 2023, so the organization account publishes to production straight away.
+- **Target API level:** new apps must target API 36 (Android 16) since 2026-08-31. Expo SDK 58 targets 36 by default, so nothing is set here.
+- **Selling:** nothing is sold anywhere. No in-app purchases, no ads, no prices in the listing.
+- **Account deletion:** there are no accounts, so the Data safety form answers no and needs no deletion page.
+- **Families policy:** not applicable. The target audience is 13 and over (Jay, 2026-11-11), so the app is outside it. It would pass today (no ads, no ad SDKs, nothing collected but the update check), but it would bind every later update.
+- **Permissions:** `app.json`'s `android.blockedPermissions` takes out what Expo's template adds and nothing here uses (`SYSTEM_ALERT_WINDOW`, `READ_EXTERNAL_STORAGE`, `WRITE_EXTERNAL_STORAGE`). What's left (read from the release APK with `aapt2 dump permissions`, 2026-11-11) is `INTERNET` and `ACCESS_NETWORK_STATE` (the update check), `VIBRATE` (haptics), expo-audio's `MODIFY_AUDIO_SETTINGS`, and `WAKE_LOCK`, which a library adds. No `AD_ID`, so the Advertising ID answer is no. None needs a declaration form.
+- **Package name:** Play registers it with the account by itself (Android developer verification). The iOS bundle ID stays `com.infinitetoken.solitaire`; the two don't have to match.
+
+## Jay's steps, in order
+
+1. **Create the app** (Play Console, Create app): app name `CardTastic: Solitaire & More`, default language English (United States), **Game**, **Free** (a free app can't be made paid later), and the declarations (Developer Program Policies, US export laws).
+2. **Fill in App content** (the answers below), the **main store listing** (the text and graphics below) and **store settings**.
+3. **Build:** `jrd ship build production`, picking All (iOS and Android together). The first Android build asks to make the upload keystore on EAS: yes.
+4. **Upload the first bundle by hand** in Play Console (Test and release, Production, Create new release, upload the `.aab`, release notes below): Google's API can't create an app's first release, so `eas submit -p android` only works from the second one on, with a Google Cloud service account key that has Play Console access.
+5. **Send for review** (Publishing overview). A new account's first app can take several days. Managed publishing holds an approved release until you press Publish, if CardTastic should go live with the iOS release.
+6. **After the first upload:** nothing. CardTastic has no sign-in or App Links, so it needs no `assetlinks.json`.
+
+Every later version: `jrd ship build production`, `eas submit -p android --profile production` (once `submit.production.android` in `eas.json` has a service account key and a track), the release notes, then send for review.
+
+## Store listing (main store listing)
+
+**App name** (30 at most, 28 used): `CardTastic: Solitaire & More`
+
+**Short description** (80 at most, 80 used):
+
+> Twenty card games, no ads: classic solitaire plus games for two to four players.
+
+**Full description** (4000 at most, 1,941 used; the App Store text from `store.config.json` with Android's lines: "one phone or tablet" for "one iPhone or iPad", "on phones and tablets" for "on iPhone and iPad", and no line about profiles coming with you from other Tastic games, since profiles are only shared on iOS and the web; `@tastic/profile`'s shared store isn't available on Android):
+
+```
+Twenty card games in one app, with no ads, no accounts, and no tracking: eleven classic solitaire games, and nine games for two to four players on one phone or tablet.
+
+SOLITAIRE
+Klondike, FreeCell, Spider, Pyramid, Yukon, Golf, TriPeaks, Canfield, Scorpion, Forty Thieves, and Aces Up, each with its rules one tap away.
+• Tap a card to send it to its best move (Pyramid pairs take two taps), or drag it where you want
+• Unlimited undo. Hold Undo to rewind move by move
+• Stuck? A hint shows you a move, or turn on Auto Hint
+• Auto-Move to the foundations, and a solved board finishes itself
+• Rule variants: Draw 1 or Draw 3, Spider with 1, 2, or 4 suits, and more
+
+BEAT PAR
+• Score is moves plus seconds, and lower is better
+• Your par is an expert's at first, then follows your own recent wins
+• Every win earns a bronze, silver, or gold trophy
+• Stats, records, and achievements for every solitaire game
+• Fireworks of card suits and a bouncing cascade when you win
+
+PLAY TOGETHER
+• RatSlap (Egyptian Ratscrew), Slapjack, Speed, War, Six-Card Golf, and Trash, face to face across the screen
+• Gin Rummy, Crazy Eights, and Four Crowns, a rummy whose wild card changes every round, passing the phone between turns
+• Crazy Eights and Four Crowns take up to four players, people and computer players in any mix
+• Or play against the computer, at Easy, Medium, or Hard in most games
+• House rules are settings: jokers in RatSlap, Oklahoma in Gin Rummy, what you draw in Crazy Eights, and more
+• Wins and losses for each player, against the computer and each other
+
+MAKE IT YOURS
+• Player profiles, each with its own color, settings, stats, and saved games
+• Four card faces and four card backs, one with your player tag
+• Light and dark mode
+• Solitaire in portrait or landscape, on phones and tablets
+
+ALWAYS READY
+• Solitaire picks up right where you left off
+• Plays offline
+
+Open source on GitHub: https://github.com/jayrdeaton/CardTastic
+```
+
+When the App Store description changes, change this one the same way (the three Android lines above are the only differences).
+
+**Release notes** for the first release (500 at most, 101 used):
+
+```
+CardTastic's first release on Android: eleven solitaire games and nine games for two to four players.
+```
+
+**Graphics** (in `store/screenshots/google-play/`, gitignored like the App Store's):
+
+- **App icon:** `icon-512.png`, 512 x 512, 32-bit PNG with alpha (opaque), the iOS icon (`assets/images/icon-dark.png`, the four aces on Rose's felt) scaled down: `ffmpeg -i assets/images/icon-dark.png -vf scale=512:512:flags=lanczos -pix_fmt rgba store/screenshots/google-play/icon-512.png`. Google rounds its corners and adds the shadow itself.
+- **Feature graphic:** `feature-graphic.png`, 1024 x 500, 24-bit PNG with no alpha: the App Store header art (`store/screenshots/header.png`, drawn by `store/creative/build.mjs --only header` with the app's own components: the four Aces fanned in the middle like the icon, each suit's run from 2 to King arcing out to the edges, every card of the deck once, and pip fireworks of all four suits in the top corners; Jay approved it 2026-11-11) cropped to Play's shape and scaled. The crop keeps the Aces and the runs leaving them in the middle, and the outer diamond and club Kings run off the edges: `ffmpeg -i store/screenshots/header.png -vf "crop=3371:1646:234:0,scale=1024:500:flags=lanczos" -pix_fmt rgb24 store/screenshots/google-play/feature-graphic.png`. No words, no device frame, the Aces in the middle. Recrop whenever the header is redrawn.
+- **Phone screenshots:** `store/screenshots/android/`, seven at 1440 x 2560, no alpha, in upload order, with the alt text in Screenshots below.
+- **Tablet screenshots:** none for now (optional).
+
+## Store settings
+
+- **App category:** Game, Card.
+- **Tags:** up to five, picked in the console from Play's list. Look for Solitaire, Card, Offline, Single player and Local multiplayer (or whatever the list's nearest names are).
+- **Contact details:** email jay@infinitetoken.com for now (public; support@infinitetoken.com once it reaches someone, as Lumber's), website https://games.infinitetoken.com/cardtastic, no phone.
+
+## App content
+
+- **Privacy policy:** https://games.infinitetoken.com/privacy (it covers Android, and its Game Updates section describes the update check below).
+- **App access:** All functionality is available without special access. No account or sign-in exists.
+- **Ads:** No, the app doesn't contain ads.
+- **Content rating** (IARC questionnaire): email jay@infinitetoken.com; category **Game**. Violence, fear, sexuality, language, controlled substances and crude humor: none. Gambling: no real or simulated gambling (no game has bets, chips or money; Gin Rummy and Four Crowns keep points only). Users interact or exchange content: no (the two-player games are on one device, with no online play). Shares the user's location: no. Digital purchases: no. Unrestricted internet access: no. Expected result: Everyone, PEGI 3. Matches the App Store's answers (`store/README.md`, Age rating, 4+).
+- **Target audience and content:** 13-15, 16-17 and 18 and over (Jay, 2026-11-11). Could the store listing unintentionally appeal to children: no (a plain card game, no cartoon characters). Outside the Families policy.
+- **News app:** no. **Government app:** no. **Financial features:** none. **Health:** none.
+- **Advertising ID:** the app doesn't use one (no `AD_ID` permission, no ads or analytics SDK).
+- **Data safety:** below.
+
+## Data safety
+
+The only thing that leaves the phone is Expo's update check (expo-updates, at launch). It carries a random installation ID the app makes on its first launch (`EAS-Client-ID`, a UUID in the app's own storage: not the Android ID or the advertising ID), the platform and runtime version, and, only after an update failed to start, that update's ID and the first 1,024 characters of its error (`Expo-Fatal-Error`). Expo serves the update as a service provider, so this is collected, not shared. Google's form counts anything sent off the device, and names an app-instance ID like a Firebase installation ID as a Device or other ID, so it's declared (Jay, 2026-11-11), with the purposes from Expo's store privacy guide (https://docs.expo.dev/eas-update/store-privacy-declarations/), the same answers as DuelTastic and PuckTastic. The privacy policy's Game Updates section says the same.
+
+**Does your app collect or share any of the required user data types?** Yes.
+**Is all of the user data collected by your app encrypted in transit?** Yes (HTTPS to u.expo.dev).
+**Which account creation methods does your app support?** None (the app has no accounts).
+
+| Data type | Collected / shared | Processed ephemerally | Required or optional | Purposes |
+|---|---|---|---|---|
+| Device or other IDs | Collected, not shared | No (Expo keeps it to count installs per update and roll updates out) | Required | App functionality, Analytics |
+| App info and performance, Crash logs | Collected, not shared | No | Required | Analytics (the error from an update that failed to start, so a broken update can be fixed) |
+
+Not collected: location, personal info, financial info, health and fitness, messages, photos and videos, audio, files and docs, calendar, contacts, app activity, web browsing, other app info and performance. Game progress, profiles, stats and settings stay on the device.
+
+- **Can users request deletion?** No: the ID isn't linked to anyone, so there is nothing to find and delete by person. Uninstalling the app removes it from the phone.
+- **Delete account URL:** none (no accounts).
+
+**The App Store's App Privacy answer matches** (Jay, 2026-11-11): Identifiers > Device ID (App Functionality, Analytics) and Diagnostics > Crash Data (App Functionality), not linked to the user, not tracking (`store/README.md`, App Privacy). It was Data Not Collected through 1.2.5, and changes in App Store Connect by hand.
+
+## Screenshots
+
+Seven phone shots, captioned in DejaVu Serif Bold (the app's font) above the capture in a Pixel bezel, on the felt sampled from each capture. The captions and alt text are in `store/google-play-screenshots.json`; paste each shot's `alt` into Play Console (140 at most, all 80 to 111 used). The PNGs and raw captures are gitignored.
+
+| Shot | Caption | What it shows |
+|---|---|---|
+| 01-klondike | Classic Solitaire, No Ads / Klondike, FreeCell, Spider, and more | The saved Klondike board after one draw, so Undo is lit |
+| 02-home | 20 Card Games in One App / Solitaire and games for two to four | Home as it opens, on the Solitaire tab |
+| 03-together | Games for Two to Four / Or take on the computer | Gin Rummy's first turn against a Medium CPU (the two-player tables hide the status bar) |
+| 04-win | Beat Par in Every Game / Score is moves plus seconds | The FreeCell finish: a frame 12.5 s into the recording, silver medal, chains bouncing, heart fireworks |
+| 05-hint | A Hint When You Need One / See a move you can make | Yukon's hint: the 6♣ 5♥ 4♣ copy halfway to the 7♥, a frame 2.56 s in |
+| 06-stats | Stats and Achievements / For every game and rule set | The Achievements tab scrolled one screen: bronze, silver, gold and locked rows |
+| 07-style | Your Cards, Your Colors / Four faces, four backs, any color | Pyramid's fresh deal after one draw, with Decorated faces, the Ornate back and Guest's color #009688 (a red felt) |
+
+How they were made (2026-11-11), so a reshoot can follow it:
+
+1. `node store/seed/generate.mjs` (writes `store/seed/seed.json`: three weeks of a Hint-following player on the real rules and stats engine, a Klondike board, a Yukon board whose hint moves a clean run, and a FreeCell board one play from its finish).
+2. A release APK for the emulator only: `CI=1 npx expo prebuild -p android --clean --no-install`, then in `android/`, `./gradlew app:assembleRelease -PreactNativeArchitectures=arm64-v8a` (6 minutes under load). To seed it, add `debuggable true` at the top of `android/app/build.gradle`'s `release` block and build again (2 minutes): AsyncStorage on Android is reachable only through `adb shell run-as`, which needs a debuggable app. `react-native`'s own release build config stays non-debug, so it still runs the bundled JavaScript, not Metro. **Take the line out afterwards** (`android/` is gitignored, but a local `eas build --local` would use it, and Play refuses a debuggable bundle).
+3. The shared `Pixel_9` emulator (`emulator -avd Pixel_9 -no-audio -no-boot-anim -no-snapshot-save`), dark mode (`adb shell cmd uimode night yes`), `adb shell settings put global hide_error_dialogs 1`, `adb install -r` the APK, and launch it once so its database exists.
+4. `python3 store/seed/write-store.py --android` (stops the app, writes the seed into `databases/RKStorage`; `--style '#009688'` for 07). The debuggable build's first launch after seeding takes about 40 s on a loaded Mac (the plain release build starts in under a second).
+5. Demo mode for the status bar. On this image `-e fully true` is needed or Wi-Fi shows "!", and the mobile slot shows "3G" unless its `datatype` is empty:
+   ```bash
+   adb shell am broadcast -a com.android.systemui.demo -e command enter
+   adb shell am broadcast -a com.android.systemui.demo -e command clock -e hhmm 0941
+   adb shell am broadcast -a com.android.systemui.demo -e command battery -e level 100 -e plugged false -e powersave false
+   adb shell am broadcast -a com.android.systemui.demo -e command network -e wifi show -e level 4 -e fully true
+   adb shell am broadcast -a com.android.systemui.demo -e command network -e mobile show -e level 4 -e datatype '' -e fully true
+   adb shell am broadcast -a com.android.systemui.demo -e command notifications -e visible false
+   ```
+   The shield left of the clock is a Safety Center notification (no screen lock), which demo mode doesn't hide: `adb shell "cmd notification snooze --for 86400000 '<key>'"` with the keys from `adb shell dumpsys notification` (pkg=android, id=2345). Another session using the emulator may reset demo mode, so rerun it before each capture.
+6. Captures with `adb exec-out screencap -p > store/screenshots/raw/android/<name>.png`, taps with `adb shell input tap <x> <y>` in the 1080x2424 screen's pixels. The win and hint are frames from `adb shell screenrecord`, pulled and picked with the app-store-prep skill's `frames.mjs` (`sheet`, then `grab`). For 04, open FreeCell and tap the J♥ (it goes up and the solved board finishes itself); for 05, open Yukon and press Hint.
+7. `~/.claude/skills/app-store-prep/scripts/compose.mjs store/google-play-screenshots.json` writes `store/screenshots/android/`.
+
+## First run on Android (2026-11-11)
+
+The first time CardTastic ran on Android: a local release APK (`com.infinitetoken.cardtastic`, arm64) on the Pixel_9 emulator (Android 16), in dark mode with sound off. Not a device, not the EAS production build.
+
+- **Worked:** a cold start in 0.84 s to How to Play over Home, with no JavaScript errors in the log; the adaptive icon on the launcher; Home on both tabs; a saved Klondike, FreeCell and Yukon board resuming; a stock draw; FreeCell's solved-board finish into the win card, the bouncing cascade and pip fireworks; the silver medal's masked gradient on the trophy and title (never seen natively before: it renders); Yukon's hint glow and glide; the stats screen with its calendar, and the Achievements tab; Gin Rummy's setup screen and its table against the CPU (melds marked, suit marks under the ranks); Pyramid with another player color, card faces and back.
+- **The Achievements tab's label is cut to "Achievem…"** on the Pixel 9 (411dp wide): the three tabs are equal-width segments and "Achievements" doesn't fit a third of the row. Not checked whether iOS cuts it too. The tabs are `@tastic/shell`'s stats screen (Paper `SegmentedButtons`), so the fix goes there. The screenshot is scrolled past them.
+- **expo-audio keeps an active media session per sound player** (`dumpsys media_session`: several `ExpoAudioBasicMediaSession` entries for the app, `active=true`). With sound off nothing showed in the notification shade, but with sound on a card click may put CardTastic in Android's media controls or take the media buttons. The emulator has no audio, so this needs a device with sound on.
+- **Not checked:** the hardware and gesture back on every screen (the skill's warning: back from a screen pushed with `router.replace` quits the app), landscape, the two-player games' portrait hold, a tablet, haptics, a device.
+- **The screenshot seed was scrambling every saved game's foundations** (iOS too): `store/seed/write-store.py` didn't stamp `foundationLayout`, so the app took each seeded save for one from before 2026-10-20 and moved its foundations, hearts landing in the spades slot (and a tap played into a column instead of up). Fixed 2026-11-11; the App Store set was taken before the layout changed, so it wasn't affected, but its retake would have been.

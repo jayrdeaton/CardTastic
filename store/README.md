@@ -22,13 +22,11 @@ Limits: title 30, subtitle 30, promotional text 170 (editable any time without r
 
 ## Screenshots (uploaded by hand)
 
-**Out of date since the CardTastic rename (2026-11-05):** the set below is 1.2.5's. Home now says CardTastic and has Solitaire and Two Player tabs, the stats screen has tabs and pickers, the hint is a glow, "11 Games in One App" is no longer true, and no shot shows a two-player game. Retake them on the build that goes for review, along with the search art ("11 Classic Solitaire Games").
-
 `store/screenshots/iphone-medium/` (1206x2622) goes in the "iPhone 6.1" or 6.3" displays" slot, which App Store Connect requires (a 1320x2868 file there fails with "File dimensions are invalid"). `store/screenshots/iphone/` (1320x2868) is for the optional 6.9" slot, and `store/screenshots/ipad/` (2064x2752) for the 13" iPad slot. Apple scales these to every smaller device. The iPad set is required because `ios.supportsTablet` is on. The order in the folder is the upload order; the first three are what search results show.
 
 The PNGs are build output and are gitignored, along with the raw captures they were made from (`store/screenshots/raw/`). The captions are in `store/screenshots.json`.
 
-How they were made (2026-10-17, all retaken 2026-10-19 on 1.2.4 for the pip fireworks, medal trophy, personal par and new card surfaces): a Release build on the iPhone 17 Pro Max and iPad Pro 13" (M5) simulators, status bar pinned to 9:41 with full battery, dark appearance. The saved data was written before first launch (sound off, guide seen, three weeks of stats from a Hint-following player on the real rules and stats engine, the recent wins their personal par is made from, and saved boards for Klondike, Yukon and a FreeCell one play from its finish), so every number on screen is one the app produced. The hint and win shots are frames from a screen recording. A compositor puts each capture under its caption in DejaVu Serif Bold, on the felt color sampled from the capture. The tools (simulator setup, the slim build, frame picking, the compositor) are in Jay's `app-store-prep` skill; the Solitaire-specific seeding is here in `store/seed/`.
+How they were made (2026-10-17, all retaken 2026-10-19 on 1.2.4, and again 2026-11-11 for CardTastic: eight shots, two of them two-player games, from a Release build of the working tree that day): a Release build on the iPhone 17 Pro Max and iPad Pro 13" (M5) simulators, status bar pinned to 9:41 with full battery, dark appearance. The saved data was written before first launch (sound off, guide seen, three weeks of stats from a Hint-following player on the real rules and stats engine, the recent wins their personal par is made from, and saved boards for Klondike, Yukon and a FreeCell one play from its finish), so every number on screen is one the app produced. The hint and win shots are frames from a screen recording. A compositor puts each capture under its caption in DejaVu Serif Bold, on the felt color sampled from the capture. The tools (simulator setup, the slim build, frame picking, the compositor) are in Jay's `app-store-prep` skill; the Solitaire-specific seeding is here in `store/seed/`.
 
 To redo them:
 
@@ -36,19 +34,21 @@ To redo them:
 2. Build and install a Release copy on the `AppStore iPhone 6.9` and `AppStore iPad 13` simulators (the skill's `sim-build.sh` and `sim-setup.sh --app`)
 3. `store/seed/reseed.sh <udid>` on each, then capture into `store/screenshots/raw/<device>/<name>.png`:
    - **01-klondike:** open Klondike (the saved board), draw one card so Undo lights up
-   - **02-home:** Home as it opens
-   - **03-win:** open FreeCell, record, play the 4♣ to its foundation; use a frame once every card chain is mid-bounce (10 to 25 s in), not the start, with a pip burst in view (iPhone 17 s, iPad 21 s on 2026-10-19)
-   - **04-hint:** open Yukon, record, press Hint; use the frame where the see-through 6♣ 5♥ 4♣ is halfway to the 7♥
-   - **05-stats:** the trophy on Home, scrolled to a stretch of achievements with bronze, silver, gold and locked rows
-   - **06-style:** `store/seed/reseed.sh <udid> --style '#009688'`, open Pyramid (a fresh deal), draw one card
+   - **02-home:** Home as it opens, on the Solitaire tab
+   - **03-win:** open FreeCell, record, tap the J♥ in the second column (the auto-finish plays the rest); use a frame once every card chain is mid-bounce (10 to 25 s in), not the start, with a pip burst in view (iPhone 16 s, iPad 15 s on 2026-11-11)
+   - **04-ratslap:** the Two Player tab, RatSlap, set the opponent to Player, tap both Ready buttons, then play from each deck until a face card's challenge is under way with three cards fanned on the pile ("K · 1 try left"). The game hides the status bar, so this capture (and Gin's) has none, as in the app
+   - **05-ginrummy:** Gin Rummy, set the opponent back to CPU, Medium (the opponent pick is shared by every two-player game), Ready. Play until the hand shows a meld or two with their lines (going Home and back deals a fresh hand), then tap a deadwood card so it rises with Throw showing
+   - **06-hint:** open Yukon, record, press Hint; use the frame where the see-through 6♣ 5♥ 4♣ is halfway to the 7♥
+   - **07-stats:** (02-home and 07-stats were taken 2026-11-11 with `@tastic/shell` 0.8.2's fix for its tabs swapped into the simulator build: label-wide Stats | Records | Achievements, and no line across "Two Player" or "Achievements". Any build on 0.8.2 or later matches them.) The trophy on Home, then switch the player picker from Guest to Everyone: the seeded history is in the phone's totals, and Guest's own record only has that day's FreeCell win. The Stats tab as it opens, the calendar and Overall in view
+   - **08-style:** `store/seed/reseed.sh <udid> --style '#009688'`, open Pyramid (a fresh deal), draw one card
 4. The skill's `compose.mjs store/screenshots.json`
 
 ## Header and search results art (uploaded by hand, optional, iOS 27+)
 
 `store/screenshots/header.png` (3840 x 1646) and `store/screenshots/search.png` (3840 x 2560), gitignored like the screenshots. `node store/creative/build.mjs` draws both with the app's own components at full size (react-native-web, like the face bitmaps), in the default player's colors in dark mode:
 
-- **Header:** Home's fan of card backs in the middle, Kings bouncing out to both edges like the win cascade, and pip fireworks in the top corners. No words: the app's name sits right under it.
-- **Search results:** "11 Classic Solitaire Games / No ads. Plays offline." beside the Klondike screenshot capture in a phone (`store/screenshots/raw/iphone/01-klondike.png`, so take the screenshots first).
+- **Header (redrawn 2026-11-11, Jay: show all the suits, not one card repeated):** the whole deck, every card once. The four Aces fanned in the middle like the app icon (spades, diamonds, clubs, hearts, the foundations' order), and out of each Ace its suit's run, 2 up to King, in one arc to the edge: the inner Aces' runs (diamonds, clubs) high and wide, the outer Aces' (spades, hearts) low, so no two runs cross, and every corner index stays clear of the next card. Pip fireworks of all four suits in the top corners. No words: the app's name sits right under it. The first header (Home's fan of backs with one King repeated along each trail) is gone. Google Play's feature graphic is cropped from it (`store/google-play.md`).
+- **Search results:** "20 Classic Card Games / No ads. Plays offline." beside the Klondike screenshot capture in a phone (`store/screenshots/raw/iphone/01-klondike.png`, so take the screenshots first).
 
 Each comes with `-safe.png` (the safe area from Apple's templates outlined) and `-384.png` (about a search card's size on a phone). They are rendered through the app-store-prep skill's `creative.mjs`, which checks the size and strips any alpha channel.
 
@@ -56,7 +56,12 @@ Upload in the version's Product Page Information > Header and Search Results (He
 
 ## Set by hand in App Store Connect
 
-**App Privacy:** "No, we don't collect data from this app" (Data Not Collected). Nothing leaves the device except the Expo update check, which carries no personal data (the app version, platform and a random installation ID used to serve the right update), and there is no tracking, so no App Tracking Transparency prompt either. This matches the privacy policy at https://games.infinitetoken.com/privacy. Revisit it if analytics, crash reporting, ads or accounts are ever added.
+**App Privacy:** "Yes, we collect data from this app", two types, matching Google Play's Data safety form (`store/google-play.md`) and following Expo's store privacy guide (https://docs.expo.dev/eas-update/store-privacy-declarations/), as DuelTastic and PuckTastic do (Jay, 2026-11-11; it was Data Not Collected through 1.2.5). The only thing that leaves the device is Expo's update check at launch: it carries a random installation ID the app makes on its first launch (`EAS-Client-ID`, not the advertising identifier or anything tied to the person) and, only after an update failed to start, that update's ID and the first 1,024 characters of its error. Expo keeps the ID to count installs per update and roll updates out, which is longer than serving the request needs, so Apple counts it as collected. In App Store Connect, App Privacy:
+  - **Identifiers > Device ID:** App Functionality and Analytics (Expo counts installs per update); not linked to the user; not used for tracking.
+  - **Diagnostics > Crash Data:** App Functionality; not linked to the user; not used for tracking.
+  - Nothing else: no contact info, location, user content, usage data, purchases or other data. No tracking, so no App Tracking Transparency prompt. The label then reads "Data Not Linked to You: Identifiers, Diagnostics".
+
+  The privacy policy's Game Updates section (https://games.infinitetoken.com/privacy) describes the same check. Revisit both forms if analytics, crash reporting, ads or accounts are ever added. DuelTastic and PuckTastic give the same answers (their `store/README.md` and `store/google-play.md`).
 
 **Age rating:** every content question None (Simulated Gambling None: no game has bets, chips or money, and Gin Rummy and Four Crowns keep points only), and Messaging and Chat, User-Generated Content, Social Media, Unrestricted Web Access, Advertising, Gambling, Loot Boxes, Parental Controls, Age Assurance and Health or Wellness all No, so 4+. Set by hand in App Information > Age Rating until eas-cli can send the Social Media answer; 1.2.5's answers carry over, but Apple may ask the newer questions before the next submission. Check the rating App Store Connect works out.
 
