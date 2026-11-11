@@ -190,17 +190,21 @@ html, body { margin: 0; width: ${width}px; height: ${height}px; overflow: hidden
     ]
   })
 
-  // Search results, 3840 x 2560: state the obvious. The headline on the left and the Klondike screen on the right, both
-  // inside the safe area (x 836-3004, y 765-1795); the phone runs off the bottom edge.
-  const phoneScale = 0.72
+  // Search results, 3840 x 2560: state the obvious. The headline on the left and the Klondike screen on the right; the
+  // phone runs off the bottom edge. The iPhone's search card shows only the top of it (full width, y 0 to about 1500, in
+  // App Store Connect's preview, measured for SlingScan), so the words are centered in that strip and the phone starts
+  // higher and larger, with the board down to the long column's last card (the capture's y 1580) above y 1490. Inside
+  // Apple's template safe area (y 765-1795) the subline fell below the strip. The iPad shows all of it.
+  const STRIP = 1500
+  const phoneScale = 0.85
   const phoneW = 1320 * phoneScale
   const phoneH = 2868 * phoneScale
   const bezel = 22
-  const phoneLeft = 2040
-  const phoneTop = 640
+  const phoneLeft = 1940
+  const phoneTop = 140
   const radius = 165 * phoneScale
   const searchOverlay = `
-<div class="overlay" style="left:876px;top:765px;width:1100px;height:1030px;display:flex;flex-direction:column;justify-content:center;gap:60px">
+<div class="overlay" style="left:876px;top:0;width:1000px;height:${STRIP}px;display:flex;flex-direction:column;justify-content:center;gap:60px">
   <div style="font-size:164px;line-height:1.1;font-weight:700;letter-spacing:1px;text-shadow:0 8px 30px rgba(0,0,0,0.4)">20 Classic<br>Card<br>Games</div>
   <div style="font-size:84px;line-height:1.25;opacity:0.85;letter-spacing:0.5px">No ads.<br>Plays offline.</div>
 </div>
