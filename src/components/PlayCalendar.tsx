@@ -241,13 +241,7 @@ export function PlayCalendar({ days }: { days: Record<string, DayRecord> }) {
       <Text variant='labelMedium' numberOfLines={1} accessibilityLiveRegion='polite' style={[styles.dayLine, { color: colors.onSurfaceVariant }]}>
         {line}
       </Text>
-      {unit === 'days' ? (
-        <Heatmap.Calendar data={data} color={colors.primary} colorScheme={dark ? 'dark' : 'light'} colorScale={colorScale} theme={theme} animated={!isMotionReduced()} selectedDate={selectedDay} onSelectionChange={selectDay} renderTooltip={noTooltip} tooltipLabel='deal' tooltipEmptyLabel='No deals' />
-      ) : width > 0 ? (
-        <HourCalendar days={days} width={width} colorScale={colorScale} dark={dark} selectedDay={selectedDay} selectedHour={selectedHour} onSelectDay={selectDay} onSelectHour={selectHour} />
-      ) : (
-        <View style={styles.hours} />
-      )}
+      {unit === 'days' ? <Heatmap.Calendar data={data} color={colors.primary} colorScheme={dark ? 'dark' : 'light'} colorScale={colorScale} theme={theme} animated={!isMotionReduced()} selectedDate={selectedDay} onSelectionChange={selectDay} renderTooltip={noTooltip} tooltipLabel='deal' tooltipEmptyLabel='No deals' /> : width > 0 ? <HourCalendar days={days} width={width} colorScale={colorScale} dark={dark} selectedDay={selectedDay} selectedHour={selectedHour} onSelectDay={selectDay} onSelectHour={selectHour} /> : <View style={styles.hours} />}
       <SegmentedButtons value={unit} onValueChange={switchUnit} buttons={UNITS} theme={SEGMENT_THEME} />
     </View>
   )
