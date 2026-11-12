@@ -7,7 +7,8 @@
 //   node store/creative/build.mjs
 //
 // Writes store/screenshots/header.png (3840 x 1646) and store/screenshots/search.png (3840 x 2560), each with -safe
-// and -384 previews, through the app-store-prep skill's creative.mjs (CREATIVE=/path/to/creative.mjs to override).
+// and -384 previews, through the app-store-prep skill's creative.mjs (CREATIVE=/path/to/creative.mjs to override), and
+// Google Play's store/screenshots/google-play/feature-graphic.png (1024 x 500).
 // Same pipeline as scripts/generate-card-face-bitmaps.mjs: esbuild bundles the components for react-native-web,
 // react-dom/server renders them to HTML, headless Chrome screenshots the page.
 import { execFileSync } from 'node:child_process'
@@ -22,7 +23,7 @@ import { build } from 'esbuild'
 const HERE = path.dirname(fileURLToPath(import.meta.url))
 const ROOT = path.join(HERE, '../..')
 const SCREENSHOTS = path.join(ROOT, 'store', 'screenshots')
-// OUT_DIR=<folder> writes drafts somewhere else; `--only header` (or search) draws just that one.
+// OUT_DIR=<folder> writes drafts somewhere else; `--only header` (or search, or feature) draws just that one.
 const OUT_DIR = process.env.OUT_DIR ?? SCREENSHOTS
 const ONLY = process.argv.includes('--only') ? process.argv[process.argv.indexOf('--only') + 1] : null
 const CREATIVE = process.env.CREATIVE ?? path.join(os.homedir(), '.claude/skills/app-store-prep/scripts/creative.mjs')
@@ -166,29 +167,55 @@ html, body { margin: 0; width: ${width}px; height: ${height}px; overflow: hidden
   }
 
   // Header, 3840 x 1646: the whole deck, every card once (Jay, 2026-11-11: show all the suits, not one card repeated).
-  // The four Aces fanned in the middle of the safe area (x 1097-2743, y 493-1154) like the app icon, and out of each its
-  // suit's run, King leading, cascading to the edges like the win animation: spades and diamonds to the left, clubs and
-  // hearts to the right, the inner Aces' runs thrown higher and farther, over the outer Aces' runs, so no two cross. Pip fireworks of all four suits in the top corners. No
-  // words: the app's name sits right under it, and the screenshots follow.
-  const headerFile = page('header', 3840, 1646, (colors) => {
-    const aceW = 320
-    const w = 190
-    const aces = acePositions(1920, 800, aceW)
+  // The four Aces fanned in the middle like the app icon, and out of each its suit's run, King leading, cascading out
+  // like the win animation: spades and diamonds to the left, clubs and hearts to the right, the inner Aces' runs thrown
+  // higher and farther, over the outer Aces' runs, so no two cross. Pip fireworks of all four suits in the top corners.
+  // No words: the app's name sits right under it, and the screenshots follow. `deck` lays it out at `k` of the size Jay
+  // approved, about (1920, cy).
+  function deck(colors, { k, cy, bursts }) {
+    const aceW = 320 * k
+    const w = 190 * k
+    const aces = acePositions(1920, cy, aceW)
     const throws = {
-      spades: { dir: -1, rise: 120, reach: 1000, drop: 600 },
-      diamonds: { dir: -1, rise: 470, reach: 1620, drop: 440 },
-      clubs: { dir: 1, rise: 470, reach: 1620, drop: 440 },
-      hearts: { dir: 1, rise: 120, reach: 1000, drop: 600 }
+      spades: { dir: -1, rise: 120 * k, reach: 1000 * k, drop: 600 * k },
+      diamonds: { dir: -1, rise: 470 * k, reach: 1620 * k, drop: 440 * k },
+      clubs: { dir: 1, rise: 470 * k, reach: 1620 * k, drop: 440 * k },
+      hearts: { dir: 1, rise: 120 * k, reach: 1000 * k, drop: 600 * k }
     }
-    return [
-      ...aces.flatMap((a) => arc(colors, { suit: a.suit, w, x0: a.x + (a.x < 1920 ? -50 : 50), y0: a.y - 90, start: 120, ...throws[a.suit] })),
-      ...burst(colors, { key: 'l', suit: 'hearts', cx: 230, cy: 250, radius: 150, size: 64, count: 10 }),
-      ...burst(colors, { key: 'l2', suit: 'clubs', cx: 500, cy: 120, radius: 95, size: 48, count: 8 }),
-      ...burst(colors, { key: 'r', suit: 'spades', cx: 3610, cy: 250, radius: 150, size: 64, count: 10 }),
-      ...burst(colors, { key: 'r2', suit: 'diamonds', cx: 3340, cy: 120, radius: 95, size: 48, count: 8 }),
-      ...aces.map((a, i) => card({ key: `ace-${a.suit}`, x: a.x, y: a.y, w: aceW, art: face(colors, a.suit, 1, aceW), deg: a.deg, z: 100 + i }))
-    ]
-  })
+    return [...aces.flatMap((a) => arc(colors, { suit: a.suit, w, x0: a.x + (a.x < 1920 ? -50 : 50) * k, y0: a.y - 90 * k, start: 120 * k, ...throws[a.suit] })), ...bursts.flatMap((b) => burst(colors, b)), ...aces.map((a, i) => card({ key: `ace-${a.suit}`, x: a.x, y: a.y, w: aceW, art: face(colors, a.suit, 1, aceW), deg: a.deg, z: 100 + i }))]
+  }
+  // The header keeps every card and pip inside what every device shows of it in App Store Connect's Device Preview
+  // (about x 330-3510 on the iPhone, y 190-1290 on iPad landscape; the app-store-prep skill's references/apple.md). The
+  // approved layout ran its runs to the edges, so the iPhone lost the diamond and club Kings off its sides and iPad
+  // landscape showed only the tops of the spade and heart Kings (2026-11-12). So it is drawn at 0.76 about the middle of
+  // that band (its cards from y 107-1494 now in y 213-1267), and the fireworks sit in the pockets above the inner runs'
+  // ends (the 8 starts at y 325, the 9 at x 832), clear of them and of the band.
+  const headerFile = page('header', 3840, 1646, (colors) =>
+    deck(colors, {
+      k: 0.76,
+      cy: 740,
+      bursts: [
+        { key: 'l', suit: 'hearts', cx: 480, cy: 340, radius: 110, size: 48, count: 10 },
+        { key: 'l2', suit: 'clubs', cx: 745, cy: 285, radius: 70, size: 36, count: 8 },
+        { key: 'r', suit: 'spades', cx: 3360, cy: 340, radius: 110, size: 48, count: 10 },
+        { key: 'r2', suit: 'diamonds', cx: 3095, cy: 285, radius: 70, size: 36, count: 8 }
+      ]
+    })
+  )
+  // Google Play's feature graphic shows all of itself, so it keeps the approved layout at full size, runs to the edges
+  // and fireworks in the canvas corners, cropped to Play's 1024 x 500 (store/google-play.md).
+  const featureSourceFile = page('featureSource', 3840, 1646, (colors) =>
+    deck(colors, {
+      k: 1,
+      cy: 800,
+      bursts: [
+        { key: 'l', suit: 'hearts', cx: 230, cy: 250, radius: 150, size: 64, count: 10 },
+        { key: 'l2', suit: 'clubs', cx: 500, cy: 120, radius: 95, size: 48, count: 8 },
+        { key: 'r', suit: 'spades', cx: 3610, cy: 250, radius: 150, size: 64, count: 10 },
+        { key: 'r2', suit: 'diamonds', cx: 3340, cy: 120, radius: 95, size: 48, count: 8 }
+      ]
+    })
+  )
 
   // Search results, 3840 x 2560: state the obvious. The headline on the left and the Klondike screen on the right; the
   // phone runs off the bottom edge. The iPhone's search card shows only the top of it (full width, y 0 to about 1500, in
@@ -221,6 +248,14 @@ html, body { margin: 0; width: ${width}px; height: ${height}px; overflow: hidden
     [searchFile, 'search']
   ].filter(([, placement]) => !ONLY || placement === ONLY)) {
     execFileSync('node', [CREATIVE, file, placement, path.join(OUT_DIR, `${placement}.png`)], { stdio: 'inherit' })
+  }
+  if (!ONLY || ONLY === 'feature') {
+    const full = path.join(WORK, 'featureSource.png')
+    execFileSync('node', [CREATIVE, featureSourceFile, 'header', full], { stdio: 'ignore' })
+    const out = path.join(OUT_DIR, 'google-play', 'feature-graphic.png')
+    fs.mkdirSync(path.dirname(out), { recursive: true })
+    execFileSync('ffmpeg', ['-v', 'error', '-y', '-i', full, '-vf', 'crop=3371:1646:234:0,scale=1024:500:flags=lanczos', '-pix_fmt', 'rgb24', out], { stdio: 'inherit' })
+    console.log(out)
   }
 } finally {
   fs.rmSync(WORK, { recursive: true, force: true })
