@@ -89,7 +89,7 @@ Upload in the version's Product Page Information > Header and Search Results (He
 
 **Accessibility (optional):** Dark Interface claimed for iPhone and iPad (1.2.5). Nothing else until each feature has been checked on a device; Reduced Motion needs the app to follow the system Reduce Motion setting first. Apple asks per feature (VoiceOver, Larger Text, Dark Interface, Reduced Motion and so on), and a claim that doesn't hold up is worse than none.
 
-**Version release:** automatic after approval, or manual (you press Release). Manual for 1.2.5, so SolitaireTastic, LightCycles and Snake go live together.
+**Version release:** automatic after approval (Jay, 2026-11-12: nothing to wait for; 1.2.8 submitted that day with PuckTastic and DuelTastic). 1.2.5 was manual, so SolitaireTastic, LightCycles and Snake would go live together.
 
 ## Shipping a version
 
