@@ -69,6 +69,8 @@ Upload in the version's Product Page Information > Header and Search Results (He
 
 > No account or sign-in is needed, and there are no in-app purchases or ads.
 >
+> This app was declined under guideline 4.3 as SolitaireTastic, together with LightCyclesTastic and SnakeTastic, as too similar to our other apps. Following that feedback, we combined our games into a few apps with more in each: this one grew from solitaire alone into twenty card games, eleven solitaire and nine for two players, and LightCycles and Snake are now games inside one app, DuelTastic, submitted separately.
+>
 > Home has two tabs. Solitaire holds eleven one-player games. Two Player holds nine games played against the computer or with other people on the same device: RatSlap, Slapjack, Speed, War, Six-Card Golf and Trash with two people face to face across the screen, and Gin Rummy, Crazy Eights and Four Crowns passing the device between turns (Crazy Eights and Four Crowns take up to four players). Tap a two-player game, leave the opponent as the computer, and tap Ready to play alone.
 >
 > The solitaire games turn with the device. The two-player games stay in portrait on iPhone, since two people sit at either end of the phone.
