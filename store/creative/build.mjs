@@ -27,7 +27,6 @@ const SCREENSHOTS = path.join(ROOT, 'store', 'screenshots')
 const OUT_DIR = process.env.OUT_DIR ?? SCREENSHOTS
 const ONLY = process.argv.includes('--only') ? process.argv[process.argv.indexOf('--only') + 1] : null
 const CREATIVE = process.env.CREATIVE ?? path.join(os.homedir(), '.claude/skills/app-store-prep/scripts/creative.mjs')
-const CAPTURE = path.join(SCREENSHOTS, 'raw', 'iphone', '01-klondike.png')
 // Inside the project, so the bundle and its externals resolve this app's node_modules.
 const WORK = fs.mkdtempSync(path.join(HERE, '.build-'))
 
@@ -217,30 +216,22 @@ html, body { margin: 0; width: ${width}px; height: ${height}px; overflow: hidden
     })
   )
 
-  // Search results, 3840 x 2560: state the obvious. The headline on the left and the Klondike screen on the right; the
-  // phone runs off the bottom edge. The iPhone's search card shows only the top of it (full width, y 0 to about 1500, in
-  // App Store Connect's preview, measured for SlingScan), so the words are centered in that strip and the phone starts
-  // higher and larger, with the board down to the long column's last card (the capture's y 1580) above y 1490. Inside
-  // Apple's template safe area (y 765-1795) the subline fell below the strip. The iPad shows all of it.
-  const STRIP = 1500
-  const phoneScale = 0.85
-  const phoneW = 1320 * phoneScale
-  const phoneH = 2868 * phoneScale
-  const bezel = 22
-  const phoneLeft = 1940
-  const phoneTop = 140
-  const radius = 165 * phoneScale
+  // Search results, 3840 x 2560: state the obvious, and fill the card. iOS 27's search card shows the whole 3:2 on
+  // iPhone as on iPad, about 390pt wide on a phone (Jay's App Store screenshots, 2026-11-13; App Store Connect's preview
+  // cropping it to the top 1500 was the preview's bug), so ten pixels here are about a point there. The first version,
+  // kept to that strip and the template's middle (x 836-3004), read as mostly empty with a 16pt headline and one game.
+  // Now the headline runs across the top at 230px, and under it four games fan out in phones running off the bottom,
+  // on the app's own felt: Klondike, Gin Rummy against the CPU, a FreeCell win and Pyramid on the red felt. Phones from
+  // the app-store-prep skill's phone.mjs.
+  const { fan } = await import(pathToFileURL(path.join(path.dirname(CREATIVE), 'phone.mjs')).href)
+  const SHOTS = ['01-klondike', '05-ginrummy', '03-win', '08-style'].map((name) => path.join(SCREENSHOTS, 'raw', 'iphone', `${name}.png`))
   const searchOverlay = `
-<div class="overlay" style="left:876px;top:0;width:1000px;height:${STRIP}px;display:flex;flex-direction:column;justify-content:center;gap:60px">
-  <div style="font-size:164px;line-height:1.1;font-weight:700;letter-spacing:1px;text-shadow:0 8px 30px rgba(0,0,0,0.4)">20 Classic<br>Card<br>Games</div>
-  <div style="font-size:84px;line-height:1.25;opacity:0.85;letter-spacing:0.5px">No ads.<br>Plays offline.</div>
+<div class="overlay" style="inset:0;background:linear-gradient(to bottom, rgba(0,0,0,0.35) 0%, rgba(0,0,0,0.12) 25%, rgba(0,0,0,0) 40%)"></div>
+<div class="overlay" style="left:0;right:0;top:170px;display:flex;flex-direction:column;align-items:center;gap:40px;text-align:center">
+  <div style="font-size:230px;line-height:1.05;font-weight:700;letter-spacing:-2px;white-space:nowrap;text-shadow:0 10px 40px rgba(0,0,0,0.45)">20 Classic Card Games</div>
+  <div style="font-size:112px;line-height:1.15;opacity:0.88;white-space:nowrap;text-shadow:0 8px 30px rgba(0,0,0,0.45)">No ads. Plays offline.</div>
 </div>
-<div class="overlay" style="left:${phoneLeft - bezel}px;top:${phoneTop - bezel}px;padding:${bezel}px;background:#0a0a0a;border-radius:${radius + bezel}px;box-shadow:0 50px 140px rgba(0,0,0,0.6),0 0 0 4px rgba(255,255,255,0.10)">
-  <div style="position:relative;width:${phoneW}px;height:${phoneH}px;border-radius:${radius}px;overflow:hidden">
-    <img src="${pathToFileURL(CAPTURE).href}" style="display:block;width:${phoneW}px;height:${phoneH}px">
-    <div style="position:absolute;left:${(phoneW - 378 * phoneScale) / 2}px;top:${41 * phoneScale}px;width:${378 * phoneScale}px;height:${111 * phoneScale}px;border-radius:${(111 * phoneScale) / 2}px;background:#000"></div>
-  </div>
-</div>`
+${fan(SHOTS, { top: 900, scale: 0.66, gap: -80, turn: 3, drop: 90 })}`
   const searchFile = page('search', 3840, 2560, () => [], searchOverlay)
 
   for (const [file, placement] of [

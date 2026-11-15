@@ -93,7 +93,7 @@ CardTastic's first release on Android: eleven solitaire games and nine games for
 
 - **App category:** Game, Card.
 - **Tags:** up to five, picked in the console from Play's list. Look for Solitaire, Card, Offline, Single player and Local multiplayer (or whatever the list's nearest names are).
-- **Contact details:** email jay@infinitetoken.com for now (public; support@infinitetoken.com once it reaches someone, as Lumber's), website https://games.infinitetoken.com/cardtastic, no phone.
+- **Contact details:** email support@infinitetoken.com (public, as PuckTastic's; 2026-11-12), website https://games.infinitetoken.com/cardtastic, no phone.
 
 ## App content
 
