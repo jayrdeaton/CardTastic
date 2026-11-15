@@ -6,7 +6,6 @@ import { useAutoPaperTheme } from '@rific/auto-paper'
 import { Button } from '@rific/feedback-press'
 import { DialogHeader, overlayActionStyles, OverlayBackdrop, OverlayCard, useCompactDialog, useOverlayCardColors } from '@tastic/hud/chrome'
 import { useAtComputer, useProfiles, useSeatColors } from '@tastic/shell'
-import { router } from 'expo-router'
 import { type ReactNode, useEffect, useState } from 'react'
 import { AppState, StyleSheet, View } from 'react-native'
 import { Icon, IconButton, Text } from 'react-native-paper'
@@ -17,6 +16,7 @@ import { GUEST_PLAYER_ID } from '@/constants/player'
 import { usePlayer } from '@/stores/profiles'
 
 import type { PlayerIndex } from './players'
+import { tableHome } from './QuitMatch'
 
 export interface Seat {
   name: string
@@ -81,7 +81,7 @@ export function SeatBadge({ seat }: { seat: Seat }) {
 export function TableSideButtons({ y, onSettings }: { y: number; onSettings: () => void }) {
   return (
     <View style={[styles.sideButtons, { top: y - 24 }]} pointerEvents='box-none'>
-      <IconButton icon='home' iconColor={CHROME_FG} accessibilityLabel='Home' onPress={() => router.dismissTo('/')} />
+      <IconButton icon='home' iconColor={CHROME_FG} accessibilityLabel='Home' onPress={tableHome} />
       <IconButton icon='cog' iconColor={CHROME_FG} accessibilityLabel='Settings' onPress={onSettings} />
     </View>
   )
@@ -136,7 +136,7 @@ function TableOverlayCard({ viewer, content, compact, actionLabel, onAction, sho
       {content.details}
       <View style={overlayActionStyles.actions}>
         {showHome ? (
-          <Button mode='outlined' onPress={() => router.dismissTo('/')} style={overlayActionStyles.actionButton} testID={`${testID}-home-${viewer}`}>
+          <Button mode='outlined' onPress={tableHome} style={overlayActionStyles.actionButton} testID={`${testID}-home-${viewer}`}>
             Home
           </Button>
         ) : null}

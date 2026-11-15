@@ -21,6 +21,7 @@ import { PipFireworks } from '@/components/winning/PipFireworks'
 import { CPU_LEVEL_LABELS } from '@/games/table/cpuLevel'
 import { cardRect, cardTilt, inRect, type Pose } from '@/games/table/geometry'
 import { type PlayerIndex, TWO_PLAYER_HUMANS, VS_CPU_HUMANS } from '@/games/table/players'
+import { QuitMatchDialog, useQuitMatch } from '@/games/table/QuitMatch'
 import { type TableCardSpec } from '@/games/table/TableCards'
 import { type Seat, type TableCardContent, TableOverlay, useAppActive, useFaceToFace, useTableSeats } from '@/games/table/TableChrome'
 import { type TableLabel, TableView } from '@/games/table/TableView'
@@ -71,6 +72,9 @@ export function SpeedScreen() {
   const layout = useMemo(() => speedLayout(width, height, insets, faceToFace), [width, height, insets, faceToFace])
 
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const quit = useQuitMatch()
+  // Settings or Quit Match? is up: the table holds.
+  const dialogOpen = settingsOpen || quit.asking
   const appActive = useAppActive()
 
   const changed = useCallback(
@@ -84,7 +88,7 @@ export function SpeedScreen() {
     [playCardSound, statsIds, dispatch, cpu, twoPlayer]
   )
 
-  const match = useSpeedMatch({ rules, cpu, paused: settingsOpen || !appActive, dealMs: reduceMotion ? 0 : DEAL_MS, changed })
+  const match = useSpeedMatch({ rules, cpu, paused: dialogOpen || !appActive, dealMs: reduceMotion ? 0 : DEAL_MS, changed })
   const { state, dealt, play, draw, rematch } = match
   const resultShown = useSettled(state.winner !== null ? match.deal : null, RESULT_DELAY_MS)
 
@@ -123,7 +127,7 @@ export function SpeedScreen() {
   return (
     <CardSizeProvider width={layout.cardWidth}>
       <View style={styles.screen} onLayout={onLayout}>
-        <TableView game='speed' layout={layout} cards={cards} dealKey={match.deal} glows={glows} labels={{ 1: label(1), 2: label(2) }} prompts={prompts} notes={{}} call={null} emptySlots={emptySlots} touch={<TouchZones testID='speed' twoPlayer={twoPlayer} splitY={layout.center.y} height={layout.height} enabled={dealt && !settingsOpen && !resultShown && winner === null} onTouch={handleTouch} />} onSettings={() => setSettingsOpen(true)}>
+        <TableView game='speed' layout={layout} cards={cards} dealKey={match.deal} glows={glows} labels={{ 1: label(1), 2: label(2) }} prompts={prompts} notes={{}} call={null} emptySlots={emptySlots} touch={<TouchZones testID='speed' twoPlayer={twoPlayer} splitY={layout.center.y} height={layout.height} enabled={dealt && !dialogOpen && !resultShown && winner === null} onTouch={handleTouch} />} onSettings={() => setSettingsOpen(true)}>
           {resultShown && winner !== null ? (
             <TableOverlay
               humans={humans}
@@ -139,6 +143,7 @@ export function SpeedScreen() {
           {resultShown && winner !== null && winner !== 'tie' && humans.includes(winner) ? <PipFireworks /> : null}
         </TableView>
       </View>
+      <QuitMatchDialog quit={quit} state={state} over={state.winner !== null} />
       <SettingsDialog visible={settingsOpen} onDismiss={() => setSettingsOpen(false)} />
     </CardSizeProvider>
   )

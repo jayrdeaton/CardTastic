@@ -20,6 +20,7 @@ import { CPU_LEVEL_LABELS } from '@/games/table/cpuLevel'
 import { cardTilt, type Pose } from '@/games/table/geometry'
 import { type GridTableLayout, gridTableLayout } from '@/games/table/gridLayout'
 import { otherPlayer, type PlayerIndex, TWO_PLAYER_HUMANS, VS_CPU_HUMANS } from '@/games/table/players'
+import { QuitMatchDialog, useQuitMatch } from '@/games/table/QuitMatch'
 import { type TableCardSpec } from '@/games/table/TableCards'
 import { type Seat, type TableCardContent, TableOverlay, useAppActive, useFaceToFace, useTableSeats } from '@/games/table/TableChrome'
 import { type TableLabel, type TableSpotLabel, type TableTarget, TableView } from '@/games/table/TableView'
@@ -66,6 +67,9 @@ export function TrashScreen() {
   const layout = useMemo(() => gridTableLayout(width, height, insets, { columns: SPOTS_PER_ROW, rows, upsideDown: faceToFace }), [width, height, insets, rows, faceToFace])
 
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const quit = useQuitMatch()
+  // Settings or Quit Match? is up: the table holds.
+  const dialogOpen = settingsOpen || quit.asking
   const appActive = useAppActive()
   const startSpots = round.trashCards
 
@@ -85,10 +89,10 @@ export function TrashScreen() {
   const dealMs = reduceMotion ? 0 : (startSpots * 2 + 1) * DEAL_STAGGER_MS + MOVE_MS + 100
   const roundDone = (s: TrashState) => s.phase === 'roundOver' || s.phase === 'matchOver'
   const nextRound = useNextRound('trash', mode, round, TRASH_RULE_KEYS)
-  const match = useTrashMatch({ spots: startSpots, wild: round.trashWild, cpu, paused: settingsOpen || !appActive, dealMs, changed })
+  const match = useTrashMatch({ spots: startSpots, wild: round.trashWild, cpu, paused: dialogOpen || !appActive, dealMs, changed })
   const { state, dealt } = match
   const resultShown = useSettled(roundDone(state) ? `${match.deal}-${state.round}` : null, reduceMotion ? 300 : RESULT_MS)
-  const ready = dealt && !settingsOpen && !resultShown
+  const ready = dealt && !dialogOpen && !resultShown
 
   const act = useCallback(
     (done: boolean) => {
@@ -144,6 +148,7 @@ export function TrashScreen() {
           {resultShown && state.phase === 'matchOver' && state.winner !== null && humans.includes(state.winner) ? <PipFireworks /> : null}
         </TableView>
       </View>
+      <QuitMatchDialog quit={quit} state={state} over={state.phase === 'matchOver'} />
       <SettingsDialog visible={settingsOpen} onDismiss={() => setSettingsOpen(false)} />
     </CardSizeProvider>
   )

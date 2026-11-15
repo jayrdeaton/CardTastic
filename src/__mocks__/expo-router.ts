@@ -10,5 +10,7 @@ module.exports = {
   Stack: { Screen: ({ children }: any) => children || null },
   Link: ({ children }: any) => children || null,
   useIsFocused: () => true,
-  usePathname: () => '/'
+  usePathname: () => '/',
+  // The tables' Quit Match? block (@tastic/shell's useBackBlock); tests that need the real router unmock this file.
+  usePreventRemove: jest.fn()
 }

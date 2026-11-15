@@ -21,6 +21,7 @@ import { CPU_LEVEL_LABELS } from '@/games/table/cpuLevel'
 import { cardTilt, type Pose } from '@/games/table/geometry'
 import { type GridTableLayout, gridTableLayout } from '@/games/table/gridLayout'
 import { otherPlayer, type PlayerIndex, TWO_PLAYER_HUMANS, VS_CPU_HUMANS } from '@/games/table/players'
+import { QuitMatchDialog, useQuitMatch } from '@/games/table/QuitMatch'
 import { type TableCardSpec } from '@/games/table/TableCards'
 import { type Seat, type TableCardContent, TableOverlay, useAppActive, useFaceToFace, useTableSeats } from '@/games/table/TableChrome'
 import { type TableLabel, type TableTarget, TableView } from '@/games/table/TableView'
@@ -67,6 +68,9 @@ export function SixCardGolfScreen() {
   const layout = useMemo(() => gridTableLayout(width, height, insets, { columns: GRID_COLUMNS, rows: 2, upsideDown: faceToFace }), [width, height, insets, faceToFace])
 
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const quit = useQuitMatch()
+  // Settings or Quit Match? is up: the table holds.
+  const dialogOpen = settingsOpen || quit.asking
   const appActive = useAppActive()
 
   const changed = useCallback(
@@ -89,11 +93,11 @@ export function SixCardGolfScreen() {
   // The CPU holds while a dialog is open or the app is away, and while cards are being dealt (useGolfMatch). A hole's
   // scores show once its cards have been turned over long enough to read.
   const nextRound = useNextRound('sixcardgolf', mode, round, SIX_CARD_GOLF_RULE_KEYS)
-  const match = useGolfMatch({ holes: round.sixCardGolfHoles, cpu, paused: settingsOpen || !appActive, dealMs: reduceMotion ? 0 : DEAL_MS, changed })
+  const match = useGolfMatch({ holes: round.sixCardGolfHoles, cpu, paused: dialogOpen || !appActive, dealMs: reduceMotion ? 0 : DEAL_MS, changed })
   const { state, dealt } = match
   const holeDone = state.phase === 'holeOver' || state.phase === 'matchOver'
   const scoresShown = useSettled(holeDone ? `${match.deal}-${state.hole}` : null, reduceMotion ? 300 : REVEAL_MS)
-  const ready = dealt && !settingsOpen && !scoresShown
+  const ready = dealt && !dialogOpen && !scoresShown
 
   const act = useCallback(
     (done: boolean) => {
@@ -147,6 +151,7 @@ export function SixCardGolfScreen() {
           {scoresShown && state.phase === 'matchOver' && winner !== null && humans.includes(winner) ? <PipFireworks /> : null}
         </TableView>
       </View>
+      <QuitMatchDialog quit={quit} state={state} over={state.phase === 'matchOver'} />
       <SettingsDialog visible={settingsOpen} onDismiss={() => setSettingsOpen(false)} />
     </CardSizeProvider>
   )

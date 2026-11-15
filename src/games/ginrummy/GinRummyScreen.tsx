@@ -24,6 +24,7 @@ import { cardTilt, type Pose } from '@/games/table/geometry'
 import { ActionRow, cardName, type HandAction, type HandGroup, HandSuitMarks, type MeldLine, MeldLines, suitMarkSpots } from '@/games/table/HandRow'
 import { PassCover } from '@/games/table/PassCover'
 import { otherPlayer, type PlayerIndex, VS_CPU_HUMANS } from '@/games/table/players'
+import { QuitMatchDialog, useQuitMatch } from '@/games/table/QuitMatch'
 import { type TableCardSpec } from '@/games/table/TableCards'
 import { type Seat, type TableCardContent, TableOverlay, useAppActive, useTableSeats } from '@/games/table/TableChrome'
 import { type TableLabel, type TableTarget, TableView } from '@/games/table/TableView'
@@ -71,6 +72,9 @@ export function GinRummyScreen() {
   const { seats, statsIds } = useTableSeats(twoPlayer)
 
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const quit = useQuitMatch()
+  // Settings or Quit Match? is up: the table holds.
+  const dialogOpen = settingsOpen || quit.asking
   const appActive = useAppActive()
 
   const changed = useCallback(
@@ -85,7 +89,7 @@ export function GinRummyScreen() {
   )
 
   const dealMs = reduceMotion ? 0 : 21 * DEAL_STAGGER_MS + MOVE_MS + 100
-  const match = useGinMatch({ rules, cpu, paused: settingsOpen || !appActive, dealMs, changed })
+  const match = useGinMatch({ rules, cpu, paused: dialogOpen || !appActive, dealMs, changed })
   const { state, dealt } = match
   const handEnded = state.phase === 'handOver' || state.phase === 'matchOver'
   const resultShown = useSettled(handEnded ? `${match.deal}-${state.hand}` : null, reduceMotion ? 300 : RESULT_MS)
@@ -106,7 +110,7 @@ export function GinRummyScreen() {
   // Without the meld help a knock can be tried with too much deadwood: why it was refused, for this pick only.
   const [refused, setRefused] = useState<{ state: GinState; cardId: string; text: string } | null>(null)
   const refusal = refused?.state === state && refused.cardId === picked ? refused.text : null
-  const yourMove = !covered && dealt && !settingsOpen && moving === seated
+  const yourMove = !covered && dealt && !dialogOpen && moving === seated
 
   const act = useCallback(
     (done: boolean): boolean => {
@@ -225,6 +229,7 @@ export function GinRummyScreen() {
           {resultShown && state.phase === 'matchOver' && (twoPlayer || state.winner === 1) ? <PipFireworks /> : null}
         </TableView>
       </View>
+      <QuitMatchDialog quit={quit} state={state} over={state.phase === 'matchOver'} />
       <SettingsDialog visible={settingsOpen} onDismiss={() => setSettingsOpen(false)} />
     </CardSizeProvider>
   )

@@ -30,6 +30,7 @@ import { cardTilt, type Pose } from '@/games/table/geometry'
 import { ActionRow, cardName, type HandAction, type HandGroup, handRowPoses, HandSuitMarks, type MeldLine, MeldLines, suitMarkSpots } from '@/games/table/HandRow'
 import { PassCover } from '@/games/table/PassCover'
 import { VS_CPU_HUMANS } from '@/games/table/players'
+import { QuitMatchDialog, useQuitMatch } from '@/games/table/QuitMatch'
 import { type TableCardSpec } from '@/games/table/TableCards'
 import { SeatBadge, type TableCardContent, TableOverlay, useAppActive, useTableSeats } from '@/games/table/TableChrome'
 import { type TableLabel, type TableTarget, TableView } from '@/games/table/TableView'
@@ -82,6 +83,9 @@ export function FourCrownsScreen() {
   const passAndPlay = people.length > 1
 
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const quit = useQuitMatch()
+  // Settings or Quit Match? is up: the table holds.
+  const dialogOpen = settingsOpen || quit.asking
   const appActive = useAppActive()
 
   const changed = useCallback(
@@ -99,7 +103,7 @@ export function FourCrownsScreen() {
   )
 
   const dealMs = useCallback((current: CrownsState) => (reduceMotion ? 0 : dealCount(current) * dealStagger(current) + MOVE_MS + 100), [reduceMotion])
-  const match = useCrownsMatch({ cpus, rules, paused: settingsOpen || !appActive, dealMs, changed })
+  const match = useCrownsMatch({ cpus, rules, paused: dialogOpen || !appActive, dealMs, changed })
   const { state, dealt } = match
   const roundEnded = state.phase === 'roundOver' || state.phase === 'matchOver'
   const resultShown = useSettled(state.phase === 'matchOver' ? match.deal : null, reduceMotion ? 300 : RESULT_MS)
@@ -118,7 +122,7 @@ export function FourCrownsScreen() {
   // The card picked to throw, for this state only: any move drops it.
   const [pick, setPick] = useState<{ state: CrownsState; cardId: string } | null>(null)
   const picked = pick?.state === state ? pick.cardId : null
-  const yourMove = !covered && dealt && !settingsOpen && moving === seated
+  const yourMove = !covered && dealt && !dialogOpen && moving === seated
 
   const act = useCallback(
     (done: boolean) => {
@@ -202,6 +206,7 @@ export function FourCrownsScreen() {
           {resultShown && state.phase === 'matchOver' && celebrate ? <PipFireworks /> : null}
         </TableView>
       </View>
+      <QuitMatchDialog quit={quit} state={state} over={state.phase === 'matchOver'} />
       <SettingsDialog visible={settingsOpen} onDismiss={() => setSettingsOpen(false)} />
     </CardSizeProvider>
   )

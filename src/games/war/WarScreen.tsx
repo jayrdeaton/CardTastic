@@ -18,6 +18,7 @@ import { useCardSoundEffects } from '@/components/useCardSounds'
 import { PipFireworks } from '@/components/winning/PipFireworks'
 import { DeckStack } from '@/games/table/DeckStack'
 import { otherPlayer, type PlayerIndex, TWO_PLAYER_HUMANS, VS_CPU_HUMANS } from '@/games/table/players'
+import { QuitMatchDialog, useQuitMatch } from '@/games/table/QuitMatch'
 import { type TableCardSpec } from '@/games/table/TableCards'
 import { type Seat, type TableCardContent, TableOverlay, useAppActive, useFaceToFace, useTableSeats } from '@/games/table/TableChrome'
 import { type TableLabel, TableView } from '@/games/table/TableView'
@@ -67,6 +68,9 @@ export function WarScreen() {
   const layout = useMemo(() => warLayout(width, height, insets, faceToFace), [width, height, insets, faceToFace])
 
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const quit = useQuitMatch()
+  // Settings or Quit Match? is up: the table holds.
+  const dialogOpen = settingsOpen || quit.asking
   const appActive = useAppActive()
   const [departures, setDepartures] = useState<Departure[]>([])
   const seq = useRef(0)
@@ -92,7 +96,7 @@ export function WarScreen() {
     [playCardSound, reduceMotion, statsIds, dispatch, twoPlayer]
   )
 
-  const { state, play, rematch: newMatch } = useWarMatch({ length: round.warLength, down: round.warDown, cpu: !twoPlayer, paused: settingsOpen || !appActive, changed })
+  const { state, play, rematch: newMatch } = useWarMatch({ length: round.warLength, down: round.warDown, cpu: !twoPlayer, paused: dialogOpen || !appActive, changed })
   const [games, setGames] = useState(0)
   const resultShown = useSettled(state.winner !== null ? games : null, RESULT_DELAY_MS)
 
@@ -142,13 +146,14 @@ export function WarScreen() {
           overCards={([1, 2] as const).map((player) => (
             <DeckStack key={player} at={layout.decks[player]} count={handOf(state, player).length} cardWidth={layout.cardWidth} cardHeight={layout.cardHeight} testID={`war-deck-${player}`} />
           ))}
-          touch={<TouchZones testID='war' twoPlayer={twoPlayer} splitY={layout.center.y} height={layout.height} enabled={!settingsOpen && !resultShown && winner === null} onTouch={handleTouch} />}
+          touch={<TouchZones testID='war' twoPlayer={twoPlayer} splitY={layout.center.y} height={layout.height} enabled={!dialogOpen && !resultShown && winner === null} onTouch={handleTouch} />}
           onSettings={() => setSettingsOpen(true)}
         >
           {resultShown && winner !== null ? <TableOverlay humans={humans} content={(viewer) => resultContent(state, viewer, seats)} actionLabel='Rematch' onAction={rematch} testID='war-result' /> : null}
           {resultShown && winner !== null && winner !== 'tie' && humans.includes(winner) ? <PipFireworks /> : null}
         </TableView>
       </View>
+      <QuitMatchDialog quit={quit} state={state} over={state.winner !== null} />
       <SettingsDialog visible={settingsOpen} onDismiss={() => setSettingsOpen(false)} />
     </CardSizeProvider>
   )

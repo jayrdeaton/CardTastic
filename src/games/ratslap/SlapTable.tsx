@@ -23,6 +23,7 @@ import { CPU_LEVEL_LABELS, type CpuLevel } from '@/games/table/cpuLevel'
 import { inRect, type Point, type Pose } from '@/games/table/geometry'
 import { PileGlow, usePileGlowPulse } from '@/games/table/PileGlow'
 import { TWO_PLAYER_HUMANS, VS_CPU_HUMANS } from '@/games/table/players'
+import { QuitMatchDialog, useQuitMatch } from '@/games/table/QuitMatch'
 import { TableCards, type TableCardSpec } from '@/games/table/TableCards'
 import { type Seat, SeatBadge, TableOverlay, TableSideButtons, useAppActive, useFaceToFace, useTableSeats } from '@/games/table/TableChrome'
 import { TouchZones } from '@/games/table/TouchZones'
@@ -88,6 +89,9 @@ export function SlapTable({ game, twoPlayer, rules, nextRules, cpu }: { game: 'r
   const faceToFace = useFaceToFace(twoPlayer)
 
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const quit = useQuitMatch()
+  // Settings or Quit Match? is up: the table holds.
+  const dialogOpen = settingsOpen || quit.asking
   const appActive = useAppActive()
   const [resultShown, setResultShown] = useState(false)
   const [matchOver, setMatchOver] = useState(false)
@@ -150,7 +154,7 @@ export function SlapTable({ game, twoPlayer, rules, nextRules, cpu }: { game: 'r
   const match = useRatSlapMatch({
     rules,
     cpu,
-    paused: settingsOpen || !appActive || resultShown,
+    paused: dialogOpen || !appActive || resultShown,
     events: {
       played: (player, card) => {
         playCardSound()
@@ -216,7 +220,7 @@ export function SlapTable({ game, twoPlayer, rules, nextRules, cpu }: { game: 'r
     },
     [humans, faceToFace, play, slap, markSlap, hapticCard, hapticInvalid]
   )
-  const enabled = !settingsOpen && !resultShown && state.winner === null
+  const enabled = !dialogOpen && !resultShown && state.winner === null
 
   const rematch = useCallback(() => {
     setResultShown(false)
@@ -256,6 +260,7 @@ export function SlapTable({ game, twoPlayer, rules, nextRules, cpu }: { game: 'r
         {resultShown && state.winner !== null ? <TableOverlay humans={humans} content={(viewer) => resultContent(viewer, state.winner!, seats)} actionLabel='Rematch' onAction={rematch} testID={`${game}-result`} /> : null}
         {resultShown && state.winner !== null && humans.includes(state.winner) ? <PipFireworks /> : null}
       </View>
+      <QuitMatchDialog quit={quit} state={state} over={state.winner !== null} />
       <SettingsDialog visible={settingsOpen} onDismiss={() => setSettingsOpen(false)} />
     </CardSizeProvider>
   )

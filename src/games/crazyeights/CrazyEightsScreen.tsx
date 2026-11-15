@@ -31,6 +31,7 @@ import { cardTilt, type Pose } from '@/games/table/geometry'
 import { cardName, HandSuitMarks, suitMarkSpots } from '@/games/table/HandRow'
 import { PassCover } from '@/games/table/PassCover'
 import { VS_CPU_HUMANS } from '@/games/table/players'
+import { QuitMatchDialog, useQuitMatch } from '@/games/table/QuitMatch'
 import { type TableCardSpec } from '@/games/table/TableCards'
 import { SeatBadge, type TableCardContent, TableOverlay, useAppActive, useTableSeats } from '@/games/table/TableChrome'
 import { type TableLabel, type TableTarget, TableView } from '@/games/table/TableView'
@@ -82,6 +83,9 @@ export function CrazyEightsScreen() {
   const passAndPlay = players.filter((player) => player.kind === 'person').length > 1
 
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const quit = useQuitMatch()
+  // Settings or Quit Match? is up: the table holds.
+  const dialogOpen = settingsOpen || quit.asking
   const appActive = useAppActive()
   // Who has the phone: they've tapped Ready on the pass cover (seat 1 starts with it).
   const [holder, setHolder] = useState(0)
@@ -102,7 +106,7 @@ export function CrazyEightsScreen() {
   )
 
   const dealMs = useCallback((current: EightsState) => (reduceMotion ? 0 : dealCount(current) * DEAL_STAGGER_MS + MOVE_MS + 100), [reduceMotion])
-  const match = useEightsMatch({ cpus, rules, paused: settingsOpen || !appActive, holder: passAndPlay ? holder : null, dealMs, changed })
+  const match = useEightsMatch({ cpus, rules, paused: dialogOpen || !appActive, holder: passAndPlay ? holder : null, dealMs, changed })
   const { state, dealt } = match
   const over = state.phase === 'over'
   const resultShown = useSettled(over ? match.deal : null, reduceMotion ? 300 : RESULT_MS)
@@ -116,7 +120,7 @@ export function CrazyEightsScreen() {
   const covered = passAndPlay && movingPerson && moving !== holder
   const layout = useMemo(() => eightsLayout(width, height, insets, players.length), [width, height, insets, players.length])
   const others = useMemo(() => Array.from({ length: players.length - 1 }, (_, k) => (seated + 1 + k) % players.length), [seated, players.length])
-  const yourMove = !covered && dealt && !settingsOpen && moving === seated
+  const yourMove = !covered && dealt && !dialogOpen && moving === seated
 
   const hand = useMemo(() => sortedHand(state.hands[seated]), [state.hands, seated])
   const raised = yourMove && state.phase === 'play'
@@ -200,6 +204,7 @@ export function CrazyEightsScreen() {
           {resultShown && over && celebrate ? <PipFireworks /> : null}
         </TableView>
       </View>
+      <QuitMatchDialog quit={quit} state={state} over={over} />
       <SettingsDialog visible={settingsOpen} onDismiss={() => setSettingsOpen(false)} />
     </CardSizeProvider>
   )
