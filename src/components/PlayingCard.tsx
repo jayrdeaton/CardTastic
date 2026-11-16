@@ -14,6 +14,7 @@ import { CARD_FACE_BITMAPS } from './cardFaceBitmaps'
 import { FaceLoadTrackingContext, trackFaceLoad } from './cardFacePaint'
 import { DIM_FADE_BACKSTOP_MS, fadeInDimScrim } from './dimScrimAnimation'
 import { HintGlow } from './hintGlow'
+import { NO_IMAGE_FADE } from './imageFade'
 import { JokerFace } from './JokerFace'
 import { CARD_RADIUS, cardRadiusForWidth, useTableColors } from './theme'
 
@@ -276,7 +277,7 @@ function CardFaceImage({ cardId, source, style, label, onPainted }: { cardId: st
     doneRef.current?.()
     onPainted?.()
   }, [source, onPainted])
-  return <Image source={source} style={style} resizeMode='stretch' accessibilityLabel={label} onLoad={handleLoad} />
+  return <Image source={source} style={style} resizeMode='stretch' fadeDuration={NO_IMAGE_FADE} accessibilityLabel={label} onLoad={handleLoad} />
 }
 
 /** A faint diagonal gloss over the card's own flat face/back fill, like light catching glossy
@@ -294,7 +295,7 @@ function CardFaceImage({ cardId, source, style, label, onPainted }: { cardId: st
  * `subtle` is for the inverted (near-black) face: white on #1A1A1A shows far more than on a white face or a mid-grey
  * back, and at full strength it turned the top-left corner a muddy grey right behind the rank. */
 const CardSheen = React.memo(function CardSheen({ subtle = false }: { subtle?: boolean }) {
-  return <Image source={SHEEN_SOURCE} style={subtle ? [sheenStyles.sheen, sheenStyles.subtle] : sheenStyles.sheen} resizeMode='stretch' />
+  return <Image source={SHEEN_SOURCE} style={subtle ? [sheenStyles.sheen, sheenStyles.subtle] : sheenStyles.sheen} resizeMode='stretch' fadeDuration={NO_IMAGE_FADE} />
 })
 
 export function EmptySlot({ onPress, hinted, style, children, testID }: { onPress?: () => void; hinted?: boolean; style?: StyleProp<ViewStyle>; children?: React.ReactNode; testID?: string }) {

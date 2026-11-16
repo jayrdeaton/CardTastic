@@ -6,6 +6,7 @@ import Svg, { Path, Rect } from 'react-native-svg'
 
 import { useSettings } from '@/hooks/useSettings'
 
+import { NO_IMAGE_FADE } from './imageFade'
 import { PREVIEW_CANVAS_HEIGHT, PREVIEW_CANVAS_WIDTH, PREVIEW_CARD_HEIGHT, PREVIEW_CARD_WIDTH, type PreviewCardPlacement, previewFrame } from './previewCanvas'
 import { PREVIEW_FACE_BITMAPS, type PreviewGame } from './previewFaceBitmaps'
 import { buildBackStrips } from './previewGeometry'
@@ -79,7 +80,7 @@ export const GamePreview = React.memo(function GamePreview({ game, placements, c
         {backStrips !== null ? backStrips !== '' && <Path d={backStrips} fill={colors.cardBack} stroke={frame} strokeWidth={BACK_FRAME} /> : placements.map((p, i) => (p.faceUp && p.card ? null : <Rect key={i} x={p.x + BACK_FRAME / 2} y={p.y + BACK_FRAME / 2} width={PREVIEW_CARD_WIDTH - BACK_FRAME} height={PREVIEW_CARD_HEIGHT - BACK_FRAME} rx={CARD_RX} fill={colors.cardBack} stroke={frame} strokeWidth={BACK_FRAME} />))}
       </Svg>
       {/* Only once the tile has cards: Home passes [] for its first frame (previewsRevealed) to keep that commit light. */}
-      {placements.length > 0 && <Image source={faces} style={styles.faces} resizeMode='stretch' />}
+      {placements.length > 0 && <Image source={faces} style={styles.faces} resizeMode='stretch' fadeDuration={NO_IMAGE_FADE} />}
     </View>
   )
 })

@@ -153,7 +153,7 @@ const FOOTER_TOUCH_REACH = MOVES_TIMER_BOTTOM + STAT_LABEL_LINE - (FOOTER_BOTTOM
 const FOOTER_DROP = 24
 // RN's Pressable decides whether a press that moves is still on its button from where `measure` put the button when the
 // press began, plus 20pt (30 below). `measure` reads the shadow tree, and with Reanimated's
-// IOS_SYNCHRONOUSLY_UPDATE_UI_PROPS on (package.json) a slide's transform reaches the screen without it: the shadow tree
+// IOS_ and ANDROID_SYNCHRONOUSLY_UPDATE_UI_PROPS on (package.json) a slide's transform reaches the screen without it: the shadow tree
 // only learns where the scoreboard went at the next React commit or Reanimated's settled-value sync, 0.3-1.6s after the
 // slide on the Simulator, and until then puts it where it was. A finger that moved a little then lost the press, so
 // "Show controls" right after hiding them did nothing. Each side the slide can lag on is widened by the slide.
