@@ -1,5 +1,6 @@
 import { useKeepAwake } from '@rific/core'
 import { Pressable, withFeedback } from '@rific/feedback-press'
+import { useToast } from '@rific/toaster'
 import { ConfirmDialog, CornerActionButtons } from '@tastic/hud/chrome'
 import { useRouter } from 'expo-router'
 import { ReactNode, useEffect, useRef, useState } from 'react'
@@ -8,9 +9,12 @@ import { Icon, Portal } from 'react-native-paper'
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
-import { Par } from '@/engine/par'
+import { parFor } from '@/engine/par'
 import { computeScore } from '@/engine/score'
+import type { VariantId } from '@/engine/variants'
+import { showParToast } from '@/games/shared/gameToasts'
 import { useSettings } from '@/hooks/useSettings'
+import { useGameStats } from '@/stores/gameStats'
 import { commaString } from '@/utils/commaString'
 
 import { HintHandler, useAutoHint } from './autoHint'
@@ -254,8 +258,9 @@ interface GameChromeProps {
    * below via RulesDialog. Owned by each screen rather than GameChrome looking a gameId up itself. (The game's rule
    * choices are in the Settings sheet, which finds them from the route: components/SettingsSections.tsx.) */
   rules: string[]
-  /** The deal's variant's par (engine/par.ts), told in the Rules sheet's Scoring paragraph. */
-  par: Par
+  /** The deal's rule set (engine/variants.ts). Its expert par is told in the Rules sheet's Scoring paragraph, and the
+   * player's own par shows when they hold the score (showPar). */
+  variant: VariantId
   /** The game board itself - foundations/tableau/stock, whatever shape a given game needs. Laid out to
    * fit the screen; scrolls only when a column too long to compress any further runs past the bottom
    * (see boardScroll.ts). */
@@ -306,7 +311,7 @@ function ElapsedClock({ getElapsedSeconds, clockRunning, won, children }: { getE
  * Previously each of the four game screens hand-rolled its own version of this row (and Pyramid's
  * had drifted to a bottom button row entirely) - unifying it here means a layout tweak (like this
  * one, and the header/footer regrouping that followed it) only has to happen once. */
-export function GameChrome({ title, subtitle, onNewGame, onUndo: undoMove, onUndoUsed, undoDisabled, onHint, autoHintKey, hintShowing, hintDisabled, won, winRevealed, hasProgress, getElapsedSeconds, pauseClock, par, clockRunning, movesCount, rules, children }: GameChromeProps) {
+export function GameChrome({ title, subtitle, onNewGame, onUndo: undoMove, onUndoUsed, undoDisabled, onHint, autoHintKey, hintShowing, hintDisabled, won, winRevealed, hasProgress, getElapsedSeconds, pauseClock, variant, clockRunning, movesCount, rules, children }: GameChromeProps) {
   const router = useRouter()
   const insets = useSafeAreaInsets()
   const { isWide, windowWidth, leftGutter, topPadding, bottomPadding } = useGameLayout()
@@ -314,6 +319,14 @@ export function GameChrome({ title, subtitle, onNewGame, onUndo: undoMove, onUnd
   const [rulesOpen, setRulesOpen] = useState(false)
   const [confirmNewGameVisible, setConfirmNewGameVisible] = useState(false)
   const [footerVisible, setFooterVisible] = useState(true)
+  // Holding the score (a tap or a hold sideways, where it hides nothing) shows the player's par in a toast: par was only
+  // ever seen on the win card, and Jay wanted nothing more in the bottom band (2026-11-17). Read when asked, not rendered.
+  const { getPlayerPar } = useGameStats()
+  const { info } = useToast()
+  const showPar = () => {
+    const { par, wins } = getPlayerPar(variant)
+    showParToast(info, par, wins)
+  }
   // True for FOOTER_SHOW_GUARD_MS after the scoreboard brings the footer back: its buttons take no presses yet.
   const [footerSettling, setFooterSettling] = useState(false)
   const footerSettleTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
@@ -535,25 +548,28 @@ export function GameChrome({ title, subtitle, onNewGame, onUndo: undoMove, onUnd
         // own wide branch below.
         <ElapsedClock getElapsedSeconds={getElapsedSeconds} clockRunning={clockRunning} won={won}>
           {(displayedElapsed) => (
-            <Animated.View style={[styles.wideStatsWrap, { left: insets.left + WIDE_STATS_LEFT_MARGIN, right: windowWidth - leftGutter, top: insets.top + GAME_CONTENT_TOP_PADDING, bottom: insets.bottom }, winFadeStyle]} pointerEvents='none'>
-              <View style={styles.wideStatBlock}>
-                <Text style={styles.statValue} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6}>
-                  {commaString(movesCount)}
-                </Text>
-                <Text style={styles.statCaption}>Moves</Text>
-              </View>
-              <View style={styles.wideStatBlock}>
-                <Text style={styles.statValue} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6}>
-                  {commaString(computeScore(movesCount, displayedElapsed))}
-                </Text>
-                <Text style={styles.statCaption}>Score</Text>
-              </View>
-              <View style={styles.wideStatBlock}>
-                <Text style={styles.statValue} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6}>
-                  {formatTime(displayedElapsed)}
-                </Text>
-                <Text style={styles.statCaption}>Time</Text>
-              </View>
+            <Animated.View style={[styles.wideStatsWrap, { left: insets.left + WIDE_STATS_LEFT_MARGIN, right: windowWidth - leftGutter, top: insets.top + GAME_CONTENT_TOP_PADDING, bottom: insets.bottom }, winFadeStyle]} pointerEvents='box-none'>
+              {/* The readout hides nothing sideways, so a tap shows the par as well as a hold. */}
+              <FooterPressable onPress={showPar} onLongPress={showPar} delayLongPress={HOLD_LONG_PRESS_MS} disabled={won} style={styles.wideStats} accessibilityRole='button' accessibilityLabel='Show par' testID='scoreboard'>
+                <View style={styles.wideStatBlock}>
+                  <Text style={styles.statValue} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6}>
+                    {commaString(movesCount)}
+                  </Text>
+                  <Text style={styles.statCaption}>Moves</Text>
+                </View>
+                <View style={styles.wideStatBlock}>
+                  <Text style={styles.statValue} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6}>
+                    {commaString(computeScore(movesCount, displayedElapsed))}
+                  </Text>
+                  <Text style={styles.statCaption}>Score</Text>
+                </View>
+                <View style={styles.wideStatBlock}>
+                  <Text style={styles.statValue} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6}>
+                    {formatTime(displayedElapsed)}
+                  </Text>
+                  <Text style={styles.statCaption}>Time</Text>
+                </View>
+              </FooterPressable>
             </Animated.View>
           )}
         </ElapsedClock>
@@ -564,7 +580,9 @@ export function GameChrome({ title, subtitle, onNewGame, onUndo: undoMove, onUnd
             // Above the footer while it is hidden: the lowered readout then sits under the hidden buttons, and on
             // the web a child's own pointer-events beat a parent's pointerEvents='none', so they would take its tap.
             <Animated.View style={[styles.movesTimerWrap, { bottom: MOVES_TIMER_BOTTOM + insets.bottom }, !footerVisible && styles.movesTimerAboveFooter, movesTimerAnimatedStyle]} pointerEvents='box-none'>
-              <Pressable onPress={toggleFooter} disabled={won} pressRetentionOffset={SCOREBOARD_PRESS_RETENTION} style={styles.scoreboardButton} accessibilityRole='button' accessibilityLabel={footerVisible ? 'Hide controls' : 'Show controls'}>
+              {/* FooterPressable, not feedback-press's Pressable: its long press would play the 'notification' feedback, which
+              this app maps to the invalid-move sound. */}
+              <FooterPressable onPress={toggleFooter} onLongPress={showPar} delayLongPress={HOLD_LONG_PRESS_MS} disabled={won} pressRetentionOffset={SCOREBOARD_PRESS_RETENTION} style={styles.scoreboardButton} accessibilityRole='button' accessibilityLabel={footerVisible ? 'Hide controls' : 'Show controls'} accessibilityHint='Hold to see your par' testID='scoreboard'>
                 <Animated.View style={[styles.chevron, chevronAnimatedStyle]} accessibilityElementsHidden importantForAccessibility='no-hide-descendants'>
                   <Icon source='chevron-down' size={CHEVRON_SIZE} color={STAT_LABEL_COLOR} />
                 </Animated.View>
@@ -582,7 +600,7 @@ export function GameChrome({ title, subtitle, onNewGame, onUndo: undoMove, onUnd
                     <Animated.Text style={[styles.statCaption, labelAnimatedStyle]}>Time</Animated.Text>
                   </View>
                 </View>
-              </Pressable>
+              </FooterPressable>
             </Animated.View>
           )}
         </ElapsedClock>
@@ -625,7 +643,7 @@ export function GameChrome({ title, subtitle, onNewGame, onUndo: undoMove, onUnd
 
       <SettingsDialog visible={settingsOpen} onDismiss={() => setSettingsOpen(false)} />
 
-      <RulesDialog visible={rulesOpen} onDismiss={() => setRulesOpen(false)} title={title} rules={rules} par={par} />
+      <RulesDialog visible={rulesOpen} onDismiss={() => setRulesOpen(false)} title={title} rules={rules} par={parFor(variant)} />
 
       <ConfirmDialog
         visible={confirmNewGameVisible}
@@ -871,9 +889,15 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     maxWidth: '100%'
   },
-  wideStatsWrap: {
+  // The readout's column, its own press target (showPar): only as tall as the numbers, so a press above or below them
+  // falls through.
+  wideStats: {
     alignItems: 'flex-start',
     gap: WIDE_STATS_GAP,
+    maxWidth: '100%'
+  },
+  wideStatsWrap: {
+    alignItems: 'flex-start',
     justifyContent: 'center',
     position: 'absolute',
     zIndex: 10

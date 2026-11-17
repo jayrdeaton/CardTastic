@@ -37,7 +37,6 @@ import { ChainSpec, useWinCascade, WinCascadeGhosts } from '@/components/winning
 import { SCORPION_RULES } from '@/constants/gameRules'
 import { PileRef } from '@/engine/gameTypes'
 import { findHint, hintCountFor, HintResult } from '@/engine/hint'
-import { parFor } from '@/engine/par'
 import { alwaysValidRun, runCountFrom } from '@/engine/pile'
 import { randomSeed } from '@/engine/rng'
 import { computeScore } from '@/engine/score'
@@ -803,7 +802,7 @@ function ScorpionScreenInner() {
 
   return (
     <CardSizeProvider width={cardWidth}>
-      <GameChrome onUndoUsed={() => recordUndoUsed(variant)} title='Scorpion' onNewGame={handleNewGame} onUndo={handleUndo} undoDisabled={undoStack.length === 0} onHint={handleHint} autoHintKey={state} hintShowing={!!activeHint} hintDisabled={won || stuck} won={won} winRevealed={winRevealed} hasProgress={session.moves > 0} getElapsedSeconds={session.getElapsed} pauseClock={session.setPaused} par={parFor(variant)} clockRunning={session.started && !won && !stuck} movesCount={session.moves} rules={SCORPION_RULES}>
+      <GameChrome onUndoUsed={() => recordUndoUsed(variant)} title='Scorpion' onNewGame={handleNewGame} onUndo={handleUndo} undoDisabled={undoStack.length === 0} onHint={handleHint} autoHintKey={state} hintShowing={!!activeHint} hintDisabled={won || stuck} won={won} winRevealed={winRevealed} hasProgress={session.moves > 0} getElapsedSeconds={session.getElapsed} pauseClock={session.setPaused} variant={variant} clockRunning={session.started && !won && !stuck} movesCount={session.moves} rules={SCORPION_RULES}>
         {/* Portrait: the stock packet lives in a card-tall top row at the right, as always. Wide layout: no
         top row (zero height, no margin) - the packet is absolutely positioned beside the tableau below.
         Once the assisted stock has been dealt, an empty slot stays in its place: the packet was the top row's

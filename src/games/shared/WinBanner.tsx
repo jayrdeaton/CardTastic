@@ -44,6 +44,10 @@ export function WinBanner({ elapsedSeconds, moves, score, variant, onNewGame }: 
   // ever"), from the same moment as the par, so a win reached again after an Undo is ranked by its own numbers. Only what
   // is known for sure is said (engine/topWins.ts' rankWin): nothing for a first win, or past the 10 best.
   const before = lastWin?.variant === variant ? lastWin.before : null
+  // The rule set's deals played and won, this win counted (useGameStats' lastWin.record: the player's own, or the phone's
+  // while it has no profiles, as the Stats screen first shows them). Chris (a friend of Jay's, 2026-11-17) wanted to know
+  // how many games he'd played, and never found the Stats screen behind Home's trophy: this is where every player looks.
+  const record = lastWin?.variant === variant ? lastWin.record : null
   const ranks = before
     ? [
         { board: 'score' as const, rank: rankWin(before, 'score', score) },
@@ -82,11 +86,19 @@ export function WinBanner({ elapsedSeconds, moves, score, variant, onNewGame }: 
             ))}
           </View>
         )}
-        <Text variant='bodySmall' style={[styles.caption, { color: fgMuted }]}>
-          {/* Names the score (the percentage is the score's alone; moves and time show their own par above), with no "Lower is
-          better" (par already says so) and no period: one phrase, not a sentence (Jay, 2026-10-17). */}
-          Score {vsPar}
-        </Text>
+        {/* The par line and the count, together: both are about this rule set's numbers. */}
+        <View>
+          <Text variant='bodySmall' style={[styles.caption, { color: fgMuted }]}>
+            {/* Names the score (the percentage is the score's alone; moves and time show their own par above), with no "Lower is
+            better" (par already says so) and no period: one phrase, not a sentence (Jay, 2026-10-17). */}
+            Score {vsPar}
+          </Text>
+          {record && record.played > 0 && (
+            <Text variant='bodySmall' style={[styles.caption, { color: fgMuted }]} testID='win-record'>
+              {`${commaString(record.played)} played · ${commaString(record.won)} won · ${Math.round((record.won / record.played) * 100)}%`}
+            </Text>
+          )}
+        </View>
         <View style={overlayActionStyles.actions}>
           <Button mode='contained' onPress={onNewGame} style={overlayActionStyles.actionButtonSingle} buttonColor={colors.primary} textColor={colors.onPrimary} testID='win-new-game'>
             New Game

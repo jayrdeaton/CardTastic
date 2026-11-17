@@ -13,6 +13,9 @@ jest.mock('@/components/SettingsDialog', () => ({ SettingsDialog: () => null }))
 jest.mock('@/components/RulesDialog', () => ({ RulesDialog: () => null }))
 jest.mock('@/hooks/useSettings', () => ({ useSettings: () => ({ settings: { ...jest.requireActual('@/redux/settingsSlice').DEFAULT_SETTINGS }, setSettings: jest.fn() }) }))
 jest.mock('@/components/cardFont', () => ({ CARD_FONT_FAMILY: 'TestSerif' }))
+// GameChrome reads the player's par (holding the score shows it) and the toaster; neither is under test here.
+jest.mock('@/stores/gameStats', () => ({ useGameStats: () => ({ getPlayerPar: () => ({ par: { kind: 'expert', moves: 100, seconds: 200, score: 300, goldScore: null }, wins: 0 }) }) }))
+jest.mock('@rific/toaster', () => ({ useToast: () => ({ info: () => {} }) }))
 
 async function advance(ms: number) {
   await act(async () => {
@@ -26,7 +29,7 @@ async function renderChrome(onHint: () => boolean, onUndo = jest.fn()) {
   await render(
     <PaperProvider>
       <FeedbackPressProvider soundInitialValue={{ enabled: true }} sound={{ selection: click, notification: invalid }}>
-        <GameChrome title='Klondike' onNewGame={jest.fn()} onUndo={onUndo} undoDisabled={false} onHint={onHint} autoHintKey={null} hintShowing={false} won={false} winRevealed={false} hasProgress={false} getElapsedSeconds={() => 0} pauseClock={jest.fn()} par={{ moves: 100, seconds: 200, score: 300 }} clockRunning={false} movesCount={0} rules={[]}>
+        <GameChrome title='Klondike' onNewGame={jest.fn()} onUndo={onUndo} undoDisabled={false} onHint={onHint} autoHintKey={null} hintShowing={false} won={false} winRevealed={false} hasProgress={false} getElapsedSeconds={() => 0} pauseClock={jest.fn()} variant='klondike' clockRunning={false} movesCount={0} rules={[]}>
           {null}
         </GameChrome>
       </FeedbackPressProvider>

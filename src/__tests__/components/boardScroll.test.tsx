@@ -17,6 +17,9 @@ jest.mock('@/components/SettingsDialog', () => ({ SettingsDialog: () => null }))
 jest.mock('@/components/RulesDialog', () => ({ RulesDialog: () => null }))
 jest.mock('@/hooks/useSettings', () => ({ useSettings: () => ({ settings: { ...jest.requireActual('@/redux/settingsSlice').DEFAULT_SETTINGS }, setSettings: jest.fn() }) }))
 jest.mock('@/components/cardFont', () => ({ CARD_FONT_FAMILY: 'TestSerif' }))
+// GameChrome reads the player's par (holding the score shows it) and the toaster; neither is under test here.
+jest.mock('@/stores/gameStats', () => ({ useGameStats: () => ({ getPlayerPar: () => ({ par: { kind: 'expert', moves: 100, seconds: 200, score: 300, goldScore: null }, wins: 0 }) }) }))
+jest.mock('@rific/toaster', () => ({ useToast: () => ({ info: () => {} }) }))
 // The window GameChrome lays out for: portrait unless a test turns it sideways (the wide layout).
 let mockWide = false
 jest.mock('@/components/gameLayout', () => {
@@ -224,7 +227,7 @@ describe('GameChrome', () => {
 
   const chrome = (movesCount = 0) => (
     <PaperProvider>
-      <GameChrome title='Yukon' onNewGame={jest.fn()} onUndo={jest.fn()} undoDisabled onHint={jest.fn()} autoHintKey={null} hintShowing={false} won={false} winRevealed={false} hasProgress={movesCount > 0} getElapsedSeconds={() => 0} pauseClock={jest.fn()} par={{ moves: 100, seconds: 200, score: 300 }} clockRunning={false} movesCount={movesCount} rules={[]}>
+      <GameChrome title='Yukon' onNewGame={jest.fn()} onUndo={jest.fn()} undoDisabled onHint={jest.fn()} autoHintKey={null} hintShowing={false} won={false} winRevealed={false} hasProgress={movesCount > 0} getElapsedSeconds={() => 0} pauseClock={jest.fn()} variant='yukon' clockRunning={false} movesCount={movesCount} rules={[]}>
         <Content />
       </GameChrome>
     </PaperProvider>
@@ -294,7 +297,7 @@ describe('GameChrome', () => {
     const onHint = jest.fn()
     await render(
       <PaperProvider>
-        <GameChrome title='Yukon' onNewGame={onNewGame} onUndo={onUndo} undoDisabled={false} onHint={onHint} autoHintKey={null} hintShowing={false} won={false} winRevealed={false} hasProgress={false} getElapsedSeconds={() => 0} pauseClock={jest.fn()} par={{ moves: 100, seconds: 200, score: 300 }} clockRunning={false} movesCount={3} rules={[]}>
+        <GameChrome title='Yukon' onNewGame={onNewGame} onUndo={onUndo} undoDisabled={false} onHint={onHint} autoHintKey={null} hintShowing={false} won={false} winRevealed={false} hasProgress={false} getElapsedSeconds={() => 0} pauseClock={jest.fn()} variant='yukon' clockRunning={false} movesCount={3} rules={[]}>
           <Content />
         </GameChrome>
       </PaperProvider>
@@ -340,7 +343,7 @@ describe('GameChrome', () => {
     const onNewGame = jest.fn()
     const harness = () => (
       <PaperProvider>
-        <GameChrome title='Yukon' onNewGame={onNewGame} onUndo={jest.fn()} undoDisabled onHint={jest.fn()} autoHintKey={null} hintShowing={false} won={false} winRevealed={false} hasProgress={false} getElapsedSeconds={() => 0} pauseClock={jest.fn()} par={{ moves: 100, seconds: 200, score: 300 }} clockRunning={false} movesCount={0} rules={[]}>
+        <GameChrome title='Yukon' onNewGame={onNewGame} onUndo={jest.fn()} undoDisabled onHint={jest.fn()} autoHintKey={null} hintShowing={false} won={false} winRevealed={false} hasProgress={false} getElapsedSeconds={() => 0} pauseClock={jest.fn()} variant='yukon' clockRunning={false} movesCount={0} rules={[]}>
           <Content />
         </GameChrome>
       </PaperProvider>

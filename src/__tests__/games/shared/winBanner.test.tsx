@@ -9,7 +9,7 @@ import { WinBanner } from '@/games/shared/WinBanner'
 jest.mock('@/components/cardFont', () => ({ CARD_FONT_FAMILY: 'TestSerif' }))
 
 // The par the latest win was measured against (useGameStats' lastWin), set per test.
-let mockLastWin: { variant: VariantId; par: PlayerPar; before?: WinsBefore } | null = null
+let mockLastWin: { variant: VariantId; par: PlayerPar; before?: WinsBefore; record?: { played: number; won: number } | null } | null = null
 jest.mock('@/stores/gameStats', () => ({ useGameStats: () => ({ lastWin: mockLastWin }) }))
 
 // The win dialog shows each number over the player's par (engine/par.ts' playerParFor), and says how the score compares.
@@ -241,5 +241,26 @@ describe('vsParShort', () => {
     // Within half a percent rounds to even, as "at par" does.
     expect(vsParShort(346, 345)).toBe('even')
     expect(vsParShort(549, 345)).toBe('59% over')
+  })
+})
+
+describe("WinBanner - the rule set's played and won", () => {
+  const record = () => screen.queryByTestId('win-record')?.props.children as string | undefined
+
+  it('says how many deals were played and won, this win counted, and the share won', async () => {
+    mockLastWin = { variant: 'klondike', par: playerParFor('klondike', []), record: { played: 1112, won: 437 } }
+    await show(110, 166)
+    expect(record()).toBe('1,112 played · 437 won · 39%')
+  })
+
+  it('says nothing without a record, or for another rule set', async () => {
+    mockLastWin = { variant: 'klondike', par: playerParFor('klondike', []), record: null }
+    await show(110, 166)
+    expect(record()).toBeUndefined()
+    screen.unmount()
+
+    mockLastWin = { variant: 'klondike-draw3', par: playerParFor('klondike-draw3', []), record: { played: 5, won: 2 } }
+    await show(110, 166)
+    expect(record()).toBeUndefined()
   })
 })

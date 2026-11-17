@@ -14,6 +14,9 @@ jest.mock('@/components/SettingsDialog', () => ({ SettingsDialog: () => null }))
 jest.mock('@/components/RulesDialog', () => ({ RulesDialog: () => null }))
 jest.mock('@/hooks/useSettings', () => ({ useSettings: () => ({ settings: { ...jest.requireActual('@/redux/settingsSlice').DEFAULT_SETTINGS }, setSettings: jest.fn() }) }))
 jest.mock('@/components/cardFont', () => ({ CARD_FONT_FAMILY: 'TestSerif' }))
+// GameChrome reads the player's par (holding the score shows it) and the toaster; neither is under test here.
+jest.mock('@/stores/gameStats', () => ({ useGameStats: () => ({ getPlayerPar: () => ({ par: { kind: 'expert', moves: 100, seconds: 200, score: 300, goldScore: null }, wins: 0 }) }) }))
+jest.mock('@rific/toaster', () => ({ useToast: () => ({ info: () => {} }) }))
 // RN's Pressable keeps pressRetentionOffset to itself; this copy also hands it to its view, where a test can read it.
 jest.mock('react-native/Libraries/Components/Pressable/Pressable', () => {
   const React = jest.requireActual('react')
@@ -27,7 +30,7 @@ jest.mock('react-native/Libraries/Components/Pressable/Pressable', () => {
 it('the scoreboard and footer keep a press that moves while their slide has not reached measure() yet', async () => {
   await render(
     <PaperProvider>
-      <GameChrome title='Yukon' onNewGame={jest.fn()} onUndo={jest.fn()} undoDisabled onHint={jest.fn()} autoHintKey={null} hintShowing={false} won={false} winRevealed={false} hasProgress={false} getElapsedSeconds={() => 0} pauseClock={jest.fn()} par={{ moves: 100, seconds: 200, score: 300 }} clockRunning={false} movesCount={0} rules={[]}>
+      <GameChrome title='Yukon' onNewGame={jest.fn()} onUndo={jest.fn()} undoDisabled onHint={jest.fn()} autoHintKey={null} hintShowing={false} won={false} winRevealed={false} hasProgress={false} getElapsedSeconds={() => 0} pauseClock={jest.fn()} variant='yukon' clockRunning={false} movesCount={0} rules={[]}>
         <View />
       </GameChrome>
     </PaperProvider>

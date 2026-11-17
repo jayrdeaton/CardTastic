@@ -12,6 +12,9 @@ jest.mock('@/components/SettingsDialog', () => ({ SettingsDialog: () => null }))
 jest.mock('@/components/RulesDialog', () => ({ RulesDialog: () => null }))
 jest.mock('@/hooks/useSettings', () => ({ useSettings: () => ({ settings: { ...jest.requireActual('@/redux/settingsSlice').DEFAULT_SETTINGS }, setSettings: jest.fn() }) }))
 jest.mock('@/components/cardFont', () => ({ CARD_FONT_FAMILY: 'TestSerif' }))
+// GameChrome reads the player's par (holding the score shows it) and the toaster; neither is under test here.
+jest.mock('@/stores/gameStats', () => ({ useGameStats: () => ({ getPlayerPar: () => ({ par: { kind: 'expert', moves: 100, seconds: 200, score: 300, goldScore: null }, wins: 0 }) }) }))
+jest.mock('@rific/toaster', () => ({ useToast: () => ({ info: () => {} }) }))
 // Shared values that live as long as the component (the repo-wide mock hands back a new one every render), and a
 // withTiming that records where it was sent.
 const mockTimings: { to: unknown; duration?: number }[] = []
@@ -59,7 +62,7 @@ interface Props {
 function chrome({ won, winRevealed, elapsed = 75, movesCount = 40, onUndo = jest.fn(), onNewGame = jest.fn(), onHint = jest.fn() }: Props) {
   return (
     <PaperProvider>
-      <GameChrome title='Klondike' onNewGame={onNewGame} onUndo={onUndo} undoDisabled={false} onHint={onHint} autoHintKey={null} hintShowing={false} hintDisabled={won} won={won} winRevealed={winRevealed} hasProgress getElapsedSeconds={() => elapsed} pauseClock={jest.fn()} par={{ moves: 100, seconds: 200, score: 300 }} clockRunning={false} movesCount={movesCount} rules={[]}>
+      <GameChrome title='Klondike' onNewGame={onNewGame} onUndo={onUndo} undoDisabled={false} onHint={onHint} autoHintKey={null} hintShowing={false} hintDisabled={won} won={won} winRevealed={winRevealed} hasProgress getElapsedSeconds={() => elapsed} pauseClock={jest.fn()} variant='klondike' clockRunning={false} movesCount={movesCount} rules={[]}>
         <View />
       </GameChrome>
     </PaperProvider>

@@ -3,7 +3,7 @@ import { createContext, ReactNode, useCallback, useContext, useMemo, useState } 
 import { useDispatch, useSelector, useStore } from 'react-redux'
 
 import { GUEST_PLAYER_ID } from '@/constants/player'
-import { PlayerPar, playerParFor } from '@/engine/par'
+import { PlayerPar, playerParFor, RECENT_WINS_KEPT } from '@/engine/par'
 import type { WinsBefore } from '@/engine/topWins'
 import type { VariantId } from '@/engine/variants'
 import { achievementsActions, dropProfileStats } from '@/redux/achievementsSlice'
@@ -40,9 +40,18 @@ interface GameStatsContextValue {
   /** Each player's best wins in each variant, by score and by time (redux/topWinsSlice.ts): the Records tab. */
   topWins: TopWinsState
   /** The par the latest win was measured against (the win dialog's), and the player's wins as they stood for its rank
-   * ("3rd fastest ever", engine/topWins.ts' rankWin), both taken just before that win joined them. null until a win this
-   * session. */
-  lastWin: { variant: VariantId; par: PlayerPar; before: WinsBefore } | null
+   * ("3rd fastest ever", engine/topWins.ts' rankWin), both taken just before that win joined them, plus the rule set's
+   * deals played and won with it (`record`, the win dialog's "112 played" line). null until a win this session. */
+  lastWin: { variant: VariantId; par: PlayerPar; before: WinsBefore; record: VariantRecord | null } | null
+  /** The player's par in a variant as it stands now, and how many of their wins it comes from (0: expert par). Read from
+   * the store when asked (holding the score shows it, GameChrome), so no render subscribes to it. */
+  getPlayerPar: (variant: VariantId) => { par: PlayerPar; wins: number }
+}
+
+/** A rule set's deals that ended and how many were won. */
+export interface VariantRecord {
+  played: number
+  won: number
 }
 
 const GameStatsContext = createContext<GameStatsContextValue | null>(null)
@@ -50,6 +59,17 @@ const GameStatsContext = createContext<GameStatsContextValue | null>(null)
 // A store without the slice (a test's) reads as nobody's wins, with one identity so the context value stays put.
 const NO_RECENT_WINS: RecentWinsState = {}
 const NO_TOP_WINS: TopWinsState = {}
+
+/** A rule set's played and won, as the Stats screen first shows them: the player's own (a profile's, or guest's while
+ * profiles exist), or the phone's totals while there are no profiles, where the screen shows Everyone (guest's own count
+ * only started 2026-10-22). */
+function shownRecord(state: RootState, player: string, variant: VariantId): VariantRecord | null {
+  const stats = state.achievements?.stats
+  if (!stats) return null
+  const shown = (state.profiles?.length ?? 0) === 0 ? stats : stats.profiles[player]
+  const record = shown?.variants[variant]?.record
+  return record ? { played: record.played, won: record.wins } : null
+}
 
 function profileViews(stats: StatsState): Record<string, StatsState> {
   return Object.fromEntries(Object.entries(stats.profiles).map(([profileId, bucket]) => [profileId, getProfileStatsView(bucket)]))
@@ -77,17 +97,20 @@ export function GameStatsProvider({ children }: { children: ReactNode }) {
   const recordDealWon = useCallback(
     (variant: VariantId, metrics: DealMetrics) => {
       const { score, moves, seconds } = metrics
+      let measured: { par: PlayerPar; before: WinsBefore } | null = null
       if (score !== null && moves !== null && seconds !== null) {
         // The win is measured against the player's par and ranked among their wins as they stood BEFORE this win (read from
         // the store, not a render, so they are never a win behind), and only then joins them.
         const state = store.getState()
         const bucket = state.achievements?.stats.profiles[player]?.variants[variant]
         const before: WinsBefore = { top: state.topWins?.[player]?.[variant], wins: bucket?.record.wins ?? 0, bestScore: bucket?.bestScore ?? null, bestSeconds: bucket?.bestTimeSeconds ?? null }
-        setLastWin({ variant, par: playerParFor(variant, state.recentWins?.[player]?.[variant] ?? []), before })
+        measured = { par: playerParFor(variant, state.recentWins?.[player]?.[variant] ?? []), before }
         dispatch(recentWinsActions.add({ player, variant, win: { score, moves, seconds } }))
         dispatch(topWinsActions.add({ player, variant, win: { score, moves, seconds, at: Date.now() } }))
       }
       const result = recordOutcome((prev) => applyDealWon(prev, variant, metrics, player))
+      // The rule set's played and won with this win counted, for the win dialog.
+      if (measured) setLastWin({ variant, ...measured, record: shownRecord(store.getState(), player, variant) })
       // Solitaire is single-player: whatever the player unlocked is the same person the
       // device-wide unlocks belong to, so both lists are surfaced together rather than separately.
       return [...result.device, ...(result.profiles[player] ?? [])]
@@ -135,6 +158,14 @@ export function GameStatsProvider({ children }: { children: ReactNode }) {
     dispatch(matchStatsActions.clear())
   }, [resetAll, dispatch])
 
+  const getPlayerPar = useCallback(
+    (variant: VariantId) => {
+      const recent = store.getState().recentWins?.[player]?.[variant] ?? []
+      return { par: playerParFor(variant, recent), wins: Math.min(recent.length, RECENT_WINS_KEPT) }
+    },
+    [store, player]
+  )
+
   const value = useMemo(
     () => ({
       stats,
@@ -147,9 +178,10 @@ export function GameStatsProvider({ children }: { children: ReactNode }) {
       removeProfileStats,
       recentWins,
       topWins,
-      lastWin
+      lastWin,
+      getPlayerPar
     }),
-    [stats, unlockedAchievements, recordDealWon, recordDealAbandoned, recordHintUsed, recordUndoUsed, resetAllAndProgress, removeProfileStats, recentWins, topWins, lastWin]
+    [stats, unlockedAchievements, recordDealWon, recordDealAbandoned, recordHintUsed, recordUndoUsed, resetAllAndProgress, removeProfileStats, recentWins, topWins, lastWin, getPlayerPar]
   )
 
   return <GameStatsContext.Provider value={value}>{children}</GameStatsContext.Provider>

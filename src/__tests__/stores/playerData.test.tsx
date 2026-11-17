@@ -1,6 +1,6 @@
 import { type Action, configureStore, type Dispatch } from '@reduxjs/toolkit'
 import { unlockedKey } from '@tastic/achievements'
-import { profilesActions } from '@tastic/profile'
+import { type Profile, profilesActions, profilesReducer } from '@tastic/profile'
 import { createSeatColorsReducer, seatColorsActions } from '@tastic/shell'
 import { act, renderHook } from '@testing-library/react-native'
 import { ReactNode } from 'react'
@@ -34,7 +34,7 @@ const settingsOf = (klondikeDraw: 1 | 3): PlayerSettings => ({ settings: { ...DE
 const { achievements, gameInProgress, playerSettings, recentWins, topWins } = packReducers
 
 async function setup() {
-  const store = configureStore({ reducer: { achievements, gameInProgress, playerSettings, recentWins, topWins, seatColors: createSeatColorsReducer(SEAT_COLORS) }, middleware: (getDefault) => getDefault({ serializableCheck: false }) })
+  const store = configureStore({ reducer: { achievements, gameInProgress, playerSettings, recentWins, topWins, profiles: profilesReducer, seatColors: createSeatColorsReducer(SEAT_COLORS) }, middleware: (getDefault) => getDefault({ serializableCheck: false }) })
   const stats: StatsState = { ...DEFAULT_STATS, currentDayStreak: 5, profiles: { [KID]: played, [DAD]: played } }
   store.dispatch(achievementsActions.update({ stats, unlocked: { [unlockedKey('first_win', null)]: 1, [unlockedKey('first_win', KID)]: 2, [unlockedKey('first_win', DAD)]: 3 } }))
   // @tastic/profile's action creators type their actions without RTK's index signature.
@@ -228,5 +228,77 @@ describe("a player's records", () => {
 
     expect(result.current.lastWin?.before).toMatchObject({ wins: 1, bestScore: 370, bestSeconds: 230 })
     expect(result.current.lastWin?.before.top?.seen).toBe(2)
+  })
+})
+
+describe("the win dialog's played and won", () => {
+  const metrics = (moves: number, seconds: number) => ({ moves, seconds, score: moves + seconds, usedHint: false })
+  const profile = (id: string): Profile => ({ id, name: id, color: '#111111', tag: '', createdAt: 0, updatedAt: 0 })
+  // Klondike as the phone has seen it (10 played, 4 won) and as Kid has (2 played, 1 won).
+  function seedKlondike(store: Awaited<ReturnType<typeof setup>>['store']) {
+    const { stats, unlocked } = store.getState().achievements
+    const withRecord = <T extends { variants: StatsState['variants'] }>(bucket: T, played: number, wins: number): T => ({ ...bucket, variants: { ...bucket.variants, klondike: { ...bucket.variants.klondike, record: { ...bucket.variants.klondike.record, played, wins, losses: played - wins } } } })
+    store.dispatch(achievementsActions.update({ stats: { ...withRecord(stats, 10, 4), profiles: { ...stats.profiles, [KID]: withRecord(stats.profiles[KID], 2, 1) } }, unlocked }))
+  }
+
+  afterEach(() => {
+    mockActiveProfileId = null
+  })
+
+  it("counts this win in the phone's totals while there are no profiles, as the Stats screen shows Everyone then", async () => {
+    const { store, result } = await setup()
+    await act(() => seedKlondike(store))
+
+    await act(() => void result.current.recordDealWon('klondike', metrics(140, 230)))
+
+    expect(result.current.lastWin?.record).toEqual({ played: 11, won: 5 })
+  })
+
+  it("counts this win in the player's own once profiles exist", async () => {
+    mockActiveProfileId = KID
+    const { store, send, result } = await setup()
+    await act(() => {
+      seedKlondike(store)
+      send(profilesActions.setAll([profile(KID), profile(DAD)]))
+    })
+
+    await act(() => void result.current.recordDealWon('klondike', metrics(140, 230)))
+
+    expect(result.current.lastWin?.record).toEqual({ played: 3, won: 2 })
+  })
+
+  it("counts guest's own while profiles exist", async () => {
+    const { store, send, result } = await setup()
+    await act(() => {
+      seedKlondike(store)
+      send(profilesActions.setAll([profile(KID)]))
+    })
+
+    await act(() => void result.current.recordDealWon('klondike', metrics(140, 230)))
+
+    expect(result.current.lastWin?.record).toEqual({ played: 1, won: 1 })
+  })
+})
+
+describe("a player's par, when they hold the score", () => {
+  afterEach(() => {
+    mockActiveProfileId = null
+  })
+
+  it('is their own par with how many wins it comes from, or expert par with none', async () => {
+    mockActiveProfileId = KID
+    const { result } = await setup()
+
+    expect(result.current.getPlayerPar('klondike')).toEqual({ par: { kind: 'personal', moves: 150, seconds: 250, score: 400, goldScore: null }, wins: 1 })
+    expect(result.current.getPlayerPar('freecell')).toMatchObject({ par: { kind: 'expert' }, wins: 0 })
+  })
+
+  it('follows a win straight away', async () => {
+    mockActiveProfileId = KID
+    const { result } = await setup()
+
+    await act(() => void result.current.recordDealWon('klondike', { moves: 100, seconds: 200, score: 300, usedHint: false }))
+
+    expect(result.current.getPlayerPar('klondike')).toEqual({ par: { kind: 'personal', moves: 125, seconds: 225, score: 350, goldScore: null }, wins: 2 })
   })
 })

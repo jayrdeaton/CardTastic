@@ -14,12 +14,15 @@ jest.mock('@/hooks/useSettings', () => ({ useSettings: () => ({ settings: { ...j
 const mockRulesDialog = jest.fn((_props: { visible: boolean; onDismiss: () => void }) => null)
 jest.mock('@/components/RulesDialog', () => ({ RulesDialog: (props: { visible: boolean; onDismiss: () => void }) => mockRulesDialog(props) }))
 jest.mock('@/components/cardFont', () => ({ CARD_FONT_FAMILY: 'TestSerif' }))
+// GameChrome reads the player's par (holding the score shows it) and the toaster; neither is under test here.
+jest.mock('@/stores/gameStats', () => ({ useGameStats: () => ({ getPlayerPar: () => ({ par: { kind: 'expert', moves: 100, seconds: 200, score: 300, goldScore: null }, wins: 0 }) }) }))
+jest.mock('@rific/toaster', () => ({ useToast: () => ({ info: () => {} }) }))
 
 describe('GameChrome: no How to Play row in a game', () => {
   it('renders its Settings dialog without onShowHowToPlay', async () => {
     await render(
       <PaperProvider>
-        <GameChrome title='Klondike' onNewGame={jest.fn()} onUndo={jest.fn()} undoDisabled onHint={jest.fn()} autoHintKey={null} hintShowing={false} won={false} winRevealed={false} hasProgress={false} getElapsedSeconds={() => 0} pauseClock={jest.fn()} par={{ moves: 100, seconds: 200, score: 300 }} clockRunning={false} movesCount={0} rules={[]}>
+        <GameChrome title='Klondike' onNewGame={jest.fn()} onUndo={jest.fn()} undoDisabled onHint={jest.fn()} autoHintKey={null} hintShowing={false} won={false} winRevealed={false} hasProgress={false} getElapsedSeconds={() => 0} pauseClock={jest.fn()} variant='klondike' clockRunning={false} movesCount={0} rules={[]}>
           {null}
         </GameChrome>
       </PaperProvider>
@@ -37,7 +40,7 @@ describe('GameChrome: the clock is held while a dialog is open', () => {
     const pauseClock = jest.fn()
     await render(
       <PaperProvider>
-        <GameChrome title='Klondike' onNewGame={jest.fn()} onUndo={jest.fn()} undoDisabled onHint={jest.fn()} autoHintKey={null} hintShowing={false} won={false} winRevealed={false} hasProgress={false} getElapsedSeconds={() => 0} pauseClock={pauseClock} par={{ moves: 100, seconds: 200, score: 300 }} clockRunning={false} movesCount={0} rules={[]}>
+        <GameChrome title='Klondike' onNewGame={jest.fn()} onUndo={jest.fn()} undoDisabled onHint={jest.fn()} autoHintKey={null} hintShowing={false} won={false} winRevealed={false} hasProgress={false} getElapsedSeconds={() => 0} pauseClock={pauseClock} variant='klondike' clockRunning={false} movesCount={0} rules={[]}>
           {null}
         </GameChrome>
       </PaperProvider>
