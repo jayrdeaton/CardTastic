@@ -18,12 +18,12 @@ Checked 2026-11-11 against Play Console Help and the Developer Program Policies 
 
 1. **Create the app** (Play Console, Create app): app name `CardTastic: Solitaire & More`, default language English (United States), **Game**, **Free** (a free app can't be made paid later), and the declarations (Developer Program Policies, US export laws).
 2. **Fill in App content** (the answers below), the **main store listing** (the text and graphics below) and **store settings**.
-3. **Build:** `jrd ship build production`, picking All (iOS and Android together). The first Android build asks to make the upload keystore on EAS: yes.
-4. **Upload the first bundle by hand** in Play Console (Test and release, Production, Create new release, upload the `.aab`, release notes below): Google's API can't create an app's first release, so `eas submit -p android` only works from the second one on, with a Google Cloud service account key that has Play Console access.
+3. **Build:** `jrd ship build production`, picking All (iOS and Android together). The first Android build asks to make the upload keystore on EAS: yes. **Done 2026-11-16** (1.2.8, build 4).
+4. **Upload the first bundle by hand** in Play Console (Test and release, Production, Create new release, upload the `.aab`, release notes below): Google's API can't create an app's first release, so `eas submit -p android` only works from the second one on, with a Google Cloud service account key that has Play Console access. **Done 2026-11-16** (build 4, so that build can't also be submitted: its version code is used).
 5. **Send for review** (Publishing overview). A new account's first app can take several days. Managed publishing holds an approved release until you press Publish, if CardTastic should go live with the iOS release.
 6. **After the first upload:** nothing. CardTastic has no sign-in or App Links, so it needs no `assetlinks.json`.
 
-Every later version: `jrd ship build production`, `eas submit -p android --profile production` (once `submit.production.android` in `eas.json` has a service account key and a track), the release notes, then send for review.
+Every later version: `jrd ship build production`, `eas submit -p android --profile production` (the eas-submit service account key is on EAS and works since 2026-11-16; with no `track` in `eas.json`'s `submit.production.android`, it uploads to internal testing), the release notes, then send for review.
 
 ## Store listing (main store listing)
 

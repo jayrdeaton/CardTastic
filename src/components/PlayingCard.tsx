@@ -11,7 +11,7 @@ import { usePlayer } from '@/stores/profiles'
 
 import { CardBackArt } from './CardBackArt'
 import { CARD_FACE_BITMAPS } from './cardFaceBitmaps'
-import { FaceLoadTrackingContext, trackFaceLoad } from './cardFacePaint'
+import { FaceLoadTrackingContext, isFaceDecoded, noteFaceDecoded, trackFaceLoad } from './cardFacePaint'
 import { DIM_FADE_BACKSTOP_MS, fadeInDimScrim } from './dimScrimAnimation'
 import { HintGlow } from './hintGlow'
 import { NO_IMAGE_FADE } from './imageFade'
@@ -65,8 +65,9 @@ interface PlayingCardProps {
    * back's SVG pattern); a face-up card keeps its one face Image, so it is already loaded when the card is shown again. */
   hidden?: boolean
   /** Called when this card's face bitmap has loaded (its Image's onLoad) - React Native delivers a new Image's bitmap a
-   * frame or two after the view appears (cardFacePaint.ts). A ghost waits for it before it shows. Never called for a
-   * face-down card. */
+   * frame or two after the view appears (cardFacePaint.ts). A ghost waits for it before it shows. On Android a bitmap
+   * already decoded is drawn in the frame the view mounts, so for one of those it is called from the commit that mounts
+   * the face (cardFacePaint.ts's isFaceDecoded). Never called for a face-down card. */
   onFacePainted?: () => void
   onPress?: () => void
   /** Touch-down on the card, for telling a tap from a press held in place (dragdrop/holdGuard.ts). */
@@ -175,7 +176,7 @@ export function PlayingCard({ card, selected, hinted, disabled, dimmed, dimHold,
       <View style={[styles.clip, styles.face]}>
         {/* Kept mounted while `hidden` (one Image, unlike the back's SVG): a dragged card that is revealed again then
         already has its bitmap, instead of loading it in the frame it reappears (see cardFacePaint.ts). */}
-        <CardFaceImage cardId={card.id} source={faceSource} style={cardSize} label={`${rankLabel(card.rank)} of ${card.suit}`} onPainted={backUntilPainted || onFacePainted ? handleFaceLoaded : undefined} />
+        <CardFaceImage cardId={card.id} source={faceSource} faceSet={`${settings.cardStyle}/${faceVariant}`} size={`${width}x${height}`} style={cardSize} label={`${rankLabel(card.rank)} of ${card.suit}`} onPainted={backUntilPainted || onFacePainted ? handleFaceLoaded : undefined} />
         <CardSheen subtle={faceVariant === 'invert'} />
         {backUntilPainted && !hidden ? (
           <View style={[StyleSheet.absoluteFill, styles.back]}>
@@ -258,25 +259,41 @@ function FadingDimScrim({ style, onDone }: { style: StyleProp<ViewStyle>; onDone
  * delivers a new Image's bitmap asynchronously, often a frame or two after the view appears (see cardFacePaint.ts).
  * Only a real reload counts: a source it has already painted (the same bitmap shown for a different card - twin cards
  * in a two-deck game - or an effect re-run by Fast Refresh) gets no new native request and so no onLoad, and must not
- * open a tracker nothing would close. Ghosts don't report (FaceLoadTrackingContext). `onPainted` fires on every load. */
-function CardFaceImage({ cardId, source, style, label, onPainted }: { cardId: string; source: ImageSourcePropType; style: StyleProp<ImageStyle>; label: string; onPainted?: () => void }) {
+ * open a tracker nothing would close. Ghosts don't report (FaceLoadTrackingContext). `onPainted` fires on every load.
+ *
+ * On Android a bitmap already decoded is drawn in the frame this view mounts (cardFacePaint.ts's isFaceDecoded): such a
+ * face is painted in the commit that mounts it, so `onPainted` fires from that commit and nothing is reported as loading. */
+function CardFaceImage({ cardId, source, faceSet, size, style, label, onPainted }: { cardId: string; source: ImageSourcePropType; faceSet: string; size: string; style: StyleProp<ImageStyle>; label: string; onPainted?: () => void }) {
   const tracking = React.useContext(FaceLoadTrackingContext)
   const doneRef = React.useRef<(() => void) | null>(null)
   const paintedSourceRef = React.useRef<ImageSourcePropType | null>(null)
+  // Read by the mount effect below without being one of its dependencies: a ghost hands in a new callback every render, and
+  // re-running that effect would close a board face's tracker before its bitmap came.
+  const onPaintedRef = React.useRef(onPainted)
   React.useLayoutEffect(() => {
-    if (!tracking || source === paintedSourceRef.current) return
+    onPaintedRef.current = onPainted
+  })
+  React.useLayoutEffect(() => {
+    if (source === paintedSourceRef.current) return
+    if (isFaceDecoded(faceSet, source, size)) {
+      paintedSourceRef.current = source
+      onPaintedRef.current?.()
+      return
+    }
+    if (!tracking) return
     const done = trackFaceLoad(cardId)
     doneRef.current = done
     return () => {
       if (doneRef.current === done) doneRef.current = null
       done()
     }
-  }, [tracking, cardId, source])
+  }, [tracking, cardId, source, faceSet, size])
   const handleLoad = React.useCallback(() => {
     paintedSourceRef.current = source
+    noteFaceDecoded(faceSet, source, size)
     doneRef.current?.()
     onPainted?.()
-  }, [source, onPainted])
+  }, [source, faceSet, size, onPainted])
   return <Image source={source} style={style} resizeMode='stretch' fadeDuration={NO_IMAGE_FADE} accessibilityLabel={label} onLoad={handleLoad} />
 }
 
