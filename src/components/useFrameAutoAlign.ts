@@ -44,7 +44,7 @@ export function computeFramePlacement(trigger: FrameRect, contentWidth: number, 
 }
 
 /** The safe-area insets widened to the edges of a centred content column capped at `maxContentWidth`, which
- * hud's RotatedFrame applies only while the window is wider than tall. A popover inside a scroll view in that
+ * hud's ScreenFrame applies only while the window is wider than tall. A popover inside a scroll view in that
  * column is clipped at the column's edges (the scroll view, and on web FadingScrollView's mask), so it has to
  * be placed against them rather than the frame's (the Profiles roster on a desktop window). */
 export function columnInsets(insets: LayoutInsets, frameWidth: number, frameHeight: number, maxContentWidth: number | undefined): LayoutInsets {
