@@ -1,6 +1,6 @@
 {
   "name": "cardtastic",
-  "version": "1.2.8",
+  "version": "1.3.0",
   "private": true,
   "description": "CardTastic: twenty card games in one ad-free app, eleven solitaire games and nine for two to four players, built with Expo.",
   "type": "commonjs",
