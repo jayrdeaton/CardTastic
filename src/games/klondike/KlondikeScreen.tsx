@@ -1,6 +1,7 @@
 import { useVibration } from '@rific/feedback-press'
 import { useToast } from '@rific/toaster'
 import { CardSizeProvider, faceUpFanOffset } from '@tastic/cards'
+import { runMove } from '@tastic/cardtastic-engine'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { StyleSheet, View } from 'react-native'
 
@@ -46,6 +47,7 @@ import { createStockQueue, startStockWait, stockWaitTick } from '@/games/shared/
 import { MoveInfo, UndoEntry } from '@/games/shared/undoTypes'
 import { useAutoFinish } from '@/games/shared/useAutoFinish'
 import { useAutoFoundationCascade } from '@/games/shared/useAutoFoundationCascade'
+import { useDailyDeal, useDealSettings } from '@/games/shared/useDailyDeal'
 import { useDeferredDeal } from '@/games/shared/useDeferredDeal'
 import { UndoGate, useFlightConcurrency } from '@/games/shared/useFlightConcurrency'
 import { useFoundationWinCheck } from '@/games/shared/useFoundationWinCheck'
@@ -58,7 +60,6 @@ import { useUndoStack } from '@/games/shared/useUndoStack'
 import { useWinReveal } from '@/games/shared/useWinReveal'
 import { WinBanner } from '@/games/shared/WinBanner'
 import { withGameProviders } from '@/games/shared/withGameProviders'
-import { useSettings } from '@/hooks/useSettings'
 import { loadGameInProgress, SavedGame, saveGameInProgress } from '@/stores/gameInProgress'
 
 import { buildKlondikeDealSequence } from './dealSequence'
@@ -117,7 +118,7 @@ export default withGameProviders(KlondikeScreenInner)
 function KlondikeScreenInner() {
   const { styles, dropZones, recordDealWon, recordDealAbandoned, recordHintUsed, recordUndoUsed } = useGameScreenBasics(makeStyles)
   const { info: infoToast } = useToast()
-  const { settings } = useSettings()
+  const { settings } = useDealSettings()
   const controllerRef = useRef(createKlondikeController(settings.klondikeDraw))
   // The draw count of the game currently in progress - only updated when a new game actually
   // starts (mount, or the New Game button below), always reading the live `settings.klondikeDraw`
@@ -198,6 +199,8 @@ function KlondikeScreenInner() {
   // straggling call from a stale render's closure chain still checks against the CURRENT
   // controller, same as every other controllerRef.current read in this file.
   const { won, setWon, recordedWinRef, pendingWinCascadeRef, checkWin } = useFoundationWinCheck({ isWon: (s: KlondikeState) => controllerRef.current.isWon(s) }, variant, session, dealTokenRef, recordDealWon, hintsUsedRef)
+  // The Daily Deal this screen was opened for, if any: its seed deals the board, and a win goes to the server (useDailyDeal)
+  const daily = useDailyDeal('klondike', won, session)
   // Nothing animating and the initial deal finished - what the auto-play cascade below waits for, and
   // what the win celebration waits for too (see useWinReveal). activeFlightCount is claimed before
   // every flight's own async measurement (tap, drop, auto-play, stock draw, undo) and released only
@@ -269,7 +272,8 @@ function KlondikeScreenInner() {
     cascade.disarm()
     controllerRef.current = createKlondikeController(settings.klondikeDraw)
     setKlondikeDraw(settings.klondikeDraw)
-    const s = controllerRef.current.newGame(randomSeed())
+    const seed = daily?.seed ?? randomSeed()
+    const s = controllerRef.current.newGame(seed)
     setUndoStack([])
     setHint(null)
     hintsUsedRef.current = false
@@ -281,7 +285,7 @@ function KlondikeScreenInner() {
     setWasteTakeOff(null)
     setCascadeWasteHiddenCount(0)
     setWinCascadeFallbackSuits(new Set())
-    session.reset()
+    session.reset(seed)
     setWon(false)
     recordedWinRef.current = false
     winCascade.clear()
@@ -322,7 +326,7 @@ function KlondikeScreenInner() {
     setWasteTakeOff(null)
     setCascadeWasteHiddenCount(0)
     setWinCascadeFallbackSuits(new Set())
-    session.restore(saved.moves, saved.elapsedSeconds)
+    session.restore(saved.moves, saved.elapsedSeconds, saved.run)
     setWon(false)
     recordedWinRef.current = false
     setDealHiddenIds(new Set())
@@ -687,12 +691,12 @@ function KlondikeScreenInner() {
   // and when the app is backgrounded.
   useEffect(() => {
     if (state && !won && !stuck) {
-      saveGameInProgress<KlondikeState, KlondikeUndoEntry>('klondike', { state, undoStack, moves: session.moves, elapsedSeconds: session.getElapsed(), config: klondikeDraw })
+      saveGameInProgress<KlondikeState, KlondikeUndoEntry>('klondike', { state, undoStack, moves: session.moves, elapsedSeconds: session.getElapsed(), run: session.getRun(), config: klondikeDraw })
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state, won, stuck, klondikeDraw, undoStack])
   useSaveInProgressBackstop(!!state && !won && !stuck, () => {
-    if (state && !won && !stuck) saveGameInProgress<KlondikeState, KlondikeUndoEntry>('klondike', { state, undoStack, moves: session.moves, elapsedSeconds: session.getElapsed(), config: klondikeDraw })
+    if (state && !won && !stuck) saveGameInProgress<KlondikeState, KlondikeUndoEntry>('klondike', { state, undoStack, moves: session.moves, elapsedSeconds: session.getElapsed(), run: session.getRun(), config: klondikeDraw })
   })
 
   // Finds one legal move (or a stock-draw suggestion) to highlight - see engine/hint.ts's
@@ -854,6 +858,7 @@ function KlondikeScreenInner() {
     if (!move) {
       hideCascadeCards(cascaded)
       setUndoStack((stack) => stack.slice(0, -1))
+      session.registerUndo()
       commitState(prevState)
       settleFlight() // primary: nothing to fly, settles immediately
       // Deferred via pendingCascadeUndoRef (resolved by the [state]-effect above), not called
@@ -872,6 +877,7 @@ function KlondikeScreenInner() {
       const recycledCards = prevState.waste.slice()
 
       setUndoStack((stack) => stack.slice(0, -1))
+      session.registerUndo()
       hideCascadeCards(cascaded)
 
       if (stockOrigin && wasteDest && recycledCards.length > 0) {
@@ -917,6 +923,7 @@ function KlondikeScreenInner() {
       const stockDest = topPos ? await measureView(stockViewRef.current) : null
 
       setUndoStack((stack) => stack.slice(0, -1))
+      session.registerUndo()
       hideCascadeCards(cascaded)
 
       if (topPos && stockDest) {
@@ -976,6 +983,7 @@ function KlondikeScreenInner() {
     const origin = peeled || movingCards.length === 0 ? null : ((await ghost.cardRegistry.measure(move.anchorCardId)) ?? (move.to.zone === 'foundation' ? await measureView(foundationSlotRefs.current[move.to.index]) : null))
 
     setUndoStack((stack) => stack.slice(0, -1))
+    session.registerUndo()
     hideCascadeCards(cascaded)
 
     // Deferred via pendingCascadeUndoRef when present (not called directly) - the primary flight
@@ -1022,7 +1030,7 @@ function KlondikeScreenInner() {
       pushUndo(current, { from, to, count, anchorCardId })
       commitState(result)
       // Every move counts, the player\'s or an auto-play\'s: Auto-Move only saves taps, never score.
-      session.registerMove()
+      session.registerMove(runMove({ from, to, count }))
       checkWin(result)
       // Only the player's own play of a card to a foundation starts the cascade; any other move of theirs
       // stops it, so a card it uncovers (an ace flipped up on the tableau, say) is theirs to find and play.
@@ -1141,8 +1149,8 @@ function KlondikeScreenInner() {
     pushUndo(afterDraw, { from: entry.ref, to, count: 1, anchorCardId: entry.card.id })
     commitState(result)
     // Two moves, the draw and the play, as the player would make them with Auto-Move off.
-    session.registerMove()
-    session.registerMove()
+    session.registerMove('d')
+    session.registerMove(runMove({ from: entry.ref, to, count: 1 }))
     checkWin(result)
     pendingFlightRef.current.push({ cardId: entry.card.id, to, gen: dealTokenRef.current, flyingId, flight })
   }
@@ -1229,7 +1237,7 @@ function KlondikeScreenInner() {
       return false
     }
     // Counted here, with the draw that really happens - not at the tap, whose draw may have been dropped.
-    session.registerMove() // a sweep\'s own draw counts too, as the player\'s would with Auto-Move off
+    session.registerMove('d') // a sweep\'s own draw counts too, as the player\'s would with Auto-Move off
     if (waited) stockQueue.went()
 
     const drawnCard = top(result.waste)

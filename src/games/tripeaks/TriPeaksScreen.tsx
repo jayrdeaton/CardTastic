@@ -5,10 +5,10 @@
 // individually-positioned board cells rather than PileView's linear columns) - but TriPeaks' own
 // board is 3 separate peaks, not one uniform triangle, so its own card-position math (below) is
 // derived fresh from rules.ts's childIndices adjacency rather than reusing Pyramid's cardPosition.
-
 import { useVibration } from '@rific/feedback-press'
 import { useToast } from '@rific/toaster'
 import { CARD_ASPECT, CardSizeProvider } from '@tastic/cards'
+import { runMove } from '@tastic/cardtastic-engine'
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { StyleSheet, View } from 'react-native'
 
@@ -43,6 +43,7 @@ import { tripeaksVariant } from '@/engine/variants'
 import { showNoHintToast } from '@/games/shared/gameToasts'
 import { LossBanner } from '@/games/shared/LossBanner'
 import { MoveInfo, UndoEntry } from '@/games/shared/undoTypes'
+import { useDailyDeal, useDealSettings } from '@/games/shared/useDailyDeal'
 import { useDeferredDeal } from '@/games/shared/useDeferredDeal'
 import { useDerivedWinCheck } from '@/games/shared/useDerivedWinCheck'
 import { UndoGate, useFlightConcurrency } from '@/games/shared/useFlightConcurrency'
@@ -56,7 +57,6 @@ import { useWinReveal } from '@/games/shared/useWinReveal'
 import { sweptWaste, useWinStockSweep } from '@/games/shared/useWinStockSweep'
 import { WinBanner } from '@/games/shared/WinBanner'
 import { withGameProviders } from '@/games/shared/withGameProviders'
-import { useSettings } from '@/hooks/useSettings'
 import { loadGameInProgress, SavedGame, saveGameInProgress } from '@/stores/gameInProgress'
 
 import { buildTriPeaksDealSequence } from './dealSequence'
@@ -146,7 +146,7 @@ const cellStyles = StyleSheet.create({
 function TriPeaksScreenInner() {
   const { styles, dropZones, recordDealWon, recordDealAbandoned, recordHintUsed, recordUndoUsed } = useGameScreenBasics(makeStyles)
   const { info: infoToast } = useToast()
-  const { settings } = useSettings()
+  const { settings } = useDealSettings()
   // The rank-wrap rule the in-progress deal was actually dealt with - deliberately not re-derived
   // from `settings` every render, same reasoning SpiderScreen's own `numSuits` state has: a
   // mid-game settings change must never mutate the current deal's own rules. A useMemo (not a
@@ -216,6 +216,8 @@ function TriPeaksScreenInner() {
   // it used to just sit there with the clock running.
   const { stuck } = useStuckLossCheck(controller, state, variant, recordDealAbandoned, session)
   const { won, recordedRef: recordedWinRef, pendingWinCascadeRef } = useDerivedWinCheck(controller, state, variant, session, dealTokenRef, recordDealWon, hintsUsedRef)
+  // The Daily Deal this screen was opened for, if any: its seed deals the board, and a win goes to the server (useDailyDeal)
+  const daily = useDailyDeal('tripeaks', won, session)
   // activeFlightCount covers every ghost flight (tap, drag, stock draw, undo all claim one via startFlights before their first
   // await), dealHiddenIds the initial deal.
   const flightsLanded = activeFlightCount === 0 && dealHiddenIds.size === 0
@@ -269,13 +271,14 @@ function TriPeaksScreenInner() {
   // startNewGame uses for its identical numSuits setting.
   function startNewGame(ctrl: ReturnType<typeof createTriPeaksController>) {
     const myToken = ++dealTokenRef.current
-    const s = ctrl.newGame(randomSeed())
+    const seed = daily?.seed ?? randomSeed()
+    const s = ctrl.newGame(seed)
     setUndoStack([])
     setHint(null)
     hintsUsedRef.current = false
     resetFlightConcurrency()
     pendingFlightRef.current = []
-    session.reset()
+    session.reset(seed)
     recordedWinRef.current = false
     winCascade.clear()
     winSweep.cancel()
@@ -310,7 +313,7 @@ function TriPeaksScreenInner() {
     hintsUsedRef.current = false
     resetFlightConcurrency()
     pendingFlightRef.current = []
-    session.restore(saved.moves, saved.elapsedSeconds)
+    session.restore(saved.moves, saved.elapsedSeconds, saved.run)
     recordedWinRef.current = false
     winSweep.cancel()
     setDealHiddenIds(new Set())
@@ -470,11 +473,11 @@ function TriPeaksScreenInner() {
   // save still holds the elapsed time from when it was made, so useSaveInProgressBackstop saves again
   // every 10s, when the screen is left, and when the app is backgrounded.
   useEffect(() => {
-    if (state && !won && !stuck) saveGameInProgress('tripeaks', { state, undoStack, moves: session.moves, elapsedSeconds: session.getElapsed(), config: tripeaksRankWrap ? 1 : 0 })
+    if (state && !won && !stuck) saveGameInProgress('tripeaks', { state, undoStack, moves: session.moves, elapsedSeconds: session.getElapsed(), run: session.getRun(), config: tripeaksRankWrap ? 1 : 0 })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state, won, stuck, tripeaksRankWrap, undoStack])
   useSaveInProgressBackstop(!!state && !won && !stuck, () => {
-    if (state && !won && !stuck) saveGameInProgress('tripeaks', { state, undoStack, moves: session.moves, elapsedSeconds: session.getElapsed(), config: tripeaksRankWrap ? 1 : 0 })
+    if (state && !won && !stuck) saveGameInProgress('tripeaks', { state, undoStack, moves: session.moves, elapsedSeconds: session.getElapsed(), run: session.getRun(), config: tripeaksRankWrap ? 1 : 0 })
   })
 
   // Finds one legal move (or a stock-draw suggestion) to highlight - see engine/hint.ts's
@@ -544,6 +547,7 @@ function TriPeaksScreenInner() {
     const origin = movingCard && movingCard.id === move.anchorCardId ? ((await ghost.cardRegistry.measure(move.anchorCardId)) ?? (await measureView(wasteViewRef.current))) : null
 
     setUndoStack((stack) => stack.slice(0, -1))
+    session.registerUndo()
 
     if (origin && movingCard) {
       playCardSound()
@@ -569,7 +573,7 @@ function TriPeaksScreenInner() {
     if (!result) return false
     pushUndo(current, { from, to, count: 1, anchorCardId })
     commitState(result)
-    session.registerMove()
+    session.registerMove(runMove({ from, to, count: 1 }))
     return true
   }
 
@@ -591,7 +595,7 @@ function TriPeaksScreenInner() {
     const result = controller.drawStock!(current)
     if (!result) return
     startFlights(1)
-    session.registerMove()
+    session.registerMove('d')
 
     // drawStock never returns a result with an unchanged waste - TriPeaks has no recycle case (see
     // rules.ts), so a successful draw always means a real drawn card.

@@ -2,6 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage'
 import { combineReducers, createSlice, type Draft, type PayloadAction } from '@reduxjs/toolkit'
 import { persistReducer } from 'redux-persist'
 
+import type { DealRun } from '@/engine/run'
 import type { UndoEntry } from '@/games/shared/undoTypes'
 import { SOLITAIRE_GAME_IDS, type SolitaireGameId } from '@/stores/statsTypes'
 
@@ -27,6 +28,11 @@ export interface SavedGame<TState, TUndo = UndoEntry<TState>> {
   // FOUNDATION_SUITS) once stamped, absent for a save made before that order (stores/gameInProgress.ts
   // remaps those as they load).
   foundationLayout?: number
+  // The deal's seed and every action played on it (engine/run.ts), for replaying it on a daily leaderboard. Absent from a save made
+  // before runs were recorded: that deal has no run, and can't be posted
+  run?: DealRun | null
+  // The date of the Daily Deal this is a save of (stores/dailyScope.ts), absent for a regular game
+  day?: string
 }
 
 // Saves are per profile (2026-10-15, Jay: his daughter's new profile resumed his deals). A slot's keys

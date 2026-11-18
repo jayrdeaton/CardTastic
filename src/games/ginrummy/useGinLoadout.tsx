@@ -28,6 +28,7 @@ export function useGinLoadout(_mode: RoundMode): GameLoadout {
   return {
     roundSettings,
     options: (props: LoadoutOptionsProps) => <MatchSetup {...props} game='ginrummy' title={MATCH_GAME_TITLES.ginrummy} rules={rules} />,
+    placesSeats: true,
     optionIds: [],
     // The dice roll the CPU's level; the rules are the table's own to pick.
     randomize: () => setSettings({ ginCpu: CPU_LEVELS[Math.floor(Math.random() * CPU_LEVELS.length)] }),

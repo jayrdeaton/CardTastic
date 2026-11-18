@@ -1,6 +1,7 @@
 import { useVibration } from '@rific/feedback-press'
 import { useToast } from '@rific/toaster'
 import { CardSizeProvider, faceUpFanOffset } from '@tastic/cards'
+import { runMove } from '@tastic/cardtastic-engine'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { StyleSheet, View } from 'react-native'
 
@@ -42,6 +43,7 @@ import { LossBanner } from '@/games/shared/LossBanner'
 import { MoveInfo, UndoEntry } from '@/games/shared/undoTypes'
 import { useAutoFinish } from '@/games/shared/useAutoFinish'
 import { useAutoFoundationCascade } from '@/games/shared/useAutoFoundationCascade'
+import { useDailyDeal } from '@/games/shared/useDailyDeal'
 import { useDeferredDeal } from '@/games/shared/useDeferredDeal'
 import { useDimAfterDeal } from '@/games/shared/useDimAfterDeal'
 import { UndoGate, useFlightConcurrency } from '@/games/shared/useFlightConcurrency'
@@ -196,6 +198,8 @@ function FreeCellScreenInner() {
   const scheduleDeal = useDeferredDeal(state, dealTokenRef, runDeal)
   const winCascade = useWinCascade()
   const { won, setWon, recordedWinRef, pendingWinCascadeRef, checkWin } = useFoundationWinCheck(FreeCellController, 'freecell', session, dealTokenRef, recordDealWon, hintsUsedRef)
+  // The Daily Deal this screen was opened for, if any: its seed deals the board, and a win goes to the server (useDailyDeal)
+  const daily = useDailyDeal('freecell', won, session)
   // Nothing animating and the initial deal finished - what the auto-play hooks below wait for, and
   // what the win celebration waits for too (see useWinReveal).
   const settled = activeFlightCount === 0 && dealHiddenIds.size === 0
@@ -248,11 +252,11 @@ function FreeCellScreenInner() {
   // elapsed time from when it was made, so useSaveInProgressBackstop saves again every 10s, when the
   // screen is left, and when the app is backgrounded.
   useEffect(() => {
-    if (state && !won && !stuck) saveGameInProgress('freecell', { state, undoStack, moves: session.moves, elapsedSeconds: session.getElapsed() })
+    if (state && !won && !stuck) saveGameInProgress('freecell', { state, undoStack, moves: session.moves, elapsedSeconds: session.getElapsed(), run: session.getRun() })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state, won, stuck, undoStack])
   useSaveInProgressBackstop(!!state && !won && !stuck, () => {
-    if (state && !won && !stuck) saveGameInProgress('freecell', { state, undoStack, moves: session.moves, elapsedSeconds: session.getElapsed() })
+    if (state && !won && !stuck) saveGameInProgress('freecell', { state, undoStack, moves: session.moves, elapsedSeconds: session.getElapsed(), run: session.getRun() })
   })
 
   // dealTokenRef guards against a stray late measurement/landing from this deal delivering a
@@ -545,14 +549,15 @@ function FreeCellScreenInner() {
     const myToken = ++dealTokenRef.current
     finish.suppress()
     cascade.disarm()
-    const s = FreeCellController.newGame(randomSeed())
+    const seed = daily?.seed ?? randomSeed()
+    const s = FreeCellController.newGame(seed)
     setUndoStack([])
     setHint(null)
     hintsUsedRef.current = false
     resetFlightConcurrency()
     pendingAutoMoveCardIdRef.current = []
     pendingCascadeUndoRef.current = null
-    session.reset()
+    session.reset(seed)
     setWon(false)
     recordedWinRef.current = false
     winCascade.clear()
@@ -580,7 +585,7 @@ function FreeCellScreenInner() {
     resetFlightConcurrency()
     pendingAutoMoveCardIdRef.current = []
     pendingCascadeUndoRef.current = null
-    session.restore(saved.moves, saved.elapsedSeconds)
+    session.restore(saved.moves, saved.elapsedSeconds, saved.run)
     setWon(false)
     recordedWinRef.current = false
     setDealHiddenIds(new Set())
@@ -699,6 +704,7 @@ function FreeCellScreenInner() {
 
     if (!primary) {
       setUndoStack((stack) => stack.slice(0, -1))
+      session.registerUndo()
       commitState(prevState)
       settleFlight() // primary: nothing to fly, settles immediately
       return
@@ -714,6 +720,7 @@ function FreeCellScreenInner() {
     const origin = peeled || movingCards.length === 0 ? null : await ghost.cardRegistry.measure(primary.anchorCardId)
 
     setUndoStack((stack) => stack.slice(0, -1))
+    session.registerUndo()
 
     if (cascaded.length > 0) {
       const cascadeIds = new Set(cascaded.map((m) => m.anchorCardId))
@@ -768,7 +775,7 @@ function FreeCellScreenInner() {
       pushUndo(current, moveInfo)
       commitState(result)
       // Every move counts, the player\'s or an auto-play\'s: Auto-Move only saves taps, never score.
-      session.registerMove()
+      session.registerMove(runMove({ from, to, count }))
       checkWin(result)
       // Only the player's own play of a card to a foundation (a tap or a drag) starts the cascade; any other
       // move of theirs stops it, so a card it uncovers is theirs to play. The finish follows any move of

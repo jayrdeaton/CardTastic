@@ -1,6 +1,7 @@
 import { Pressable, useVibration } from '@rific/feedback-press'
 import { useToast } from '@rific/toaster'
 import { CardSizeProvider, faceUpFanOffset, useCardSize } from '@tastic/cards'
+import { runMove } from '@tastic/cardtastic-engine'
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { StyleProp, StyleSheet, View, ViewStyle } from 'react-native'
 import Animated, { useAnimatedStyle, useSharedValue, withDelay, withSpring, withTiming } from 'react-native-reanimated'
@@ -40,6 +41,7 @@ import { showNoHintToast } from '@/games/shared/gameToasts'
 import { liftTappedRun, peelInAir } from '@/games/shared/inAirRun'
 import { LossBanner } from '@/games/shared/LossBanner'
 import { MoveInfo, UndoEntry } from '@/games/shared/undoTypes'
+import { useDailyDeal, useDealSettings } from '@/games/shared/useDailyDeal'
 import { useDeferredDeal } from '@/games/shared/useDeferredDeal'
 import { useDerivedWinCheck } from '@/games/shared/useDerivedWinCheck'
 import { UndoGate, useFlightConcurrency } from '@/games/shared/useFlightConcurrency'
@@ -52,7 +54,6 @@ import { useUndoStack } from '@/games/shared/useUndoStack'
 import { useWinReveal } from '@/games/shared/useWinReveal'
 import { WinBanner } from '@/games/shared/WinBanner'
 import { withGameProviders } from '@/games/shared/withGameProviders'
-import { useSettings } from '@/hooks/useSettings'
 import { loadGameInProgress, SavedGame, saveGameInProgress } from '@/stores/gameInProgress'
 
 import { buildSpiderDealSequence } from './dealSequence'
@@ -298,7 +299,7 @@ export default withGameProviders(SpiderScreenInner)
 function SpiderScreenInner() {
   const { styles, dropZones, recordDealWon, recordDealAbandoned, recordHintUsed, recordUndoUsed } = useGameScreenBasics(makeStyles)
   const { info: infoToast } = useToast()
-  const { settings } = useSettings()
+  const { settings } = useDealSettings()
   const [ready, setReady] = useState(false)
   // The suit count of the game currently in progress - only updated when a new game actually
   // starts (mount, or handleNewGame below), always reading the live `settings.spiderSuits` at
@@ -454,6 +455,8 @@ function SpiderScreenInner() {
   // useState: it's a pure function of state, so Undo-ing out of a won position correctly drops the
   // win banner immediately, rather than leaving it stuck showing.
   const { won, recordedRef, pendingWinCascadeRef } = useDerivedWinCheck(controller, state, variant, session, dealTokenRef, recordDealWon, hintsUsedRef)
+  // The Daily Deal this screen was opened for, if any: its seed deals the board, and a win goes to the server (useDailyDeal)
+  const daily = useDailyDeal('spider', won, session)
   /** One ref per completed-sequence slot below - unlike a foundation pile's own card, these slots
    * have no per-card CardRegistry registration (there's no single occupant identity to track, just
    * "is this run done or not") - measured the same plain-view way Pyramid's discard pile is. */
@@ -594,7 +597,8 @@ function SpiderScreenInner() {
   const startNewGame = useCallback(
     (ctrl: ReturnType<typeof createSpiderController>) => {
       const myToken = ++dealTokenRef.current
-      const s = ctrl.newGame(randomSeed())
+      const seed = daily?.seed ?? randomSeed()
+      const s = ctrl.newGame(seed)
       setHistory([])
       setHint(null)
       hintsUsedRef.current = false
@@ -607,7 +611,7 @@ function SpiderScreenInner() {
       pendingUndoDealRef.current = null
       // Before the fresh board commits: a card a stock-deal undo still holds would be drawn over it (see undoDealHoldsRef).
       undoDealHoldsRef.current.forEach((release) => release())
-      session.reset()
+      session.reset(seed)
       recordedRef.current = false
       winCascade.clear()
       pendingWinCascadeRef.current = null
@@ -643,7 +647,7 @@ function SpiderScreenInner() {
     pendingDealRef.current = null
     pendingUndoDealRef.current = null
     undoDealHoldsRef.current.forEach((release) => release()) // see startNewGame
-    session.restore(saved.moves, saved.elapsedSeconds)
+    session.restore(saved.moves, saved.elapsedSeconds, saved.run)
     recordedRef.current = false
     setDealHiddenIds(new Set())
     commitState(saved.state)
@@ -671,12 +675,12 @@ function SpiderScreenInner() {
   // backgrounded.
   useEffect(() => {
     if (state && !won && !stuck) {
-      saveGameInProgress('spider', { state, undoStack: history, moves: session.moves, elapsedSeconds: session.getElapsed(), config: numSuits })
+      saveGameInProgress('spider', { state, undoStack: history, moves: session.moves, elapsedSeconds: session.getElapsed(), run: session.getRun(), config: numSuits })
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state, won, stuck, numSuits, history])
   useSaveInProgressBackstop(!!state && !won && !stuck, () => {
-    if (state && !won && !stuck) saveGameInProgress('spider', { state, undoStack: history, moves: session.moves, elapsedSeconds: session.getElapsed(), config: numSuits })
+    if (state && !won && !stuck) saveGameInProgress('spider', { state, undoStack: history, moves: session.moves, elapsedSeconds: session.getElapsed(), run: session.getRun(), config: numSuits })
   })
 
   // Foundation-equivalent measurement for Spider's win cascade: each completed run's own slot
@@ -1520,7 +1524,7 @@ function SpiderScreenInner() {
     // Recorded as the board will be once any run still waiting elsewhere has left (see sweptView), not as it shows now.
     pushHistory(sweptView(current), { from, to, count, anchorCardId })
     commitState(displayState)
-    session.registerMove()
+    session.registerMove(runMove({ from, to, count }))
     // The displayState above holds the last run back in the tableau, so `won` (derived from the swept state) only
     // flips a phase later, once that run leaves - the clock still stops with the winning move itself.
     if (controller.isWon(sweptView(next))) session.stopClock()
@@ -1592,7 +1596,7 @@ function SpiderScreenInner() {
     // not one card landing somewhere new) - handleUndo detects the null move itself and reverses
     // this same flight (see runUndoDeal) rather than needing anything stashed here.
     pushHistory(current, null)
-    session.registerMove()
+    session.registerMove('d')
 
     const myToken = ++dealTokenRef.current
     stockDealTokenRef.current = myToken
@@ -1735,6 +1739,7 @@ function SpiderScreenInner() {
       if (undoneSlots.length > 0 && !(await undoSequenceCompletions(current, undoneSlots, myToken))) return
 
       setHistory((h) => h.slice(0, -1))
+      session.registerUndo()
       // Taking off from their columns: the commit below takes these cards out of them, but each card's ghost only shows once
       // the restored packet has been measured (the commit after this one), the deal pool has mounted and the card's own
       // stagger has run out (up to 9 x DEAL_STAGGER_MS) - and the columns used to drop them at once, so the dealt cards
@@ -1755,6 +1760,7 @@ function SpiderScreenInner() {
     }
 
     setHistory((h) => h.slice(0, -1))
+    session.registerUndo()
 
     if (undoneSlots.length > 0) {
       // Only ever one slot here - a single tableau move (tryMove) resolves at most one column.

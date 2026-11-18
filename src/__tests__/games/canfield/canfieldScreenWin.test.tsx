@@ -9,7 +9,7 @@ import { Card, Suit } from '@/engine/types'
 import CanfieldScreen from '@/games/canfield/CanfieldScreen'
 import { CanfieldState } from '@/games/canfield/rules'
 
-import { resetGameInProgress, seedGameInProgress } from '../../../testUtils/gameInProgressStore'
+import { expectSavedRunToReplay, movableCardIds, resetGameInProgress, seedGameInProgress } from '../../../testUtils/gameInProgressStore'
 import { peelableFlights } from '../../../testUtils/peelableFlights'
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -123,6 +123,9 @@ const mockDeal = {
   cancel: () => {}
 }
 
+// A fresh deal's seed, fixed so the run test below plays the same deal every time
+const mockSeed = 4242
+jest.mock('@/engine/rng', () => ({ ...jest.requireActual('@/engine/rng'), randomSeed: () => mockSeed }))
 jest.mock('@/redux/store', () => require('../../../testUtils/gameInProgressStore').storeModule)
 jest.mock('@/components/dragdrop/DragGhostLayer', () => ({ DragGhostProvider: ({ children }: { children: unknown }) => children, useDragGhost: () => mockGhost }))
 jest.mock('@/components/dealing/DealLayer', () => ({ DealProvider: ({ children }: { children: unknown }) => children, useDealAnimator: () => mockDeal }))
@@ -1224,5 +1227,34 @@ describe('Canfield screen - a draw-3 fan under Reduce Motion', () => {
     expect(screen.queryAllByTestId(/^waste-/)).toHaveLength(1)
     await flush(FLIGHT_MS * 2)
     expect(mockLog.dealt).toHaveLength(3)
+  })
+})
+
+// Every deal keeps its run (engine/run.ts) so a daily deal can go on a leaderboard: every move, draw, auto-play and undo the screen
+// commits is recorded, and replaying the run with the rules, as Tastic-Server will, lands on exactly the board and move count saved
+describe('Canfield screen - the deal run', () => {
+  it('records a real deal played through the screen so that it replays to the saved board', async () => {
+    async function press(testID: string) {
+      await act(async () => {
+        fireEvent.press(screen.getByTestId(testID))
+      })
+      await flush(1500)
+    }
+    resetGameInProgress()
+    await render(<CanfieldScreen />)
+    await flush(3000) // the deal, and its first save
+    for (let round = 0; round < 12; round++) {
+      for (const cardId of movableCardIds('canfield').slice(0, 2)) {
+        if (screen.queryByTestId(`card-${cardId}`)) await press(`card-${cardId}`)
+      }
+      if (screen.queryByTestId('stock-pile')) await press('stock-pile')
+      if (round % 3 === 2) await press('undo')
+    }
+    await flush(4000) // the last save's debounce
+    const run = expectSavedRunToReplay('canfield')
+    expect(run.seed).toBe(mockSeed)
+    expect(run.actions.some((action) => Array.isArray(action))).toBe(true)
+    expect(run.actions).toContain('u')
+    expect(run.actions).toContain('d')
   })
 })

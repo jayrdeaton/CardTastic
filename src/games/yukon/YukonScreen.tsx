@@ -1,6 +1,7 @@
 import { useVibration } from '@rific/feedback-press'
 import { useToast } from '@rific/toaster'
 import { CardSizeProvider, faceUpFanOffset } from '@tastic/cards'
+import { runMove } from '@tastic/cardtastic-engine'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { StyleSheet, View } from 'react-native'
 
@@ -39,6 +40,7 @@ import { LossBanner } from '@/games/shared/LossBanner'
 import { MoveInfo, UndoEntry } from '@/games/shared/undoTypes'
 import { useAutoFinish } from '@/games/shared/useAutoFinish'
 import { useAutoFoundationCascade } from '@/games/shared/useAutoFoundationCascade'
+import { useDailyDeal } from '@/games/shared/useDailyDeal'
 import { useDeferredDeal } from '@/games/shared/useDeferredDeal'
 import { UndoGate, useFlightConcurrency } from '@/games/shared/useFlightConcurrency'
 import { useFoundationWinCheck } from '@/games/shared/useFoundationWinCheck'
@@ -166,6 +168,8 @@ function YukonScreenInner() {
   const scheduleDeal = useDeferredDeal(state, dealTokenRef, runDeal)
   const winCascade = useWinCascade()
   const { won, setWon, recordedWinRef, pendingWinCascadeRef, checkWin } = useFoundationWinCheck(controller, 'yukon', session, dealTokenRef, recordDealWon, hintsUsedRef)
+  // The Daily Deal this screen was opened for, if any: its seed deals the board, and a win goes to the server (useDailyDeal)
+  const daily = useDailyDeal('yukon', won, session)
   // Nothing animating and the initial deal finished - what the auto-play hook below waits for, and
   // what the win celebration waits for too (see useWinReveal).
   const settled = activeFlightCount === 0 && dealHiddenIds.size === 0
@@ -238,14 +242,15 @@ function YukonScreenInner() {
     // deal is never finished for the player, even one that happens to be solved (see useAutoFinish's suppress).
     finish.suppress()
     cascade.disarm()
-    const s = controller.newGame(randomSeed())
+    const seed = daily?.seed ?? randomSeed()
+    const s = controller.newGame(seed)
     setUndoStack([])
     setHint(null)
     hintsUsedRef.current = false
     resetFlightConcurrency()
     pendingFlightRef.current = []
     pendingCascadeUndoRef.current = null
-    session.reset()
+    session.reset(seed)
     setWon(false)
     recordedWinRef.current = false
     winCascade.clear()
@@ -274,7 +279,7 @@ function YukonScreenInner() {
     resetFlightConcurrency()
     pendingFlightRef.current = []
     pendingCascadeUndoRef.current = null
-    session.restore(saved.moves, saved.elapsedSeconds)
+    session.restore(saved.moves, saved.elapsedSeconds, saved.run)
     setWon(false)
     recordedWinRef.current = false
     setDealHiddenIds(new Set())
@@ -659,12 +664,12 @@ function YukonScreenInner() {
   // and when the app is backgrounded.
   useEffect(() => {
     if (state && !won && !stuck) {
-      saveGameInProgress('yukon', { state, undoStack, moves: session.moves, elapsedSeconds: session.getElapsed() })
+      saveGameInProgress('yukon', { state, undoStack, moves: session.moves, elapsedSeconds: session.getElapsed(), run: session.getRun() })
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state, won, stuck, undoStack])
   useSaveInProgressBackstop(!!state && !won && !stuck, () => {
-    if (state && !won && !stuck) saveGameInProgress('yukon', { state, undoStack, moves: session.moves, elapsedSeconds: session.getElapsed() })
+    if (state && !won && !stuck) saveGameInProgress('yukon', { state, undoStack, moves: session.moves, elapsedSeconds: session.getElapsed(), run: session.getRun() })
   })
 
   // Finds one legal move (or a stock-draw suggestion) to highlight - see engine/hint.ts's
@@ -789,6 +794,7 @@ function YukonScreenInner() {
     const origin = peeled || movingCards.length === 0 ? null : ((await ghost.cardRegistry.measure(primary.anchorCardId)) ?? (primary.to.zone === 'foundation' ? await measureView(foundationSlotRefs.current[primary.to.index]) : null))
 
     setUndoStack((stack) => stack.slice(0, -1))
+    session.registerUndo()
 
     if (cascadeGroups.length > 0) {
       // Hidden BEFORE commitState(prevState) below, in the same commit - React batches same-tick
@@ -851,7 +857,7 @@ function YukonScreenInner() {
       pushUndo(current, { primary: moveInfo, cascaded: [] })
       commitState(result)
       // Every move counts, the player\'s or an auto-play\'s: Auto-Move only saves taps, never score.
-      session.registerMove()
+      session.registerMove(runMove({ from, to, count }))
       checkWin(result)
       // Only the player's own play of a card to a foundation starts the cascade; any other move of theirs
       // stops it, so a card it uncovers (an ace flipped up on the tableau, say) is theirs to find and play.

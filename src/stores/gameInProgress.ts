@@ -7,6 +7,7 @@ import type { UndoEntry } from '@/games/shared/undoTypes'
 import { gameInProgressActions, LEGACY_OWNER, type SavedGame } from '@/redux/gameInProgressSlice'
 import { persistor, store } from '@/redux/store'
 
+import { activeDailyScope, DAILY_OWNER_SUFFIX } from './dailyScope'
 import { SOLITAIRE_GAME_IDS, SolitaireGameId } from './statsTypes'
 
 export type { SavedGame } from '@/redux/gameInProgressSlice'
@@ -47,6 +48,12 @@ let legacyAdopted = false
 function currentOwner(): string {
   // Optional on purpose: the test stand-in store (testUtils/gameInProgressStore.ts) has no profileSelection slice.
   return (store.getState() as { profileSelection?: Record<1, string | null> }).profileSelection?.[1] ?? GUEST_PLAYER_ID
+}
+
+// The key `gameId`'s save goes under: the active player's, or beside it for the Daily Deal being played (a Daily never takes the place
+// of their regular game).
+function saveOwner(gameId: SolitaireGameId): string {
+  return activeDailyScope()?.game === gameId ? `${currentOwner()}${DAILY_OWNER_SUFFIX}` : currentOwner()
 }
 
 // Saves from before they were per profile belong to nobody in particular; the player active the first
@@ -128,20 +135,24 @@ export async function loadGameInProgress<TState, TUndo = UndoEntry<TState>>(game
   adoptLegacySaves()
   // A save still waiting out its debounce must land first, or this would resume a stale board.
   dispatchPending(gameId)
-  const saved = store.getState().gameInProgress[gameId][currentOwner()]
+  const saved = store.getState().gameInProgress[gameId][saveOwner(gameId)]
+  const scope = activeDailyScope()
+  // Yesterday's Daily left unfinished is over: today's has a new deal
+  if (scope?.game === gameId && saved?.day !== scope.day) return null
   return saved ? (remapLegacyFoundations(gameId, saved) as SavedGame<TState, TUndo>) : null
 }
 
 export function saveGameInProgress<TState, TUndo = UndoEntry<TState>>(gameId: SolitaireGameId, saved: SavedGame<TState, TUndo>): void {
   ensureFlushOnBackground()
   adoptLegacySaves()
-  const owner = currentOwner()
+  const owner = saveOwner(gameId)
+  const scope = activeDailyScope()
   // Another player's save still waiting for this game is theirs: store it before this one takes its place.
   const waiting = pendingSaves.get(gameId)
   if (waiting && waiting.owner !== owner) dispatchPending(gameId)
   const now = Date.now()
   const firstAt = pendingSaves.get(gameId)?.firstAt ?? now
-  pendingSaves.set(gameId, { owner, saved: { ...(saved as SavedGame<unknown, unknown>), foundationLayout: FOUNDATION_LAYOUT }, firstAt })
+  pendingSaves.set(gameId, { owner, saved: { ...(saved as SavedGame<unknown, unknown>), foundationLayout: FOUNDATION_LAYOUT, ...(scope?.game === gameId ? { day: scope.day } : {}) }, firstAt })
   const existing = saveTimers.get(gameId)
   if (existing) clearTimeout(existing)
   const wait = Math.max(0, Math.min(SAVE_DEBOUNCE_MS, firstAt + SAVE_MAX_WAIT_MS - now))
@@ -161,7 +172,7 @@ function dropPending(gameId: SolitaireGameId): void {
 /** Drops the active player's save for `gameId` (a win, a loss, a New Game). */
 export async function clearGameInProgress(gameId: SolitaireGameId): Promise<void> {
   adoptLegacySaves()
-  const owner = currentOwner()
+  const owner = saveOwner(gameId)
   // Drop anything still waiting to be stored first, or it would resurrect the save being cleared. One that
   // belongs to another player is stored instead: it is theirs, not the one being cleared.
   if (pendingSaves.get(gameId)?.owner === owner) dropPending(gameId)
@@ -180,7 +191,10 @@ export function clearAllGamesInProgress(): void {
 /** Drops a deleted profile's saves for every game: nothing could ever resume them again. */
 export function clearProfileGamesInProgress(profileId: string): void {
   SOLITAIRE_GAME_IDS.forEach((id) => {
-    if (pendingSaves.get(id)?.owner === profileId) dropPending(id)
+    const daily = `${profileId}${DAILY_OWNER_SUFFIX}`
+    const waiting = pendingSaves.get(id)?.owner
+    if (waiting === profileId || waiting === daily) dropPending(id)
     store.dispatch(gameInProgressActions[id].setSaved({ owner: profileId, saved: null }))
+    store.dispatch(gameInProgressActions[id].setSaved({ owner: daily, saved: null }))
   })
 }

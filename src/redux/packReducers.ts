@@ -1,8 +1,10 @@
 import { forgetProfileAchievements, onProfileRemoved } from '@tastic/shell'
 
+import { DAILY_OWNER_SUFFIX } from '@/stores/dailyScope'
 import { SOLITAIRE_GAME_IDS } from '@/stores/statsTypes'
 
 import achievements, { dropProfileStats } from './achievementsSlice'
+import daily, { dailyActions } from './dailySlice'
 import gameInProgress, { gameInProgressActions } from './gameInProgressSlice'
 import guide from './guideSlice'
 import matchStats, { matchStatsActions } from './matchStatsSlice'
@@ -13,7 +15,7 @@ import topWins, { topWinsActions } from './topWinsSlice'
 
 // A saved board for a deleted profile, in every game: through the reducer, so each game's own persisted entry is
 // rewritten too.
-const forgetSaves = (state: ReturnType<typeof gameInProgress>, profileId: string) => SOLITAIRE_GAME_IDS.reduce((slots, id) => gameInProgress(slots, gameInProgressActions[id].setSaved({ owner: profileId, saved: null })), state)
+const forgetSaves = (state: ReturnType<typeof gameInProgress>, profileId: string) => SOLITAIRE_GAME_IDS.flatMap((id) => [profileId, `${profileId}${DAILY_OWNER_SUFFIX}`].map((owner) => gameInProgressActions[id].setSaved({ owner, saved: null }))).reduce((slots, action) => gameInProgress(slots, action), state)
 
 /**
  * Solitaire's own store keys (the pack's `reducers`, redux/store.ts), beside @tastic/shell's (theme, haptic, sound,
@@ -36,6 +38,8 @@ export const packReducers = {
   topWins: onProfileRemoved(topWins, (state, profileId) => topWins(state, topWinsActions.forget(profileId))),
   // The two-player games' results, everyone's and each player's (see matchStatsSlice.ts).
   matchStats: onProfileRemoved(matchStats, (state, profileId) => matchStats(state, matchStatsActions.forget(profileId))),
+  // The Daily Deals: each player's anonymous player on Tastic-Server and the deal they last started in each game (see dailySlice.ts).
+  daily: onProfileRemoved(daily, (state, profileId) => daily(state, dailyActions.forget(profileId))),
   // Which version of the how-to-play flow this player has finished or skipped. Its own key rather than a Settings
   // field, so it survives Reset Stats. See guideSlice.ts's own doc.
   guide,

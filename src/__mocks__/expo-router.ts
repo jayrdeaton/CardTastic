@@ -11,6 +11,8 @@ module.exports = {
   Link: ({ children }: any) => children || null,
   useIsFocused: () => true,
   usePathname: () => '/',
+  useLocalSearchParams: () => ({}),
+  useFocusEffect: jest.fn(),
   // The tables' Quit Match? block (@tastic/shell's useBackBlock); tests that need the real router unmock this file.
   usePreventRemove: jest.fn()
 }

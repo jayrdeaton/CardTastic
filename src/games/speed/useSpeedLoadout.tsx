@@ -23,6 +23,7 @@ export function useSpeedLoadout(_mode: RoundMode): GameLoadout {
   return {
     roundSettings,
     options: (props: LoadoutOptionsProps) => <MatchSetup {...props} game='speed' title={MATCH_GAME_TITLES.speed} rules={speedRuleSettings(settings, setSettings)} />,
+    placesSeats: true,
     optionIds: [],
     randomize: () => undefined,
     reset: () => setSettings({ speedWrap: true, speedRefill: 'auto' }),

@@ -31,6 +31,7 @@ export function useEightsLoadout(mode: RoundMode): GameLoadout {
   return {
     roundSettings,
     options: (props: LoadoutOptionsProps) => <MatchSetup {...props} game='crazyeights' title={MATCH_GAME_TITLES.crazyeights} rules={eightsRuleSettings(settings, setSettings)} extraSeats={extraSeats} />,
+    placesSeats: true,
     optionIds: rulePickerIds('crazyeights', EXTRA_SEAT_RULE_KEYS),
     // The seats are who's playing, so the dice only roll the CPUs' level.
     randomize: () => setSettings({ eightsCpu: CPU_LEVELS[Math.floor(Math.random() * CPU_LEVELS.length)] }),

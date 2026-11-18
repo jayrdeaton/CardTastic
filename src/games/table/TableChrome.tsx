@@ -1,5 +1,5 @@
 // What every two-player table shares around its cards (RatSlap, Slapjack, Six-Card Golf, Trash): who sits in each seat,
-// their badge, the Home and Settings buttons at the sides of the midline, the result cards (one per person, each facing
+// their badge, the Back and Settings buttons at the sides of the midline, the result cards (one per person, each facing
 // them), and whether the app is in the foreground.
 
 import { useAutoPaperTheme } from '@rific/auto-paper'
@@ -16,7 +16,7 @@ import { GUEST_PLAYER_ID } from '@/constants/player'
 import { usePlayer } from '@/stores/profiles'
 
 import type { PlayerIndex } from './players'
-import { tableHome } from './QuitMatch'
+import { useTableBack } from './QuitMatch'
 
 export interface Seat {
   name: string
@@ -77,11 +77,12 @@ export function SeatBadge({ seat }: { seat: Seat }) {
   )
 }
 
-/** Home and Settings at the two ends of the table's midline, where neither player's cards are. */
+/** Back and Settings at the two ends of the table's midline, where neither player's cards are. */
 export function TableSideButtons({ y, onSettings }: { y: number; onSettings: () => void }) {
+  const back = useTableBack()
   return (
     <View style={[styles.sideButtons, { top: y - 24 }]} pointerEvents='box-none'>
-      <IconButton icon='home' iconColor={CHROME_FG} accessibilityLabel='Home' onPress={tableHome} />
+      <IconButton icon='arrow-left' iconColor={CHROME_FG} accessibilityLabel='Back' onPress={back} />
       <IconButton icon='cog' iconColor={CHROME_FG} accessibilityLabel='Settings' onPress={onSettings} />
     </View>
   )
@@ -99,9 +100,9 @@ export interface TableCardContent {
 /** A card over the table (a match's result, a hole's or a round's scores): one against the CPU; with two people, one in
  * each half, each facing its player (face to face, player 2's at the top turned to face them; at a computer, side by side,
  * player 1's on the left, both upright: useFaceToFace). Either person's button goes on. */
-export function TableOverlay({ humans, content, actionLabel, onAction, showHome = true, testID }: { humans: readonly PlayerIndex[]; content: (viewer: PlayerIndex) => TableCardContent; actionLabel: string; onAction: () => void; showHome?: boolean; testID: string }) {
+export function TableOverlay({ humans, content, actionLabel, onAction, showBack = true, testID }: { humans: readonly PlayerIndex[]; content: (viewer: PlayerIndex) => TableCardContent; actionLabel: string; onAction: () => void; showBack?: boolean; testID: string }) {
   const { compact, onLayout } = useCompactDialog()
-  const card = (viewer: PlayerIndex) => <TableOverlayCard viewer={viewer} content={content(viewer)} compact={compact} actionLabel={actionLabel} onAction={onAction} showHome={showHome} testID={testID} />
+  const card = (viewer: PlayerIndex) => <TableOverlayCard viewer={viewer} content={content(viewer)} compact={compact} actionLabel={actionLabel} onAction={onAction} showBack={showBack} testID={testID} />
   const faceToFace = useFaceToFace(humans.length === 2)
   return (
     <OverlayBackdrop style={styles.overlay} onLayout={onLayout}>
@@ -122,7 +123,8 @@ export function TableOverlay({ humans, content, actionLabel, onAction, showHome 
   )
 }
 
-function TableOverlayCard({ viewer, content, compact, actionLabel, onAction, showHome, testID }: { viewer: PlayerIndex; content: TableCardContent; compact: boolean; actionLabel: string; onAction: () => void; showHome: boolean; testID: string }) {
+function TableOverlayCard({ viewer, content, compact, actionLabel, onAction, showBack, testID }: { viewer: PlayerIndex; content: TableCardContent; compact: boolean; actionLabel: string; onAction: () => void; showBack: boolean; testID: string }) {
+  const back = useTableBack()
   const { colors } = useAutoPaperTheme()
   const { fg } = useOverlayCardColors()
   return (
@@ -135,9 +137,9 @@ function TableOverlayCard({ viewer, content, compact, actionLabel, onAction, sho
       ) : null}
       {content.details}
       <View style={overlayActionStyles.actions}>
-        {showHome ? (
-          <Button mode='outlined' onPress={tableHome} style={overlayActionStyles.actionButton} testID={`${testID}-home-${viewer}`}>
-            Home
+        {showBack ? (
+          <Button mode='outlined' onPress={back} style={overlayActionStyles.actionButton} testID={`${testID}-back-${viewer}`}>
+            Back
           </Button>
         ) : null}
         <Button mode='contained' onPress={onAction} style={overlayActionStyles.actionButton} buttonColor={colors.primary} textColor={colors.onPrimary} testID={`${testID}-action-${viewer}`}>

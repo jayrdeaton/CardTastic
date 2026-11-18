@@ -233,6 +233,32 @@ describe('game-in-progress persistence (coalesced saves)', () => {
       expect(persistedMoves(disk, 'klondike')).toBe(1)
     })
   })
+
+  it("keeps a Daily Deal's save apart from the player's regular game, for its own day only", async () => {
+    const { setDailyScope } = require('@/stores/dailyScope') as typeof import('@/stores/dailyScope')
+    try {
+      api.saveGameInProgress('klondike', board(4))
+      await api.flushGameInProgress('klondike')
+
+      setDailyScope({ game: 'klondike', day: '2026-11-18' })
+      await expect(api.loadGameInProgress('klondike')).resolves.toBeNull()
+      api.saveGameInProgress('klondike', board(9))
+      await expect(api.loadGameInProgress('klondike')).resolves.toMatchObject({ moves: 9, day: '2026-11-18' })
+
+      // Tomorrow's Daily doesn't resume yesterday's
+      setDailyScope({ game: 'klondike', day: '2026-11-19' })
+      await expect(api.loadGameInProgress('klondike')).resolves.toBeNull()
+
+      // A win clears the Daily, and leaves the regular game as it was
+      setDailyScope({ game: 'klondike', day: '2026-11-18' })
+      await api.clearGameInProgress('klondike')
+      await expect(api.loadGameInProgress('klondike')).resolves.toBeNull()
+      setDailyScope(null)
+      await expect(api.loadGameInProgress('klondike')).resolves.toMatchObject({ moves: 4 })
+    } finally {
+      setDailyScope(null)
+    }
+  })
 })
 
 describe('saves from before they were per profile', () => {

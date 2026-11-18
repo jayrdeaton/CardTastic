@@ -34,14 +34,14 @@ describe('useGameSession', () => {
     const { result } = await renderHook(() => useGameSession())
     await wait(5000)
     expect(result.current.getElapsed()).toBe(0)
-    await act(() => void result.current.registerMove())
+    await act(() => void result.current.registerMove('d'))
     await wait(3000)
     expect(result.current.getElapsed()).toBe(3)
   })
 
   it('pauses while the app is in the background and picks up with the next move after it comes back', async () => {
     const { result } = await renderHook(() => useGameSession())
-    await act(() => void result.current.registerMove())
+    await act(() => void result.current.registerMove('d'))
     await wait(4000)
     await emit('background')
     await wait(600_000)
@@ -49,19 +49,19 @@ describe('useGameSession', () => {
     await emit('active')
     await wait(20_000)
     expect(result.current.getElapsed()).toBe(4)
-    await act(() => void result.current.registerMove())
+    await act(() => void result.current.registerMove('d'))
     await wait(2000)
     expect(result.current.getElapsed()).toBe(6)
   })
 
   it('keeps the part-second a pause lands in', async () => {
     const { result } = await renderHook(() => useGameSession())
-    await act(() => void result.current.registerMove())
+    await act(() => void result.current.registerMove('d'))
     for (let i = 0; i < 4; i++) {
       await wait(500)
       await emit('inactive')
       await emit('active')
-      await act(() => void result.current.registerMove())
+      await act(() => void result.current.registerMove('d'))
     }
     expect(result.current.getElapsed()).toBe(2)
   })
@@ -72,7 +72,7 @@ describe('useGameSession', () => {
     await wait(30_000)
     expect(result.current.getElapsed()).toBe(100)
     expect(result.current.started).toBe(true)
-    await act(() => void result.current.registerMove())
+    await act(() => void result.current.registerMove('d'))
     await wait(3000)
     expect(result.current.getElapsed()).toBe(103)
   })
@@ -81,7 +81,7 @@ describe('useGameSession', () => {
     const { result } = await renderHook(() => useGameSession())
     await act(() => result.current.restore(0, 0))
     await wait(5000)
-    await act(() => void result.current.registerMove())
+    await act(() => void result.current.registerMove('d'))
     await wait(2000)
     expect(result.current.getElapsed()).toBe(2)
   })
@@ -94,14 +94,14 @@ describe('useGameSession', () => {
     win.addEventListener = (type: string, listener: () => void) => windowListeners.set(type, listener)
     win.removeEventListener = (type: string) => windowListeners.delete(type)
     const { result, unmount } = await renderHook(() => useGameSession())
-    await act(() => void result.current.registerMove())
+    await act(() => void result.current.registerMove('d'))
     await wait(3000)
     await act(() => windowListeners.get('blur')?.())
     await wait(60_000)
     await act(() => windowListeners.get('focus')?.())
     await wait(10_000)
     expect(result.current.getElapsed()).toBe(3)
-    await act(() => void result.current.registerMove())
+    await act(() => void result.current.registerMove('d'))
     await wait(1000)
     expect(result.current.getElapsed()).toBe(4)
     await act(() => unmount())
@@ -116,7 +116,7 @@ describe('useGameSession', () => {
     await emit('active')
     await wait(3000)
     expect(result.current.getElapsed()).toBe(0)
-    await act(() => void result.current.registerMove())
+    await act(() => void result.current.registerMove('d'))
     await wait(2000)
     await act(() => result.current.stopClock())
     await emit('background')
@@ -127,7 +127,7 @@ describe('useGameSession', () => {
 
   it('holds the clock while any reason holds it, a dialog and the app alike', async () => {
     const { result } = await renderHook(() => useGameSession())
-    await act(() => void result.current.registerMove())
+    await act(() => void result.current.registerMove('d'))
     await wait(1000)
     await act(() => result.current.setPaused('dialog', true))
     await wait(30_000)
@@ -136,7 +136,7 @@ describe('useGameSession', () => {
     await wait(30_000)
     expect(result.current.getElapsed()).toBe(1)
     await emit('active')
-    await act(() => void result.current.registerMove())
+    await act(() => void result.current.registerMove('d'))
     await wait(2000)
     expect(result.current.getElapsed()).toBe(3)
   })
@@ -144,7 +144,7 @@ describe('useGameSession', () => {
   it('a first move made while held starts the clock held', async () => {
     const { result } = await renderHook(() => useGameSession())
     await act(() => result.current.setPaused('dialog', true))
-    await act(() => void result.current.registerMove())
+    await act(() => void result.current.registerMove('d'))
     await wait(5000)
     expect(result.current.getElapsed()).toBe(0)
     await act(() => result.current.setPaused('dialog', false))
@@ -155,8 +155,8 @@ describe('useGameSession', () => {
   it('getMoves is the live count, ahead of a render that closed over the old one', async () => {
     const { result } = await renderHook(() => useGameSession())
     const closedOver = result.current
-    await act(() => void result.current.registerMove())
-    await act(() => void result.current.registerMove())
+    await act(() => void result.current.registerMove('d'))
+    await act(() => void result.current.registerMove('d'))
     expect(closedOver.moves).toBe(0)
     expect(closedOver.getMoves()).toBe(2)
   })
@@ -179,5 +179,44 @@ describe('useSaveInProgressBackstop', () => {
     expect(save).toHaveBeenCalledTimes(1)
     await emit('active')
     expect(save).toHaveBeenCalledTimes(1)
+  })
+})
+
+// Every deal keeps its run (engine/run.ts): the seed it was dealt from and each action that changed the board, undos included, so
+// Tastic-Server can replay a daily deal with the rules before it goes on a board
+describe('useGameSession - the deal run', () => {
+  it('records each move and draw as counted, and each undo, from the seed a new deal starts', async () => {
+    const { result } = await renderHook(() => useGameSession())
+    expect(result.current.getRun()).toBeNull()
+    await act(() => result.current.reset(1234))
+    expect(result.current.getRun()).toEqual({ seed: 1234, actions: [] })
+    await act(() => void result.current.registerMove(['tableau', 3, 'foundation', 0, 1]))
+    await act(() => void result.current.registerMove('d'))
+    await act(() => result.current.registerUndo())
+    expect(result.current.getRun()).toEqual({ seed: 1234, actions: [['tableau', 3, 'foundation', 0, 1], 'd', 'u'] })
+    // An undo never takes a move back off the count, as the score has it
+    expect(result.current.getMoves()).toBe(2)
+    await act(() => result.current.reset(99))
+    expect(result.current.getRun()).toEqual({ seed: 99, actions: [] })
+  })
+
+  it('hands out a copy, so a save never holds the array it keeps adding to', async () => {
+    const { result } = await renderHook(() => useGameSession())
+    await act(() => result.current.reset(7))
+    const saved = result.current.getRun()
+    await act(() => void result.current.registerMove('d'))
+    expect(saved).toEqual({ seed: 7, actions: [] })
+  })
+
+  it('picks a resumed deal up where its save left it, and knows no run for a save without one', async () => {
+    const { result } = await renderHook(() => useGameSession())
+    const saved = { seed: 5, actions: ['d', 'u'] as ('d' | 'u')[] }
+    await act(() => result.current.restore(1, 30, saved))
+    await act(() => void result.current.registerMove('d'))
+    expect(result.current.getRun()).toEqual({ seed: 5, actions: ['d', 'u', 'd'] })
+    expect(saved.actions).toEqual(['d', 'u'])
+    await act(() => result.current.restore(3, 30))
+    await act(() => void result.current.registerMove('d'))
+    expect(result.current.getRun()).toBeNull()
   })
 })

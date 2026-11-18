@@ -1,13 +1,18 @@
 import { useAutoPaperTheme } from '@rific/auto-paper'
 import { Button } from '@rific/feedback-press'
 import { overlayActionStyles, OverlayBackdrop, OverlayCard, useCompactDialog, useOverlayCardColors } from '@tastic/hud/chrome'
+import { router } from 'expo-router'
+import { useState } from 'react'
 import { StyleSheet, View } from 'react-native'
 import { Text } from 'react-native-paper'
 
+import { dailyBoardHref } from '@/components/daily/dailyRoutes'
+import { DailyWinSection } from '@/components/daily/DailyWinSection'
 import { formatTime, GAME_DIALOG_Z_INDEX } from '@/components/GameChrome'
 import { describeVsPar, playerParFor, playerParMedal } from '@/engine/par'
 import { describeRank, rankWin } from '@/engine/topWins'
 import type { VariantId } from '@/engine/variants'
+import { activeDailyScope } from '@/stores/dailyScope'
 import { useGameStats } from '@/stores/gameStats'
 import { commaString } from '@/utils/commaString'
 
@@ -29,6 +34,8 @@ export function WinBanner({ elapsedSeconds, moves, score, variant, onNewGame }: 
   const { colors } = useAutoPaperTheme()
   const { fg, fgMuted } = useOverlayCardColors()
   const { compact, onLayout } = useCompactDialog()
+  // A Daily Deal's win: where it stands today, and its board in place of another game
+  const [daily] = useState(activeDailyScope)
   // The player's par as it stood just before this win (useGameStats' lastWin: their recent wins hold this one by now),
   // or expert par if none was taken for this variant. The shown numbers are judged against it, not the recorded ones, so
   // a win reached again after an Undo (recorded once, at the first) still gets the medal its own score earns.
@@ -99,9 +106,10 @@ export function WinBanner({ elapsedSeconds, moves, score, variant, onNewGame }: 
             </Text>
           )}
         </View>
+        {daily && <DailyWinSection game={daily.game} />}
         <View style={overlayActionStyles.actions}>
-          <Button mode='contained' onPress={onNewGame} style={overlayActionStyles.actionButtonSingle} buttonColor={colors.primary} textColor={colors.onPrimary} testID='win-new-game'>
-            New Game
+          <Button mode='contained' onPress={daily ? () => router.push(dailyBoardHref(daily.game)) : onNewGame} style={overlayActionStyles.actionButtonSingle} buttonColor={colors.primary} textColor={colors.onPrimary} testID='win-new-game'>
+            {daily ? 'See Board' : 'New Game'}
           </Button>
         </View>
       </OverlayCard>

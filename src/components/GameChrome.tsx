@@ -11,11 +11,13 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { parFor } from '@/engine/par'
 import { computeScore } from '@/engine/score'
-import type { VariantId } from '@/engine/variants'
+import { gameOfVariant, type VariantId } from '@/engine/variants'
 import { showParToast } from '@/games/shared/gameToasts'
 import { useSettings } from '@/hooks/useSettings'
+import { activeDailyScope } from '@/stores/dailyScope'
 import { useGameStats } from '@/stores/gameStats'
 import { commaString } from '@/utils/commaString'
+import { gameSetupHref } from '@/utils/setupHref'
 
 import { HintHandler, useAutoHint } from './autoHint'
 import { useBoardScroll } from './boardScroll'
@@ -360,7 +362,9 @@ export function GameChrome({ title, subtitle, onNewGame, onUndo: undoMove, onUnd
   useEffect(() => {
     pauseClock('dialog', dialogOpen)
   }, [pauseClock, dialogOpen])
-  useAutoHint({ seconds: settings.autoHintSeconds, boardKey: autoHintKey, paused: !!hintDisabled || settingsOpen || rulesOpen || confirmNewGameVisible, hintShowing, onHint })
+  // A Daily Deal (stores/dailyScope.ts) is the player's own play on a deal everyone shares: no Hint, Auto Hint or New Game
+  const [daily] = useState(() => activeDailyScope() !== null)
+  useAutoHint({ seconds: settings.autoHintSeconds, boardKey: autoHintKey, paused: daily || !!hintDisabled || settingsOpen || rulesOpen || confirmNewGameVisible, hintShowing, onHint })
 
   // The footer and the moves/timer/score row outlast the winning move's commit: they stay as they were, taking no
   // presses, while the winning card flies in and the finished board reads for a beat, then fade out under the win dialog
@@ -486,7 +490,7 @@ export function GameChrome({ title, subtitle, onNewGame, onUndo: undoMove, onUnd
       {!isWide && (
         <Pressable onPress={() => setRulesOpen(true)} style={[styles.titleWrap, { top: 14 + insets.top, left: 60 + insets.left, right: 56 + insets.right }]} accessibilityLabel={`${title}${subtitle ? ` ${subtitle}` : ''} rules`}>
           <Text style={styles.titleText} numberOfLines={1}>
-            {subtitle ? `${title} · ${subtitle}` : title}
+            {daily ? `${title} · Daily Deal` : subtitle ? `${title} · ${subtitle}` : title}
           </Text>
         </Pressable>
       )}
@@ -503,24 +507,15 @@ export function GameChrome({ title, subtitle, onNewGame, onUndo: undoMove, onUnd
         <View style={styles.cornerButtons} pointerEvents='box-none'>
           <CornerActionButtons
             onBack={() => {
-              // Every game screen is one level below the main menu with nothing deeper, so this is
-              // always "go home," not "undo the last navigation" - router.back() depended on real
-              // history existing (it errors with "GO_BACK was not handled" whenever this screen was
-              // reached directly, e.g. a deep link, a dev reload straight into /play/klondike, or
-              // the shell's cold-launch redirect from Home). dismissTo() pops back to the Home that's
-              // already in the stack beneath this game (same instance, no remount - the menu is still
-              // exactly as it was), and only falls back to replace semantics when there is no Home
-              // beneath (a deep link / cold-launch resume). Either way this screen unmounts, and the
-              // shell's play route (PlayRoute) forgets the resume with it. replace('/') did NOT do this: it mounted a
-              // brand-new Home on top of the old one, so every round trip leaked one more live Home
-              // (each rebuilding ~370 SVG preview cards on the next tap) and going Home got slower each time.
-              router.dismissTo('/')
+              // Back to the game's setup screen (Jay, 2026-11-18: every game opens one now). dismissTo() pops to the one already
+              // beneath this game, as it was left, and only opens it when there is none (a deep link, or a cold launch that resumed
+              // straight into this game; router.back() errors there with "GO_BACK was not handled"). Either way this screen unmounts,
+              // and the shell's play route (PlayRoute) forgets the resume with it.
+              router.dismissTo(gameSetupHref(gameOfVariant(variant)))
             }}
             onSettings={() => setSettingsOpen(true)}
             fg={CHROME_FG}
             insets={insets}
-            backIcon='home'
-            backLabel='Home'
           />
         </View>
       </Portal>
@@ -621,9 +616,9 @@ export function GameChrome({ title, subtitle, onNewGame, onUndo: undoMove, onUnd
         // underneath. box-none lets only the icons themselves (and their own touch targets)
         // claim a tap, same idiom WinBanner/LossBanner already use for their own full-screen overlay.
         <Animated.View style={[styles.footerWrap, { bottom: FOOTER_BOTTOM + insets.bottom }, footerAnimatedStyle]} pointerEvents={footerVisible ? 'box-none' : 'none'}>
-          {newGameButton}
+          {!daily && newGameButton}
           {undoButton}
-          {hintButton}
+          {!daily && hintButton}
         </Animated.View>
       )}
 
@@ -635,8 +630,8 @@ export function GameChrome({ title, subtitle, onNewGame, onUndo: undoMove, onUnd
       {showBottomChrome && isWide && (
         <Animated.View style={[styles.wideFooterWrap, { right: insets.right + WIDE_FOOTER_RIGHT_MARGIN, top: insets.top + GAME_CONTENT_TOP_PADDING, bottom: insets.bottom }, winFadeStyle]} pointerEvents='box-none'>
           {undoButton}
-          {newGameButton}
-          {hintButton}
+          {!daily && newGameButton}
+          {!daily && hintButton}
           <FooterButton icon='information-outline' label='Rules' layout={footerLayout} inert={won} onPress={() => setRulesOpen(true)} />
         </Animated.View>
       )}

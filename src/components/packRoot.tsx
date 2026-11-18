@@ -9,6 +9,7 @@ import { GUIDE_VERSION } from '@/constants/guide'
 import { getGuideSteps } from '@/constants/guideSteps'
 import { guideActions, selectGuideVersionSeen } from '@/redux/guideSlice'
 import type { RootState } from '@/redux/store'
+import { flushDailyDeletions } from '@/stores/daily'
 import { GameStatsProvider } from '@/stores/gameStats'
 import { usePlayer } from '@/stores/profiles'
 
@@ -54,6 +55,10 @@ function ProfileThemeSync() {
  * Play and the stack: one stats and achievements context across all eleven games, Reduce Motion applied app-wide, and
  * the theme sync above. */
 export function SolitaireProvider({ children }: { children: ReactNode }) {
+  // What the server still holds for players deleted from this device (a profile deleted while offline, say)
+  useEffect(() => {
+    flushDailyDeletions().catch(() => {})
+  }, [])
   return (
     <GameStatsProvider>
       <ProfileThemeSync />

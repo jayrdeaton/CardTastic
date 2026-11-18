@@ -17,10 +17,10 @@
 // same idiom as stockViewRef - there's only ever one discard pile, not a per-card registration)
 // and flies the ghost the rest of the way. Undoing a discard is the mirror image: fly a ghost
 // from the discard pile back to the tapped card's original pile.
-
 import { useVibration } from '@rific/feedback-press'
 import { useToast } from '@rific/toaster'
 import { CardSizeProvider } from '@tastic/cards'
+import { runMove } from '@tastic/cardtastic-engine'
 import { useEffect, useRef, useState } from 'react'
 import { StyleSheet, View } from 'react-native'
 
@@ -55,6 +55,7 @@ import { DiscardCell } from '@/games/shared/DiscardCell'
 import { showNoHintToast } from '@/games/shared/gameToasts'
 import { LossBanner } from '@/games/shared/LossBanner'
 import { MoveInfo, UndoEntry } from '@/games/shared/undoTypes'
+import { useDailyDeal } from '@/games/shared/useDailyDeal'
 import { useDeferredDeal } from '@/games/shared/useDeferredDeal'
 import { useDerivedWinCheck } from '@/games/shared/useDerivedWinCheck'
 import { UndoGate, useFlightConcurrency } from '@/games/shared/useFlightConcurrency'
@@ -136,6 +137,8 @@ function AcesUpScreenInner() {
   // No suit-based foundation, no separate "completed sequence" slot - won is a pure function of
   // state (every pile down to a single Ace, stock empty), same shape Golf/Spider/Scorpion use.
   const { won, recordedRef: recordedWinRef, pendingWinCascadeRef } = useDerivedWinCheck(AcesUpController, state, 'acesup', session, dealTokenRef, recordDealWon, hintsUsedRef)
+  // The Daily Deal this screen was opened for, if any: its seed deals the board, and a win goes to the server (useDailyDeal)
+  const daily = useDailyDeal('acesup', won, session)
   // Nothing in the air (every discard/move/round-deal/undo flight is counted by startFlights/
   // settleFlight) and no card still waiting on a deal - what the win celebration waits for (see
   // useWinReveal).
@@ -201,7 +204,8 @@ function AcesUpScreenInner() {
 
   function startNewGame() {
     const myToken = ++dealTokenRef.current
-    const s = AcesUpController.newGame(randomSeed())
+    const seed = daily?.seed ?? randomSeed()
+    const s = AcesUpController.newGame(seed)
     setUndoStack([])
     setHint(null)
     hintsUsedRef.current = false
@@ -211,7 +215,7 @@ function AcesUpScreenInner() {
     pendingUndoRoundDealRef.current = null
     // Before the fresh board commits: a card a round-deal undo still holds would be drawn over it (see undoRoundDealHoldsRef).
     undoRoundDealHoldsRef.current.forEach((release) => release())
-    session.reset()
+    session.reset(seed)
     recordedWinRef.current = false
     winCascade.clear()
     pendingWinCascadeRef.current = null
@@ -231,7 +235,7 @@ function AcesUpScreenInner() {
     pendingRoundDealRef.current = []
     pendingUndoRoundDealRef.current = null
     undoRoundDealHoldsRef.current.forEach((release) => release()) // see startNewGame
-    session.restore(saved.moves, saved.elapsedSeconds)
+    session.restore(saved.moves, saved.elapsedSeconds, saved.run)
     recordedWinRef.current = false
     setDealHiddenIds(new Set())
     // Optional for backward compatibility: a save written before the discard pile existed has no
@@ -450,11 +454,11 @@ function AcesUpScreenInner() {
   // useSaveInProgressBackstop saves again every 10s, when the screen is left, and when the app is
   // backgrounded.
   useEffect(() => {
-    if (state && !won && !stuck) saveGameInProgress('acesup', { state, undoStack, moves: session.moves, elapsedSeconds: session.getElapsed() })
+    if (state && !won && !stuck) saveGameInProgress('acesup', { state, undoStack, moves: session.moves, elapsedSeconds: session.getElapsed(), run: session.getRun() })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state, won, stuck, undoStack])
   useSaveInProgressBackstop(!!state && !won && !stuck, () => {
-    if (state && !won && !stuck) saveGameInProgress('acesup', { state, undoStack, moves: session.moves, elapsedSeconds: session.getElapsed() })
+    if (state && !won && !stuck) saveGameInProgress('acesup', { state, undoStack, moves: session.moves, elapsedSeconds: session.getElapsed(), run: session.getRun() })
   })
 
   // Finds one legal move (or a stock-draw suggestion) to highlight - see engine/hint.ts's
@@ -538,6 +542,7 @@ function AcesUpScreenInner() {
       if (dealTokenRef.current !== myToken) return
 
       setUndoStack((stack) => stack.slice(0, -1))
+      session.registerUndo()
       // Taking off from their piles: the commit below takes these cards out of them, but each card's ghost only shows once
       // the stock has been measured (the commit after this one), the deal pool has mounted and the card's own stagger has run
       // out (up to 3 x DEAL_STAGGER_MS) - and the piles used to drop them at once, so the round vanished from the board and
@@ -564,6 +569,7 @@ function AcesUpScreenInner() {
       const origin = discardCard && discardCard.id === move.anchorCardId ? await measureView(discardViewRef.current) : null
 
       setUndoStack((stack) => stack.slice(0, -1))
+      session.registerUndo()
 
       if (origin && discardCard) {
         playCardSound()
@@ -588,6 +594,7 @@ function AcesUpScreenInner() {
     const origin = peeled || ghostContent.cards.length === 0 ? null : await ghost.cardRegistry.measure(move.anchorCardId)
 
     setUndoStack((stack) => stack.slice(0, -1))
+    session.registerUndo()
 
     const flight = peeled ?? (origin ? ghost.show(ghostContent, { x: origin.x, y: origin.y }) : null)
     if (flight) {
@@ -625,7 +632,7 @@ function AcesUpScreenInner() {
     if (!result) return false
     pushUndo(current, { from, to, count: 1, anchorCardId: card.id })
     commitState(result)
-    session.registerMove()
+    session.registerMove(runMove({ from, to, count: 1 }))
     const flyingId = beginFlying(to, 1)
     pendingFlightRef.current.push({ cardId: card.id, viaDiscard: to.zone === 'discard', gen: dealTokenRef.current, flyingId, flight })
     return true
@@ -710,7 +717,7 @@ function AcesUpScreenInner() {
     // revealed face throughout - the same "a stock draw flies showing what it really is" precedent
     // Golf/Klondike's own single-card stock draws already establish, not a face-down mystery card.
     const dealt = result.piles.map((pile, pileIndex) => ({ card: top(pile)!, pileIndex }))
-    session.registerMove()
+    session.registerMove('d')
     pushUndo(current, null)
     // A round deal counts as one flight-completion (see runRoundDeal's own doc comment) - claimed
     // here, settled once inside runRoundDeal regardless of which of its exits is actually taken.

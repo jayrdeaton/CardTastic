@@ -22,6 +22,7 @@ export function useSixCardGolfLoadout(_mode: RoundMode): GameLoadout {
   return {
     roundSettings,
     options: (props: LoadoutOptionsProps) => <MatchSetup {...props} game='sixcardgolf' title={MATCH_GAME_TITLES.sixcardgolf} rules={sixCardGolfRuleSettings(settings, setSettings)} />,
+    placesSeats: true,
     optionIds: [],
     randomize: () => setSettings({ sixCardGolfHoles: SIX_CARD_GOLF_HOLES[Math.floor(Math.random() * SIX_CARD_GOLF_HOLES.length)] }),
     reset: () => setSettings({ sixCardGolfHoles: 9 }),

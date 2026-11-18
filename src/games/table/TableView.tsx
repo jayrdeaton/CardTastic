@@ -1,7 +1,7 @@
 // A card table's view (Six-Card Golf, Trash, War, Speed, Gin Rummy, Four Crowns): the cards (TableCards: every card one view as it moves
 // between piles, a hand and a grid), a glow under each card the player whose move it is can tap (PileGlow), a tap target over it
 // (or, where two people play at once, the game's own touch zones), each player's name row and prompt line facing them,
-// the notes beside the middle row, and the Home and Settings buttons. What the cards are, which can be tapped and what
+// the notes beside the middle row, and the Back and Settings buttons. What the cards are, which can be tapped and what
 // the lines say is each game's own (its screen); this only draws them.
 
 import { type ReactNode } from 'react'
@@ -25,7 +25,7 @@ const NOTE_WIDTH = 260
 export interface TableFrame {
   cardWidth: number
   cardHeight: number
-  /** The middle of the table: the Home and Settings buttons sit at the two ends of its row. */
+  /** The middle of the table: the Back and Settings buttons sit at the two ends of its row. */
   center: Point
   /** The middle of each player's name row, at their own edge. */
   labelY: Record<PlayerIndex, number>
@@ -107,7 +107,7 @@ export function TableView({
   emptySlots: Point[]
   /** Drawn over the moving cards: a deck a card slides out from under (DeckStack). */
   overCards?: ReactNode
-  /** The game's own touch zones (TouchZones), under the Home and Settings buttons. */
+  /** The game's own touch zones (TouchZones), under the Back and Settings buttons. */
   touch?: ReactNode
   onSettings: () => void
   /** Drawn over everything: a result card. */

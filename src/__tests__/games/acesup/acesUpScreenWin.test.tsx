@@ -5,7 +5,7 @@ import { Card, Suit } from '@/engine/types'
 import AcesUpScreen from '@/games/acesup/AcesUpScreen'
 import { AcesUpState } from '@/games/acesup/rules'
 
-import { resetGameInProgress, seedGameInProgress } from '../../../testUtils/gameInProgressStore'
+import { expectSavedRunToReplay, movableCardIds, resetGameInProgress, seedGameInProgress } from '../../../testUtils/gameInProgressStore'
 import { peelableFlights } from '../../../testUtils/peelableFlights'
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -88,8 +88,11 @@ const mockGhost = {
   canPeel: mockPeel.canPeel,
   peel: mockPeel.peel
 }
-const mockDeal = { start: () => {}, cancel: () => {} }
+const mockDeal = { start: (_entries: { cardId: string }[], _cardWidth: number, _onLanded: (id: string) => void, _onDone?: () => void) => {}, cancel: () => {} }
 
+// A fresh deal's seed, fixed so the run test below plays the same deal every time
+const mockSeed = 4242
+jest.mock('@/engine/rng', () => ({ ...jest.requireActual('@/engine/rng'), randomSeed: () => mockSeed }))
 jest.mock('@/redux/store', () => require('../../../testUtils/gameInProgressStore').storeModule)
 jest.mock('@/components/dragdrop/DragGhostLayer', () => ({ DragGhostProvider: ({ children }: { children: unknown }) => children, useDragGhost: () => mockGhost }))
 jest.mock('@/components/dealing/DealLayer', () => ({ DealProvider: ({ children }: { children: unknown }) => children, useDealAnimator: () => mockDeal }))
@@ -138,8 +141,9 @@ jest.mock('@/components/theme', () => {
   return { ...actual, useTableColors: () => actual.lightColors }
 })
 jest.mock('@/components/PlayingCard', () => {
-  const { View: MockView } = require('react-native')
-  return { PlayingCard: () => <MockView />, EmptySlot: () => <MockView /> }
+  const { Pressable: MockPressable, View: MockView } = require('react-native')
+  // The screen's only live PlayingCard is the stock (the piles and the discard have stand-ins of their own)
+  return { PlayingCard: ({ onPress, disabled }: { onPress?: () => void; disabled?: boolean }) => (onPress && !disabled ? <MockPressable testID='stock' onPress={onPress} /> : <MockView />), EmptySlot: () => <MockView /> }
 })
 jest.mock('@/components/dragdrop/DropZone', () => ({ DropZone: ({ children }: { children: unknown }) => children }))
 jest.mock('@/games/shared/DiscardCell', () => {
@@ -469,5 +473,42 @@ describe('Aces Up screen - an undo that needs a card still flying back', () => {
 
     await flushUntil(() => mockLog.inAir === 0)
     expect([0, 3].map(columnIds)).toEqual([[id('hearts', 2), five.id], []])
+  })
+})
+
+// Every deal keeps its run (engine/run.ts) so a daily deal can go on a leaderboard: every move, draw, auto-play and undo the screen
+// commits is recorded, and replaying the run with the rules, as Tastic-Server will, lands on exactly the board and move count saved
+describe('Aces Up screen - the deal run', () => {
+  it('records a real deal played through the screen so that it replays to the saved board', async () => {
+    async function press(testID: string) {
+      await act(async () => {
+        fireEvent.press(screen.getByTestId(testID))
+      })
+      await flush(1500)
+    }
+    // Rounds land here: until a deal's cards land, nothing else on the board can be played
+    const dealing = jest.spyOn(mockDeal, 'start').mockImplementation((entries, _cardWidth, onLanded, onDone) => {
+      setTimeout(() => {
+        entries.forEach((entry) => onLanded(entry.cardId))
+        onDone?.()
+      }, 300)
+    })
+    resetGameInProgress()
+    await render(<AcesUpScreen />)
+    await flush(3000) // the deal, and its first save
+    for (let round = 0; round < 12; round++) {
+      for (const cardId of movableCardIds('acesup').slice(0, 2)) {
+        if (screen.queryByTestId(`card-${cardId}`)) await press(`card-${cardId}`)
+      }
+      if (screen.queryByTestId('stock')) await press('stock')
+      if (round % 3 === 2) await press('undo')
+    }
+    await flush(4000) // the last save's debounce
+    const run = expectSavedRunToReplay('acesup')
+    expect(run.seed).toBe(mockSeed)
+    expect(run.actions.some((action) => Array.isArray(action))).toBe(true)
+    expect(run.actions).toContain('u')
+    expect(run.actions).toContain('d')
+    dealing.mockRestore()
   })
 })

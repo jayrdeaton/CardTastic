@@ -1,7 +1,9 @@
 import { configureStore } from '@reduxjs/toolkit'
+import { type Card, controllerFor, replayRun, type VariantId } from '@tastic/cardtastic-engine'
 
 import { GUEST_PLAYER_ID } from '@/constants/player'
 import { FOUNDATION_LAYOUT } from '@/engine/foundation'
+import type { DealRun } from '@/engine/run'
 import gameInProgress, { gameInProgressActions, type SavedGame } from '@/redux/gameInProgressSlice'
 import { SOLITAIRE_GAME_IDS, type SolitaireGameId } from '@/stores/statsTypes'
 
@@ -32,4 +34,51 @@ export function seedGameInProgress(gameId: SolitaireGameId, saved: object): void
 /** What is currently stored for `gameId` (what a relaunch would resume). */
 export function storedGame(gameId: SolitaireGameId): SavedGame<unknown, unknown> | null {
   return store.getState().gameInProgress[gameId][GUEST_PLAYER_ID] ?? null
+}
+
+// The rule set a save's deal was dealt under, read from its `config` the way each screen reads it back
+const VARIANT_OF: Record<SolitaireGameId, (config?: number) => string> = {
+  klondike: (c) => (c === 3 ? 'klondike-draw3' : 'klondike'),
+  spider: (c) => (c === 4 ? 'spider-4suit' : c === 2 ? 'spider-2suit' : 'spider'),
+  freecell: () => 'freecell',
+  pyramid: () => 'pyramid',
+  yukon: () => 'yukon',
+  golf: (c) => (c === 1 ? 'golf-wrap' : 'golf'),
+  tripeaks: (c) => (c === 1 ? 'tripeaks-wrap' : 'tripeaks'),
+  canfield: (c) => (c === 1 ? 'canfield-draw1' : 'canfield'),
+  scorpion: (c) => (c === 0 ? 'scorpion-classic' : 'scorpion'),
+  fortythieves: (c) => (c === 1 ? 'fortythieves-runs' : 'fortythieves'),
+  acesup: () => 'acesup'
+}
+
+/** The run `gameId`'s save carries, after checking that replaying it with the rules (@tastic/cardtastic-engine, as Tastic-Server
+ * will) lands on exactly the saved board and move count. Throws, naming the action the rules refused, if it doesn't. */
+export function expectSavedRunToReplay(gameId: SolitaireGameId): DealRun {
+  const saved = storedGame(gameId)
+  if (!saved?.run) throw new Error(`${gameId}'s save has no run`)
+  const replayed = replayRun(VARIANT_OF[gameId](saved.config), saved.run.seed, saved.run.actions)
+  if (!replayed.ok) throw new Error(`${gameId}'s run doesn't replay: ${replayed.error} at action ${replayed.at} of ${JSON.stringify(saved.run.actions)}`)
+  if (JSON.stringify(replayed.state) !== JSON.stringify(saved.state)) throw new Error(`${gameId}'s run replays to another board than the one saved`)
+  if (replayed.moves !== saved.moves) throw new Error(`${gameId}'s run replays to ${replayed.moves} moves, the save has ${saved.moves}`)
+  return saved.run
+}
+
+// Piles a game keeps as one pile per zone (each move's from index is 0) rather than a list of piles
+const SINGLE_PILES = ['stock', 'waste', 'reserve', 'discard']
+
+/** The cards the rules could move on `gameId`'s saved board right now (each legal move's moving card), for a test to tap. */
+export function movableCardIds(gameId: SolitaireGameId): string[] {
+  const saved = storedGame(gameId)
+  if (!saved) return []
+  const controller = controllerFor(VARIANT_OF[gameId](saved.config) as VariantId)
+  const board = saved.state as Record<string, unknown>
+  const ids = controller.legalMoves(saved.state).map(({ from, count }) => {
+    // Aces Up keeps its tableau zone's columns as `piles`
+    const zone = (board[from.zone] ?? (from.zone === 'tableau' ? board.piles : undefined)) as (Card | Card[] | null)[] | undefined
+    if (!Array.isArray(zone)) return undefined
+    if (SINGLE_PILES.includes(from.zone)) return (zone as Card[])[zone.length - count]?.id
+    const at = zone[from.index]
+    return Array.isArray(at) ? at[at.length - count]?.id : (at?.id ?? undefined)
+  })
+  return [...new Set(ids.filter((id): id is string => !!id))]
 }

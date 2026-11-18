@@ -51,7 +51,7 @@ describe('gridTableLayout', () => {
     expect(layout.slots[2].every((pose) => pose.rotate === 0)).toBe(true)
   })
 
-  it('the stock and the discard sit either side of the card in hand, clear of the Home and Settings buttons', () => {
+  it('the stock and the discard sit either side of the card in hand, clear of the Back and Settings buttons', () => {
     const layout = gridTableLayout(375, 667, INSETS, { columns: 3, rows: 2, upsideDown: false })
     expect(layout.stock.x).toBeLessThan(layout.held[1].x)
     expect(layout.discard.x).toBeGreaterThan(layout.held[1].x)

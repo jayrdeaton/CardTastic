@@ -6,8 +6,8 @@ import type { PreviewGame } from '@/components/previewFaceBitmaps'
 import { RulesDialog } from '@/components/RulesDialog'
 import { useTableColors } from '@/components/theme'
 
-/** One game as @tastic/shell's pack holds it (games/<id>/definition.ts): no seats, no loadout, no How to Play of its
- * own (the pack's three cards teach every game). */
+/** One game as @tastic/shell's pack holds it (games/<id>/definition.ts): no seats, a setup screen for its rules and Daily
+ * Deal (solitaireLoadout.tsx), no How to Play of its own (the pack's three cards teach every game). */
 export type SolitaireGameDefinition = GuidelessGameDefinition
 
 /** A game's Home preview (the shell's `Preview`): its starting deal, laid out once here (every game's preview deal is

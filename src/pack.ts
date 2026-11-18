@@ -32,6 +32,7 @@ import { tripeaks } from '@/games/tripeaks/definition'
 import { war } from '@/games/war/definition'
 import { yukon } from '@/games/yukon/definition'
 import { storeSource } from '@/redux/store'
+import { dailyResumeHref } from '@/stores/daily'
 
 // Solitaire as a @tastic/shell pack: its root (app/_layout.tsx), Home (app/index.tsx) and every game's play screen
 // (app/play/[game].tsx). The store is built from the part of this the shell needs (redux/store.ts).
@@ -58,6 +59,10 @@ const solitaire = {
     { label: 'Solitaire', includes: (game) => !game.seatTwo },
     { label: 'Two Player', includes: (game) => !!game.seatTwo }
   ],
+  // Every game opens a setup screen with the player picker first (Jay, 2026-11-18), so Home doesn't carry one too.
+  homePlayerPicker: false,
+  // A relaunch into a game goes back to its Daily Deal if that's what was left open.
+  resumeHref: dailyResumeHref,
   HeroTitle,
   // The player button reads GUEST, its menu's row Guest.
   guestLabel: 'GUEST',

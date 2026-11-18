@@ -1,13 +1,23 @@
+import type { RunAction } from '@tastic/cardtastic-engine'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { AppState, Platform } from 'react-native'
+
+import type { DealRun } from '@/engine/run'
 
 export interface GameSession {
   moves: number
   started: boolean
-  registerMove: () => number
-  reset: () => void
+  /** Counts a move, and records it in the deal's run: the move as it went to tryMove, or 'd' for a draw. */
+  registerMove: (action: RunAction) => number
+  /** Records an Undo press in the run, as its revert commits (the move count stays). */
+  registerUndo: () => void
+  /** Starts a new deal: no moves, the clock stopped, and an empty run for the deal `seed` dealt. */
+  reset: (seed: number) => void
   stopClock: () => void
-  restore: (moves: number, elapsedSeconds: number) => void
+  /** Seeds a resumed deal: its move count, clock, and run (null for a save that has none). */
+  restore: (moves: number, elapsedSeconds: number, run?: DealRun | null) => void
+  /** The deal's run so far (a copy, safe to save), or null when it isn't known (a deal resumed from a save that had none). */
+  getRun: () => DealRun | null
   /** Live elapsed seconds, computed on demand from wall-clock time rather than a per-second-ticked
    * state value - safe to call from a save/win effect, or from GameChrome's own once-a-second
    * timer-text tick, without ever forcing this hook's own screen to re-render. Stable identity
@@ -57,6 +67,8 @@ export function useGameSession(): GameSession {
   // Why the clock is held: 'app' while the app isn't in the foreground, 'idle' from the app's return (or a resumed save)
   // until the next move, and whatever setPaused is given.
   const holdsRef = useRef(new Set<string>())
+  // The deal's run (DealRun), kept in a ref like the move count: every action is recorded in the same tick it's counted
+  const runRef = useRef<DealRun | null>(null)
 
   const getElapsed = useCallback(() => {
     const runMs = startedAtRef.current === null ? 0 : Date.now() - startedAtRef.current
@@ -121,8 +133,9 @@ export function useGameSession(): GameSession {
     pausedRef.current = false
   }
 
-  function reset() {
+  function reset(seed: number) {
     stopClock()
+    runRef.current = { seed, actions: [] }
     startedRef.current = false
     movesRef.current = 0
     baseMsRef.current = 0
@@ -133,7 +146,8 @@ export function useGameSession(): GameSession {
   // Returns the synchronously up-to-date count: a caller that checks win state in the same tick
   // as the winning move would otherwise read a stale pre-increment `moves` state value (setMoves
   // is async) and undercount the winning move itself.
-  function registerMove(): number {
+  function registerMove(action: RunAction): number {
+    runRef.current?.actions.push(action)
     movesRef.current += 1
     setMoves(movesRef.current)
     if (holdsRef.current.has('idle')) setPaused('idle', false)
@@ -150,7 +164,12 @@ export function useGameSession(): GameSession {
   // fresh deal (savedMoves === 0) restores with the clock not yet ticking, exactly like a brand
   // new deal. A deal with real progress resumes started but held ('idle') until the next move, so the time it takes to
   // find your place again (after a relaunch, or coming back from Home) isn't counted either.
-  function restore(savedMoves: number, savedElapsedSeconds: number) {
+  function registerUndo() {
+    runRef.current?.actions.push('u')
+  }
+
+  function restore(savedMoves: number, savedElapsedSeconds: number, run?: DealRun | null) {
+    runRef.current = run ? { seed: run.seed, actions: run.actions.slice() } : null
     movesRef.current = savedMoves
     setMoves(savedMoves)
     baseMsRef.current = savedElapsedSeconds * 1000
@@ -164,5 +183,7 @@ export function useGameSession(): GameSession {
     startRun()
   }
 
-  return { moves, started, registerMove, reset, stopClock, restore, getElapsed, getMoves, setPaused }
+  const getRun = useCallback((): DealRun | null => (runRef.current ? { seed: runRef.current.seed, actions: runRef.current.actions.slice() } : null), [])
+
+  return { moves, started, registerMove, registerUndo, reset, stopClock, restore, getElapsed, getMoves, getRun, setPaused }
 }

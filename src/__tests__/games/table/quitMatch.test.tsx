@@ -26,7 +26,7 @@ async function pressAndroidBack() {
 }
 
 // A table in miniature: a match whose state moves on with each play, ends, and deals again, with the real side buttons
-// (Home through tableHome) and the real dialog.
+// (the back arrow through useTableBack) and the real dialog.
 function Table() {
   const [state, setState] = useState(() => ({ plays: 0 }))
   const [over, setOver] = useState(false)
@@ -85,25 +85,32 @@ afterEach(() => {
 })
 
 describe('Quit Match? on a table', () => {
-  it('leaves a fresh deal at once: Home goes Home, nothing to lose yet', async () => {
+  it('leaves a fresh deal at once: the back arrow goes to the setup screen, nothing to lose yet', async () => {
     const rendered = await openMatch()
-    await fireEvent.press(screen.getByLabelText('Home'))
+    await fireEvent.press(screen.getByLabelText('Back'))
     expect(screen.queryByText('Quit Match?')).toBeNull()
-    expect(rendered.getPathname()).toBe('/')
+    expect(rendered.getPathname()).toBe('/loadout/ginrummy')
+    expect(screen.getByText('Setup screen')).toBeTruthy()
   })
 
-  it('asks from the Home button once a card is played, holds the table, and goes Home on Quit', async () => {
+  it('opens the setup screen from a table with none beneath it (a page reloaded on the web)', async () => {
+    const rendered = await renderRouter(ROUTES, { initialUrl: '/play/ginrummy' })
+    await fireEvent.press(screen.getByLabelText('Back'))
+    expect(rendered.getPathname()).toBe('/loadout/ginrummy')
+  })
+
+  it('asks from the back arrow once a card is played, holds the table, and goes to the setup screen on Quit', async () => {
     const rendered = await openMatch()
     await play()
-    await fireEvent.press(screen.getByLabelText('Home'))
+    await fireEvent.press(screen.getByLabelText('Back'))
     expect(screen.getByText('Quit Match?')).toBeTruthy()
     expect(screen.getByText("This match won't be saved.")).toBeTruthy()
     expect(screen.getByText('Held')).toBeTruthy()
     expect(rendered.getPathname()).toBe('/play/ginrummy')
 
     await fireEvent.press(screen.getByText('Quit'))
-    expect(rendered.getPathname()).toBe('/')
-    expect(screen.getByText('Home screen')).toBeTruthy()
+    expect(rendered.getPathname()).toBe('/loadout/ginrummy')
+    expect(screen.getByText('Setup screen')).toBeTruthy()
   })
 
   it("asks on Android's back, and Quit goes back to the setup screen", async () => {
@@ -134,20 +141,10 @@ describe('Quit Match? on a table', () => {
   it("closes on Android's back while it's up, staying in the match", async () => {
     const rendered = await openMatch()
     await play()
-    await fireEvent.press(screen.getByLabelText('Home'))
+    await fireEvent.press(screen.getByLabelText('Back'))
     await pressAndroidBack()
     expect(screen.queryByText('Quit Match?')).toBeNull()
     expect(rendered.getPathname()).toBe('/play/ginrummy')
-  })
-
-  it('a Home pressed after Cancel and a back after that each go their own way', async () => {
-    const rendered = await openMatch()
-    await play()
-    await fireEvent.press(screen.getByLabelText('Home'))
-    await fireEvent.press(screen.getByText('Cancel'))
-    await pressAndroidBack()
-    await fireEvent.press(screen.getByText('Quit'))
-    expect(rendered.getPathname()).toBe('/loadout/ginrummy')
   })
 
   it('leaves at once once the match is over, and again after a rematch deals', async () => {
@@ -164,8 +161,8 @@ describe('Quit Match? on a table', () => {
     const rendered = await openMatch()
     await play()
     await fireEvent.press(screen.getByLabelText('Win'))
-    await fireEvent.press(screen.getByLabelText('Home'))
+    await fireEvent.press(screen.getByLabelText('Back'))
     expect(screen.queryByText('Quit Match?')).toBeNull()
-    expect(rendered.getPathname()).toBe('/')
+    expect(rendered.getPathname()).toBe('/loadout/ginrummy')
   })
 })

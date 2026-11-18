@@ -22,6 +22,7 @@ export function useWarLoadout(_mode: RoundMode): GameLoadout {
   return {
     roundSettings,
     options: (props: LoadoutOptionsProps) => <MatchSetup {...props} game='war' title={MATCH_GAME_TITLES.war} rules={warRuleSettings(settings, setSettings)} />,
+    placesSeats: true,
     optionIds: [],
     randomize: () => setSettings({ warLength: Math.random() < 0.5 ? 'full' : 'short' }),
     reset: () => setSettings({ warLength: 'full', warDown: 3 }),

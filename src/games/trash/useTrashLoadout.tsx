@@ -21,6 +21,7 @@ export function useTrashLoadout(_mode: RoundMode): GameLoadout {
   return {
     roundSettings,
     options: (props: LoadoutOptionsProps) => <MatchSetup {...props} game='trash' title={MATCH_GAME_TITLES.trash} rules={trashRuleSettings(settings, setSettings)} />,
+    placesSeats: true,
     optionIds: [],
     randomize: () => setSettings({ trashCards: TRASH_CARDS[Math.floor(Math.random() * TRASH_CARDS.length)] }),
     reset: () => setSettings({ trashCards: 10, trashWild: 'jacks' }),

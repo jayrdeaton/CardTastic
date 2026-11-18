@@ -1,6 +1,7 @@
 import { gameStatsSections } from '@/components/SolitaireStats'
 import { YUKON_RULES } from '@/constants/gameRules'
 import { gamePreview, gameRules, type SolitaireGameDefinition } from '@/games/shared/gameDefinition'
+import { solitaireLoadout } from '@/games/shared/solitaireLoadout'
 import { GAME_TITLES } from '@/stores/statsTypes'
 
 import { buildYukonPreview } from './previewLayout'
@@ -17,6 +18,8 @@ export const yukon: SolitaireGameDefinition = {
   // The status bar shows while the phone is held upright, as on Home (the pack's useScreenOptions).
   keepStatusBar: true,
   PlayScreen: YukonScreen,
+  // Its rules and today's Daily Deal, before a game
+  useLoadout: solitaireLoadout('yukon'),
   Preview: gamePreview('yukon', buildYukonPreview),
   // Its rule sets on the Stats tab.
   StatsSections: gameStatsSections('yukon'),

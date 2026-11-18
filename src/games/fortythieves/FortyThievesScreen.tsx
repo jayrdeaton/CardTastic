@@ -4,10 +4,10 @@
 // tap-to-move/drag/undo/auto-play shape), simplified by having no reserve pile and no cyclic
 // wraparound - see rules.ts for the full rules and for why its own auto-play-to-foundation is a
 // scoped reimplementation rather than a reuse of engine/autoFoundation.ts.
-
 import { useVibration } from '@rific/feedback-press'
 import { useToast } from '@rific/toaster'
 import { CardSizeProvider, faceUpFanOffset } from '@tastic/cards'
+import { runMove } from '@tastic/cardtastic-engine'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { StyleSheet, View } from 'react-native'
 
@@ -47,6 +47,7 @@ import { LossBanner } from '@/games/shared/LossBanner'
 import { MoveInfo, UndoEntry } from '@/games/shared/undoTypes'
 import { useAutoFinish } from '@/games/shared/useAutoFinish'
 import { useAutoFoundationCascade } from '@/games/shared/useAutoFoundationCascade'
+import { useDailyDeal, useDealSettings } from '@/games/shared/useDailyDeal'
 import { useDeferredDeal } from '@/games/shared/useDeferredDeal'
 import { useDimAfterDeal } from '@/games/shared/useDimAfterDeal'
 import { UndoGate, useFlightConcurrency } from '@/games/shared/useFlightConcurrency'
@@ -60,7 +61,6 @@ import { useUndoStack } from '@/games/shared/useUndoStack'
 import { useWinReveal } from '@/games/shared/useWinReveal'
 import { WinBanner } from '@/games/shared/WinBanner'
 import { withGameProviders } from '@/games/shared/withGameProviders'
-import { useSettings } from '@/hooks/useSettings'
 import { loadGameInProgress, SavedGame, saveGameInProgress } from '@/stores/gameInProgress'
 
 import { buildFortyThievesDealSequence } from './dealSequence'
@@ -95,7 +95,7 @@ export default withGameProviders(FortyThievesScreenInner)
 function FortyThievesScreenInner() {
   const { styles, dropZones, recordDealWon, recordDealAbandoned, recordHintUsed, recordUndoUsed } = useGameScreenBasics(makeStyles)
   const { info: infoToast } = useToast()
-  const { settings } = useSettings()
+  const { settings } = useDealSettings()
   // The move-style rule the in-progress deal was actually dealt with - deliberately not
   // re-derived from `settings` every render, same reasoning KlondikeScreen's own `klondikeDraw`
   // state has: a mid-game settings change must never mutate the current deal's own rules.
@@ -156,6 +156,8 @@ function FortyThievesScreenInner() {
   // checks against the CURRENT controller, same as every other controllerRef.current read in this
   // file.
   const { won, setWon, recordedWinRef, pendingWinCascadeRef, checkWin } = useFoundationWinCheck({ isWon: (s: FortyThievesState) => controllerRef.current.isWon(s) }, variant, session, dealTokenRef, recordDealWon, hintsUsedRef)
+  // The Daily Deal this screen was opened for, if any: its seed deals the board, and a win goes to the server (useDailyDeal)
+  const daily = useDailyDeal('fortythieves', won, session)
   // Nothing animating and the initial deal finished - what the auto-play hook below waits for, and
   // what the win celebration waits for too (see useWinReveal).
   const settled = activeFlightCount === 0 && dealHiddenIds.size === 0
@@ -207,13 +209,14 @@ function FortyThievesScreenInner() {
     cascade.disarm()
     controllerRef.current = createFortyThievesController(settings.fortyThievesRunMoves)
     setRunMoves(settings.fortyThievesRunMoves)
-    const s = controllerRef.current.newGame(randomSeed())
+    const seed = daily?.seed ?? randomSeed()
+    const s = controllerRef.current.newGame(seed)
     setUndoStack([])
     setHint(null)
     hintsUsedRef.current = false
     resetFlightConcurrency()
     pendingFlightRef.current = []
-    session.reset()
+    session.reset(seed)
     setWon(false)
     recordedWinRef.current = false
     winCascade.clear()
@@ -244,7 +247,7 @@ function FortyThievesScreenInner() {
     hintsUsedRef.current = false
     resetFlightConcurrency()
     pendingFlightRef.current = []
-    session.restore(saved.moves, saved.elapsedSeconds)
+    session.restore(saved.moves, saved.elapsedSeconds, saved.run)
     setWon(false)
     recordedWinRef.current = false
     setDealHiddenIds(new Set())
@@ -415,11 +418,11 @@ function FortyThievesScreenInner() {
   // elapsed time from when it was made, so useSaveInProgressBackstop saves again every 10s, when the
   // screen is left, and when the app is backgrounded.
   useEffect(() => {
-    if (state && !won && !stuck) saveGameInProgress('fortythieves', { state, undoStack, moves: session.moves, elapsedSeconds: session.getElapsed(), config: runMoves ? 1 : 0 })
+    if (state && !won && !stuck) saveGameInProgress('fortythieves', { state, undoStack, moves: session.moves, elapsedSeconds: session.getElapsed(), run: session.getRun(), config: runMoves ? 1 : 0 })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state, won, stuck, runMoves, undoStack])
   useSaveInProgressBackstop(!!state && !won && !stuck, () => {
-    if (state && !won && !stuck) saveGameInProgress('fortythieves', { state, undoStack, moves: session.moves, elapsedSeconds: session.getElapsed(), config: runMoves ? 1 : 0 })
+    if (state && !won && !stuck) saveGameInProgress('fortythieves', { state, undoStack, moves: session.moves, elapsedSeconds: session.getElapsed(), run: session.getRun(), config: runMoves ? 1 : 0 })
   })
 
   // Finds one legal move (or a stock-draw suggestion) to highlight - see engine/hint.ts's
@@ -504,6 +507,7 @@ function FortyThievesScreenInner() {
 
     if (!move) {
       setUndoStack((stack) => stack.slice(0, -1))
+      session.registerUndo()
       commitState(prevState)
       settleFlight() // nothing to fly, settles immediately
       return
@@ -522,6 +526,7 @@ function FortyThievesScreenInner() {
     const origin = peeled || movingCards.length === 0 ? null : ((await ghost.cardRegistry.measure(move.anchorCardId)) ?? (move.to.zone === 'foundation' ? await measureView(foundationSlotRefs.current[move.to.index]) : null))
 
     setUndoStack((stack) => stack.slice(0, -1))
+    session.registerUndo()
 
     const flight = peeled ?? (origin ? ghost.show(ghostContent, { x: origin.x, y: origin.y }) : null)
     if (flight) {
@@ -558,7 +563,7 @@ function FortyThievesScreenInner() {
       pushUndo(current, { from, to, count, anchorCardId })
       commitState(result)
       // Every move counts, the player\'s or an auto-play\'s: Auto-Move only saves taps, never score.
-      session.registerMove()
+      session.registerMove(runMove({ from, to, count }))
       checkWin(result)
       // Only the player's own play of a card to a foundation starts the cascade; any other move of theirs
       // stops it, so a card it uncovers (the waste's next card, say) is theirs to find and play. The finish
@@ -657,8 +662,8 @@ function FortyThievesScreenInner() {
     pushUndo(afterDraw, { from: entry.ref, to, count: 1, anchorCardId: entry.card.id })
     commitState(result)
     // Two moves, the draw and the play, as the player would make them with Auto-Move off.
-    session.registerMove()
-    session.registerMove()
+    session.registerMove('d')
+    session.registerMove(runMove({ from: entry.ref, to, count: 1 }))
     checkWin(result)
     pendingFlightRef.current.push({ cardId: entry.card.id, to, gen: dealTokenRef.current, flyingId, flight })
   }
@@ -722,7 +727,7 @@ function FortyThievesScreenInner() {
       return
     }
     // Counted here, with the draw that really happens - not at the tap, whose draw may have been dropped.
-    session.registerMove() // a sweep\'s own draw counts too, as the player\'s would with Auto-Move off
+    session.registerMove('d') // a sweep\'s own draw counts too, as the player\'s would with Auto-Move off
 
     const drawnCard = top(result.waste)!
     const move: MoveInfo = { from: { zone: 'stock', index: 0 }, to: { zone: 'waste', index: 0 }, count: 1, anchorCardId: drawnCard.id }

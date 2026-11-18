@@ -18,6 +18,7 @@ jest.mock('@/components/theme', () => {
 })
 jest.mock('@/components/cardFont', () => ({ CARD_FONT_FAMILY: 'TestSerif' }))
 // The Monogram back's preview shows the selected player's tag; a guest has none.
+jest.mock('@/components/daily/DailySettingsSection', () => ({ DailySettingsSection: () => null }))
 jest.mock('@/stores/profiles', () => ({ usePlayer: () => ({ profile: null }) }))
 // The sheet shows the rules of the game it's opened in, found from the route.
 let mockPath = '/'

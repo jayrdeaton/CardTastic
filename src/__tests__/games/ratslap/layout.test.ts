@@ -41,7 +41,7 @@ describe('the pile', () => {
     [1280, 800, { top: 0, bottom: 0 }]
   ]
 
-  it.each(SIZES)('%ix%i: the top three fan out with every rank whole, clear of the Home and Settings buttons', (width, height, insets) => {
+  it.each(SIZES)('%ix%i: the top three fan out with every rank whole, clear of the Back and Settings buttons', (width, height, insets) => {
     const layout = tableLayout(width, height, insets)
     const poses = [0, 1, 2].map((depth) => pileCardPose(layout, depth, 10, 'hearts-7'))
     // Newest on the right; each card under it shows its rank (the widest, a '10', ends at RANK_INK_RIGHT_FRACTION),

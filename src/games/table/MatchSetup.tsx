@@ -9,7 +9,7 @@
 import { FadingScrollView } from '@rific/auto-paper'
 import { useWellColors, WELL_SHADOW } from '@tastic/hud/chrome'
 import type { LoadoutOptionsProps } from '@tastic/shell'
-import { useState } from 'react'
+import { type ReactNode, useState } from 'react'
 import { StyleSheet, useWindowDimensions, View } from 'react-native'
 import { Text } from 'react-native-paper'
 
@@ -36,26 +36,34 @@ export const RULES_CARD_MIN_HEIGHT = 120
 /** The column's gap, above the seat pills. */
 const COLUMN_GAP = 16
 
-export function MatchSetup({ game, title, rules, extraSeats, host, accentColor, dark }: LoadoutOptionsProps & { game: string; title: string; rules: GameRule[]; extraSeats?: TableRule[] }) {
+export function MatchSetup({ game, title, rules, extra, extraSeats, seats, host, accentColor, dark }: LoadoutOptionsProps & { game: string; title: string; extra?: ReactNode; rules: GameRule[]; extraSeats?: TableRule[] }) {
   const window = useWindowDimensions()
   const well = useWellColors()
   // Seats 3 and 4 wrap onto a second row on a phone when there are three pills, so their height is measured.
   const [seatPillsHeight, setSeatPillsHeight] = useState(0)
   const hasSeatPills = !!extraSeats && extraSeats.length > 0
-  const width = Math.min(RULES_CARD_MAX_WIDTH, window.width - 2 * RULES_CARD_MARGIN)
+  // A window wider than tall has no height for two cards stacked (a phone held sideways, 402pt): they sit side by side
+  const sideBySide = !!extra && rules.length > 0 && window.width > window.height
+  const width = Math.min(RULES_CARD_MAX_WIDTH, sideBySide ? (window.width - 2 * RULES_CARD_MARGIN - COLUMN_GAP) / 2 : window.width - 2 * RULES_CARD_MARGIN)
   const maxHeight = Math.max(RULES_CARD_MIN_HEIGHT, window.height - RULES_CARD_RESERVED_HEIGHT - (hasSeatPills ? seatPillsHeight + COLUMN_GAP : 0))
   return (
     <View style={styles.column} testID={`${game}-setup`}>
       <Text variant='headlineSmall' style={[styles.center, { color: CHROME_FG }]} accessibilityRole='header'>
         {title}
       </Text>
-      {rules.length > 0 && (
-        <View style={[styles.card, { width, backgroundColor: well.bg }]} testID={`${game}-rules`}>
-          <FadingScrollView style={{ maxHeight }} contentContainerStyle={styles.cardContent} alwaysBounceVertical={false} showsVerticalScrollIndicator={false}>
-            <RuleRows rules={rules} />
-          </FadingScrollView>
-        </View>
-      )}
+      {/* Who's playing comes first (Jay, 2026-11-18): with one person the shell hands the seat buttons over (GameLoadout.placesSeats) */}
+      {seats}
+      <View style={sideBySide ? styles.cardsRow : styles.cards}>
+        {rules.length > 0 && (
+          <View style={[styles.card, { width, backgroundColor: well.bg }]} testID={`${game}-rules`}>
+            <FadingScrollView style={{ maxHeight }} contentContainerStyle={styles.cardContent} alwaysBounceVertical={false} showsVerticalScrollIndicator={false}>
+              <RuleRows rules={rules} />
+            </FadingScrollView>
+          </View>
+        )}
+        {/* A card of the game's own under its rules (a solitaire game's Daily Deal) */}
+        {extra && <View style={[styles.card, styles.cardContent, { width, backgroundColor: well.bg }]}>{extra}</View>}
+      </View>
       {hasSeatPills && <RulePickers game={game} rules={extraSeats} host={host} accentColor={accentColor} dark={dark} onLayout={(event) => setSeatPillsHeight(event.nativeEvent.layout.height)} />}
     </View>
   )
@@ -71,6 +79,15 @@ const styles = StyleSheet.create({
   cardContent: {
     paddingHorizontal: 16,
     paddingVertical: 6
+  },
+  cards: {
+    alignItems: 'center',
+    gap: COLUMN_GAP
+  },
+  cardsRow: {
+    alignItems: 'flex-start',
+    flexDirection: 'row',
+    gap: COLUMN_GAP
   },
   center: {
     textAlign: 'center'

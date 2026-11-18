@@ -1,5 +1,6 @@
 import type { LoadoutOptionsProps } from '@tastic/shell'
 import { fireEvent, render, renderHook, screen } from '@testing-library/react-native'
+import { Text } from 'react-native'
 
 import { EIGHTS_RULE_KEYS, eightsRuleSettings } from '@/games/crazyeights/ruleSettings'
 import { MatchSetup } from '@/games/table/MatchSetup'
@@ -33,6 +34,13 @@ beforeEach(() => {
 })
 
 describe('MatchSetup', () => {
+  it("puts who's playing first: the seat buttons right under the game's name, above its rules", async () => {
+    await render(<MatchSetup {...optionsProps} game='crazyeights' title='Crazy Eights' rules={eightsRuleSettings(DEFAULT_SETTINGS, jest.fn())} seats={<Text>Who is playing</Text>} />)
+    const drawn = JSON.stringify(screen.toJSON())
+    expect(drawn.indexOf('Crazy Eights')).toBeLessThan(drawn.indexOf('Who is playing'))
+    expect(drawn.indexOf('Who is playing')).toBeLessThan(drawn.indexOf('When Nothing Fits'))
+  })
+
   it('names the game and shows each rule as a row, its name over the choice in effect, as in Settings', async () => {
     await render(<MatchSetup {...optionsProps} game='crazyeights' title='Crazy Eights' rules={eightsRuleSettings(DEFAULT_SETTINGS, jest.fn())} />)
 

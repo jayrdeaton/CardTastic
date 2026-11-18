@@ -22,6 +22,7 @@ export function useRatSlapLoadout(_mode: RoundMode): GameLoadout {
   return {
     roundSettings,
     options: (props: LoadoutOptionsProps) => <MatchSetup {...props} game='ratslap' title={MATCH_GAME_TITLES.ratslap} rules={ratslapRuleSettings(settings, setSettings)} />,
+    placesSeats: true,
     optionIds: [],
     randomize: () => setSettings({ ratslapDoubles: Math.random() < 0.5, ratslapSandwiches: Math.random() < 0.5, ratslapJokers: Math.random() < 0.5 }),
     reset: () => setSettings({ ratslapDoubles: true, ratslapSandwiches: true, ratslapJokers: true }),

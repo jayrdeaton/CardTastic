@@ -1,6 +1,7 @@
 import { gameStatsSections } from '@/components/SolitaireStats'
 import { SPIDER_RULES } from '@/constants/gameRules'
 import { gamePreview, gameRules, type SolitaireGameDefinition } from '@/games/shared/gameDefinition'
+import { solitaireLoadout } from '@/games/shared/solitaireLoadout'
 import { GAME_TITLES } from '@/stores/statsTypes'
 
 import { buildSpiderPreview } from './previewLayout'
@@ -17,6 +18,8 @@ export const spider: SolitaireGameDefinition = {
   // The status bar shows while the phone is held upright, as on Home (the pack's useScreenOptions).
   keepStatusBar: true,
   PlayScreen: SpiderScreen,
+  // Its rules and today's Daily Deal, before a game
+  useLoadout: solitaireLoadout('spider'),
   Preview: gamePreview('spider', buildSpiderPreview),
   // Its rule sets on the Stats tab.
   StatsSections: gameStatsSections('spider'),

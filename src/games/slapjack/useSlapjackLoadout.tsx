@@ -21,6 +21,7 @@ export function useSlapjackLoadout(_mode: RoundMode): GameLoadout {
   return {
     roundSettings,
     options: (props: LoadoutOptionsProps) => <MatchSetup {...props} game='slapjack' title={MATCH_GAME_TITLES.slapjack} rules={slapjackRuleSettings(settings, setSettings)} />,
+    placesSeats: true,
     optionIds: [],
     randomize: () => undefined,
     reset: () => setSettings({ slapjackPenalty: 'burn' }),

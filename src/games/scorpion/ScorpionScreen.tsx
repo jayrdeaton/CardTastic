@@ -7,10 +7,10 @@
 // bookkeeping here at all; (2) the assisted-stock variant's stock is a single one-shot 3-card deal
 // (one card onto each of the last 3 columns, whenever the player likes) rather than Spider's
 // repeated 10-card-per-round stock, so its own UI is a single tappable packet, not a fan.
-
 import { useVibration } from '@rific/feedback-press'
 import { useToast } from '@rific/toaster'
 import { CardSizeProvider, faceUpFanOffset } from '@tastic/cards'
+import { runMove } from '@tastic/cardtastic-engine'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { StyleSheet, View } from 'react-native'
 
@@ -46,6 +46,7 @@ import { showNoHintToast } from '@/games/shared/gameToasts'
 import { liftTappedRun, peelInAir } from '@/games/shared/inAirRun'
 import { LossBanner } from '@/games/shared/LossBanner'
 import { MoveInfo, UndoEntry } from '@/games/shared/undoTypes'
+import { useDailyDeal, useDealSettings } from '@/games/shared/useDailyDeal'
 import { useDeferredDeal } from '@/games/shared/useDeferredDeal'
 import { useDerivedWinCheck } from '@/games/shared/useDerivedWinCheck'
 import { UndoGate, useFlightConcurrency } from '@/games/shared/useFlightConcurrency'
@@ -58,7 +59,6 @@ import { useUndoStack } from '@/games/shared/useUndoStack'
 import { useWinReveal } from '@/games/shared/useWinReveal'
 import { WinBanner } from '@/games/shared/WinBanner'
 import { withGameProviders } from '@/games/shared/withGameProviders'
-import { useSettings } from '@/hooks/useSettings'
 import { loadGameInProgress, SavedGame, saveGameInProgress } from '@/stores/gameInProgress'
 
 import { buildScorpionDealSequence } from './dealSequence'
@@ -106,7 +106,7 @@ export default withGameProviders(ScorpionScreenInner)
 function ScorpionScreenInner() {
   const { styles, dropZones, recordDealWon, recordDealAbandoned, recordHintUsed, recordUndoUsed } = useGameScreenBasics(makeStyles)
   const { info: infoToast } = useToast()
-  const { settings } = useSettings()
+  const { settings } = useDealSettings()
   // The stock variant the in-progress deal was actually dealt with - deliberately not re-derived
   // from `settings` every render, same reasoning SpiderScreen's own `numSuits` state has: a
   // mid-game settings change must never mutate the current deal's own rules. A useMemo (not a
@@ -170,6 +170,8 @@ function ScorpionScreenInner() {
   // no suit-based foundation for a "won" flag to hang off; isWon (rules.ts) checks each column's
   // own shape directly instead.
   const { won, recordedRef: recordedWinRef, pendingWinCascadeRef } = useDerivedWinCheck(controller, state, variant, session, dealTokenRef, recordDealWon, hintsUsedRef)
+  // The Daily Deal this screen was opened for, if any: its seed deals the board, and a win goes to the server (useDailyDeal)
+  const daily = useDailyDeal('scorpion', won, session)
   // Nothing animating and no deal still landing - every ghost flight (tap, drag, undo, the stock deal) holds an
   // activeFlightCount claim until it lands, and the initial deal holds dealHiddenIds until its last card does.
   const settled = activeFlightCount === 0 && dealHiddenIds.size === 0
@@ -248,7 +250,8 @@ function ScorpionScreenInner() {
   // startNewGame uses for its identical numSuits setting.
   function startNewGame(ctrl: ReturnType<typeof createScorpionController>) {
     const myToken = ++dealTokenRef.current
-    const s = ctrl.newGame(randomSeed())
+    const seed = daily?.seed ?? randomSeed()
+    const s = ctrl.newGame(seed)
     setUndoStack([])
     setHint(null)
     hintsUsedRef.current = false
@@ -258,7 +261,7 @@ function ScorpionScreenInner() {
     pendingUndoStockDealRef.current = null
     // Before the fresh board commits: a card a stock-deal undo still holds would be drawn over it (see undoStockDealHoldsRef).
     undoStockDealHoldsRef.current.forEach((release) => release())
-    session.reset()
+    session.reset(seed)
     recordedWinRef.current = false
     winCascade.clear()
     pendingWinCascadeRef.current = null
@@ -289,7 +292,7 @@ function ScorpionScreenInner() {
     pendingStockDealRef.current = []
     pendingUndoStockDealRef.current = null
     undoStockDealHoldsRef.current.forEach((release) => release()) // see startNewGame
-    session.restore(saved.moves, saved.elapsedSeconds)
+    session.restore(saved.moves, saved.elapsedSeconds, saved.run)
     recordedWinRef.current = false
     setDealHiddenIds(new Set())
     commitState(saved.state)
@@ -555,11 +558,11 @@ function ScorpionScreenInner() {
   // save still holds the elapsed time from when it was made, so useSaveInProgressBackstop saves again
   // every 10s, when the screen is left, and when the app is backgrounded.
   useEffect(() => {
-    if (state && !won && !stuck) saveGameInProgress('scorpion', { state, undoStack, moves: session.moves, elapsedSeconds: session.getElapsed(), config: assistedStock ? 1 : 0 })
+    if (state && !won && !stuck) saveGameInProgress('scorpion', { state, undoStack, moves: session.moves, elapsedSeconds: session.getElapsed(), run: session.getRun(), config: assistedStock ? 1 : 0 })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state, won, stuck, assistedStock, undoStack])
   useSaveInProgressBackstop(!!state && !won && !stuck, () => {
-    if (state && !won && !stuck) saveGameInProgress('scorpion', { state, undoStack, moves: session.moves, elapsedSeconds: session.getElapsed(), config: assistedStock ? 1 : 0 })
+    if (state && !won && !stuck) saveGameInProgress('scorpion', { state, undoStack, moves: session.moves, elapsedSeconds: session.getElapsed(), run: session.getRun(), config: assistedStock ? 1 : 0 })
   })
 
   // Finds one legal move (or a stock-draw suggestion) to highlight - see engine/hint.ts's
@@ -609,7 +612,7 @@ function ScorpionScreenInner() {
     if (!result) return false
     pushUndo(current, { from, to, count, anchorCardId })
     commitState(result)
-    session.registerMove()
+    session.registerMove(runMove({ from, to, count }))
     return true
   }
 
@@ -651,7 +654,7 @@ function ScorpionScreenInner() {
     const result = controller.drawStock(current)
     if (!result) return
     startFlights(1)
-    session.registerMove()
+    session.registerMove('d')
     pushUndo(current, null)
 
     const myToken = ++dealTokenRef.current
@@ -716,6 +719,7 @@ function ScorpionScreenInner() {
       if (dealTokenRef.current !== myToken) return
 
       setUndoStack((stack) => stack.slice(0, -1))
+      session.registerUndo()
       // Taking off from their columns: the commit below takes these cards out of them, but each card's ghost only shows once
       // the packet has been measured (the commit after this one), the deal pool has mounted and the card's own stagger has run
       // out (its column x DEAL_STAGGER_MS: 140-210ms for columns 4-6) - and the columns used to drop them at once, so the
@@ -744,6 +748,7 @@ function ScorpionScreenInner() {
     const origin = peeled || movingCards.length === 0 ? null : await ghost.cardRegistry.measure(move.anchorCardId)
 
     setUndoStack((stack) => stack.slice(0, -1))
+    session.registerUndo()
 
     const flight = peeled ?? (origin ? ghost.show(ghostContent, { x: origin.x, y: origin.y }) : null)
     if (flight) {

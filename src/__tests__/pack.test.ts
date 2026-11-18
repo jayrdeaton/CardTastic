@@ -40,10 +40,15 @@ describe('the pack', () => {
     expect(game.reducers).toEqual({})
   })
 
-  it.each(SOLITAIRE_ORDER)('%s: no seat 2, no loadout and no How to Play of its own', (id) => {
+  it('leaves the player picker to the setup screen every game opens', () => {
+    expect(pack.homePlayerPicker).toBe(false)
+    expect(games.every((game) => game.useLoadout)).toBe(true)
+  })
+
+  it.each(SOLITAIRE_ORDER)('%s: no seat 2 and no How to Play of its own, and a setup screen for its rules and Daily Deal', (id) => {
     const game = games.find((g) => g.id === id)!
     expect(game.seatTwo).toBeUndefined()
-    expect(game.useLoadout).toBeUndefined()
+    expect(game.useLoadout).toBeDefined()
     expect(game.guide).toBeUndefined()
   })
 

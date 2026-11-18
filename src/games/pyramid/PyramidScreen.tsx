@@ -1,8 +1,8 @@
 // Pyramid solitaire screen: triangle tap-to-select board + stock/waste row.
-
 import { useVibration } from '@rific/feedback-press'
 import { useToast } from '@rific/toaster'
 import { CARD_ASPECT, CardSizeProvider } from '@tastic/cards'
+import { type RunAction, runMove } from '@tastic/cardtastic-engine'
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { StyleSheet, View } from 'react-native'
 import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated'
@@ -41,6 +41,7 @@ import { DiscardCell } from '@/games/shared/DiscardCell'
 import { showNoHintToast } from '@/games/shared/gameToasts'
 import { LossBanner } from '@/games/shared/LossBanner'
 import { MoveInfo } from '@/games/shared/undoTypes'
+import { useDailyDeal } from '@/games/shared/useDailyDeal'
 import { useDeferredDeal } from '@/games/shared/useDeferredDeal'
 import { useDerivedWinCheck } from '@/games/shared/useDerivedWinCheck'
 import { useDimAfterDeal } from '@/games/shared/useDimAfterDeal'
@@ -507,6 +508,8 @@ function PyramidScreenInner() {
   // useState: it's a pure function of state, so Undo-ing out of a won position correctly drops the
   // win banner immediately, rather than leaving it stuck showing.
   const { won, recordedRef: recordedWinRef, pendingWinCascadeRef } = useDerivedWinCheck(PyramidController, state, 'pyramid', session, dealTokenRef, recordDealWon, hintsUsedRef)
+  // The Daily Deal this screen was opened for, if any: its seed deals the board, and a win goes to the server (useDailyDeal)
+  const daily = useDailyDeal('pyramid', won, session)
   // Nothing in the air (every removal/draw/undo flight, pair flights included, is counted by
   // startFlights/settleFlight) and no card still waiting on the initial deal - what the win
   // celebration waits for (see useWinReveal).
@@ -962,7 +965,8 @@ function PyramidScreenInner() {
 
   function startNewGame() {
     const myToken = ++dealTokenRef.current
-    const s = PyramidController.newGame(randomSeed())
+    const seed = daily?.seed ?? randomSeed()
+    const s = PyramidController.newGame(seed)
     setSelected(null)
     // The last shake belongs to the old board: card ids are reused by the next deal, so a cell dealt the shaken card must
     // not be handed its token at all (PyramidCell records whatever token its card arrives with as already played, so this
@@ -978,7 +982,7 @@ function PyramidScreenInner() {
     // ghost mounted over the new board for good.
     pendingFlightRef.current = []
     setStockHidden(false)
-    session.reset()
+    session.reset(seed)
     recordedWinRef.current = false
     winCascade.clear()
     pendingWinCascadeRef.current = null
@@ -1007,7 +1011,7 @@ function PyramidScreenInner() {
     // ghost mounted over the new board for good.
     pendingFlightRef.current = []
     setStockHidden(false)
-    session.restore(saved.moves, saved.elapsedSeconds)
+    session.restore(saved.moves, saved.elapsedSeconds, saved.run)
     recordedWinRef.current = false
     setPyramidHiddenIds(new Set())
     dimAfterDeal.releaseNow()
@@ -1103,11 +1107,11 @@ function PyramidScreenInner() {
   // useSaveInProgressBackstop saves again every 10s, when the screen is left, and when the app is
   // backgrounded.
   useEffect(() => {
-    if (state && !won && !stuck) saveGameInProgress('pyramid', { state, undoStack, moves: session.moves, elapsedSeconds: session.getElapsed() })
+    if (state && !won && !stuck) saveGameInProgress('pyramid', { state, undoStack, moves: session.moves, elapsedSeconds: session.getElapsed(), run: session.getRun() })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state, won, stuck, undoStack])
   useSaveInProgressBackstop(!!state && !won && !stuck, () => {
-    if (state && !won && !stuck) saveGameInProgress('pyramid', { state, undoStack, moves: session.moves, elapsedSeconds: session.getElapsed() })
+    if (state && !won && !stuck) saveGameInProgress('pyramid', { state, undoStack, moves: session.moves, elapsedSeconds: session.getElapsed(), run: session.getRun() })
   })
 
   // Mirrors handleDrawStock's forward flight, just in reverse: the drawn card is still sitting in
@@ -1169,6 +1173,7 @@ function PyramidScreenInner() {
       // through the same accounting path every other branch uses instead of a bare direct clear.
       startFlights(1)
       setUndoStack((stack) => stack.slice(0, -1))
+      session.registerUndo()
       commitState(prevState)
       setSelected(null)
       settleFlight()
@@ -1188,6 +1193,7 @@ function PyramidScreenInner() {
     }
 
     setUndoStack((stack) => stack.slice(0, -1))
+    session.registerUndo()
     setSelected(null)
 
     if (origin && stockPos && movingCard) {
@@ -1238,6 +1244,7 @@ function PyramidScreenInner() {
     }
 
     setUndoStack((stack) => stack.slice(0, -1))
+    session.registerUndo()
     setSelected(null)
 
     if (!stockOrigin || !wasteDest || prevState.waste.length === 0) {
@@ -1297,6 +1304,7 @@ function PyramidScreenInner() {
     }
 
     setUndoStack((stack) => stack.slice(0, -1))
+    session.registerUndo()
     setSelected(null)
 
     // A card whose spot cannot be resolved (a rare measurement failure) simply has no ghost and is not hidden: it reappears where
@@ -1444,12 +1452,13 @@ function PyramidScreenInner() {
   // reappears, a draw vanishes) or, for a double-tap on a King, commit the same removal twice. The
   // move's own cards must still be exactly where they were (a bare tryMove could succeed with
   // whatever card now sits at a `waste` ref), and the move must still be legal; null means abort -
-  // nothing has been committed, the caller just settles its claim.
-  function replayMove(from: PileRef, to: PileRef, fromId: string, toId: string): { prev: PyramidState; next: PyramidState } | null {
+  // nothing has been committed, the caller just settles its claim. `action` is the move as the deal's run records it.
+  type Replayed = { prev: PyramidState; next: PyramidState; action: RunAction }
+  function replayMove(from: PileRef, to: PileRef, fromId: string, toId: string): Replayed | null {
     const prev = stateRef.current
     if (!prev || cardAt(prev, from)?.id !== fromId || cardAt(prev, to)?.id !== toId) return null
     const next = PyramidController.tryMove(prev, { from, to, count: 1 })
-    return next ? { prev, next } : null
+    return next ? { prev, next, action: runMove({ from, to, count: 1 }) } : null
   }
 
   // The synchronous commit stretch every removal ends in (no await between reading the board and
@@ -1458,8 +1467,8 @@ function PyramidScreenInner() {
   // move, so the pile never flashes its new top before the ghosts arrive. A removal that WINS also
   // claims the win sweep here (beginWinSweep), while its own claim is still held, so nothing settles
   // in between and the celebration cannot start before the leftover cards have been dealt.
-  function commitRemoval(prev: PyramidState, next: PyramidState, removedCards: RemovedCardRef[], inAir: string[]) {
-    session.registerMove()
+  function commitRemoval({ prev, next, action }: Replayed, removedCards: RemovedCardRef[], inAir: string[]) {
+    session.registerMove(action)
     pushUndo(prev, null, removedCards)
     // A selection made while this move was deferred (its action clears the selection up front, then may park behind a draw flight
     // for a while, and taps in that window are handled normally) can name a card this very commit removes - typically the
@@ -1542,7 +1551,7 @@ function PyramidScreenInner() {
 
     const kingRemoval: RemovedCardRef[] = [{ cardId: fromCard.id, ref: from }]
     if (isSolo) {
-      commitRemoval(replay.prev, replay.next, kingRemoval, discardPos ? [fromCard.id] : [])
+      commitRemoval(replay, kingRemoval, discardPos ? [fromCard.id] : [])
       // Only an unmeasurable discard pile (a zero-size or detached view) leaves nothing to fly to.
       if (!discardPos) {
         settle()
@@ -1563,8 +1572,7 @@ function PyramidScreenInner() {
       specs.push({ card: { ...toCard, faceUp: true }, from: toOrigin, to: discardPos })
     }
     commitRemoval(
-      replay.prev,
-      replay.next,
+      replay,
       [...kingRemoval, { cardId: toCard.id, ref: to }],
       specs.map((spec) => spec.card.id)
     )
@@ -1636,7 +1644,7 @@ function PyramidScreenInner() {
           { cardId: toCard.id, ref: target }
         ]
     if (isSolo) {
-      commitRemoval(replay.prev, replay.next, removed, discardPos ? [fromCard.id] : [])
+      commitRemoval(replay, removed, discardPos ? [fromCard.id] : [])
       if (!discardPos) {
         flight.hide()
         settle()
@@ -1656,8 +1664,7 @@ function PyramidScreenInner() {
       if (toOrigin) specs.push({ card: { ...toCard, faceUp: true }, from: toOrigin, to: discardPos })
     }
     commitRemoval(
-      replay.prev,
-      replay.next,
+      replay,
       removed,
       specs.map((spec) => spec.card.id)
     )
@@ -1718,7 +1725,7 @@ function PyramidScreenInner() {
       settle()
       return false
     }
-    session.registerMove()
+    session.registerMove('d')
 
     const drawnCard = result.waste[result.waste.length - 1]
     if (!drawnCard) {
