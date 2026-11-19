@@ -33,7 +33,7 @@
   "submit": {
     "production": {
       "ios": {
-        "appName": "CardTastic"
+        "appName": "CardTastic: Solitaire & More"
       }
     },
     "preview": {}
