@@ -1,11 +1,12 @@
 import { getBlendedColor } from '@rific/auto-paper'
 import { getAchievementCatalogRows } from '@tastic/achievements'
-import { AchievementRow, LOCKED_BADGE_COLOR, StatRow, StatSection } from '@tastic/hud/chrome'
+import { AchievementRow, LOCKED_BADGE_COLOR, StatRow, StatSection, useWellColors } from '@tastic/hud/chrome'
 import type { PackStatsReset, PackStatsSectionsProps } from '@tastic/shell'
 import { type ComponentType, useState } from 'react'
 import { StyleSheet } from 'react-native'
-import { SegmentedButtons, useTheme } from 'react-native-paper'
+import { SegmentedButtons, Text, useTheme } from 'react-native-paper'
 
+import { DailyCalendar } from '@/components/daily/DailyCalendar'
 import { PlayCalendar } from '@/components/PlayCalendar'
 import { type GameFilter, RecordsList } from '@/components/RecordsList'
 import { SEGMENT_RADIUS, SEGMENT_THEME } from '@/components/segmentedButtons'
@@ -47,6 +48,11 @@ function formatDuration(seconds: number): string {
 const winRate = (wins: number, played: number) => (played > 0 ? `${Math.round((wins / played) * 100)}%` : '-')
 
 /** The stats the picked player's sections read: their bucket as a view, or the phone's totals for Everyone. */
+const isSolitaire = (gameId: string) => (SOLITAIRE_GAME_IDS as readonly string[]).includes(gameId)
+// Whether the game picker takes in any solitaire game: All Games, Solitaire's tab, or one of its games (not a two-player game, or
+// the Two Player tab, whose own sections say it all)
+const showsSolitaire = (gameIds: readonly string[] | null) => !gameIds || gameIds.some(isSolitaire)
+
 function statsViewFor(stats: StatsState, profileId: string | null): StatsState {
   return profileId ? getProfileStatsView(stats.profiles[profileId] ?? DEFAULT_PROFILE_STATS) : stats
 }
@@ -55,10 +61,10 @@ function statsViewFor(stats: StatsState, profileId: string | null): StatsState {
  * line has room over the label; Jay, 2026-10-22), the totals (under the game's name when narrowed to one: which games
  * were solved and the most and least played then have nothing to say) and Activity. Narrowed to one game, the days and
  * day streaks come from the day log too (getGameView), and there is no win streak across games. */
-export function SolitaireStatsSections({ profileId, gameId }: PackStatsSectionsProps) {
+export function SolitaireStatsSections({ profileId, gameId, gameIds }: PackStatsSectionsProps) {
   const { stats } = useGameStats()
-  // Narrowed to a game that isn't solitaire (RatSlap), its own sections say it all.
-  if (gameId && !(SOLITAIRE_GAME_IDS as readonly string[]).includes(gameId)) return null
+  // Narrowed to a game that isn't solitaire (RatSlap), or to the Two Player tab, their own sections say it all.
+  if (!showsSolitaire(gameIds)) return null
   const game = (gameId ?? 'all') as GameFilter
   const statsView = statsViewFor(stats, profileId)
   const shown = game === 'all' ? statsView : getGameView(statsView, game)
@@ -175,16 +181,32 @@ const BOARDS = [
 
 /** The Records tab (the pack's `statsTabs`): each rule set's best wins, by score or by time (RecordsList), narrowed by
  * both pickers. */
-export function RecordsTab({ profileId, gameId }: PackStatsSectionsProps) {
+export function RecordsTab({ profileId, gameId, gameIds }: PackStatsSectionsProps) {
   const { colors } = useTheme()
   const { stats, topWins } = useGameStats()
   const { profiles } = useProfiles()
   const [board, setBoard] = useState<TopWinsBoard>('score')
+  // A two-player game, or the Two Player tab, keeps no records (and has no title in GAME_TITLES, which a solitaire game's empty board
+  // is labeled with)
+  if (!showsSolitaire(gameIds)) return <NoRecords />
   return (
     <>
+      {/* The Daily Deals won, a day at a time (Jay, 2026-11-20); Guest never plays one */}
+      {profileId !== GUEST_PLAYER_ID && <DailyCalendar profileId={profileId} gameIds={gameIds} />}
       <SegmentedButtons value={board} onValueChange={(value) => setBoard(value as TopWinsBoard)} buttons={BOARDS} theme={SEGMENT_THEME} style={[styles.boards, { backgroundColor: colors.surface }]} />
       <RecordsList board={board} topWins={topWins} stats={stats} profiles={profiles} profileId={profileId} game={(gameId ?? 'all') as GameFilter} />
     </>
+  )
+}
+
+function NoRecords() {
+  const { fgMuted } = useWellColors()
+  return (
+    <StatSection label='RECORDS'>
+      <Text variant='bodyMedium' style={{ color: fgMuted }}>
+        Records are kept for solitaire games
+      </Text>
+    </StatSection>
   )
 }
 

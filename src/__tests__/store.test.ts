@@ -102,7 +102,7 @@ describe('the store (pack.ts)', () => {
   it("holds the shell's keys and Solitaire's, and a fresh install saves its root entry and each game's own", async () => {
     const { store, disk } = await launch()
 
-    expect(Object.keys(store.getState()).sort()).toEqual(['_persist', 'achievements', 'appSettings', 'daily', 'gameInProgress', 'guide', 'haptic', 'keepAwake', 'lastActiveGame', 'liveplay', 'opponent', 'playerSettings', 'profileSelection', 'profiles', 'matchStats', 'crazyEightsGuide', 'fourCrownsGuide', 'ginRummyGuide', 'ratslapGuide', 'sixCardGolfGuide', 'slapjackGuide', 'speedGuide', 'trashGuide', 'warGuide', 'recentWins', 'seatColors', 'settings', 'sound', 'theme', 'topWins'].sort())
+    expect(Object.keys(store.getState()).sort()).toEqual(['_persist', 'achievements', 'appSettings', 'daily', 'dailyHistory', 'gameInProgress', 'guide', 'haptic', 'keepAwake', 'lastActiveGame', 'liveplay', 'opponent', 'playerSettings', 'profileSelection', 'profiles', 'matchStats', 'crazyEightsGuide', 'fourCrownsGuide', 'ginRummyGuide', 'ratslapGuide', 'sixCardGolfGuide', 'slapjackGuide', 'speedGuide', 'trashGuide', 'warGuide', 'recentWins', 'seatColors', 'settings', 'sound', 'theme', 'topWins'].sort())
     expect(Object.keys(disk).sort()).toEqual(['solitaire:root', ...SOLITAIRE_GAME_IDS.map((id) => `solitaire:gameInProgress.${id}`)].sort())
     // Never the saved boards (their own entries) or the per-round state.
     expect(Object.keys(slicesOf(disk['solitaire:root']))).not.toEqual(expect.arrayContaining(['gameInProgress']))

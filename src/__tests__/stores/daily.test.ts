@@ -22,14 +22,15 @@ jest.mock('expo-secure-store', () => {
 jest.mock('@/redux/store', () => {
   const { configureStore: configure } = require('@reduxjs/toolkit')
   const reducer = require('@/redux/dailySlice').default
+  const history = require('@/redux/dailyHistorySlice').default
   const selection = { 1: 'kid' }
   const roster = [
     { id: 'kid', name: 'Kid', color: '#3b82f6', tag: 'K', createdAt: 0, updatedAt: 0 },
     { id: 'dad', name: 'Dad', color: '#ef4444', tag: 'D', createdAt: 0, updatedAt: 0 }
   ]
-  return { selection, roster, store: configure({ reducer: { daily: reducer, profileSelection: () => selection, profiles: () => roster }, middleware: (defaults: (options: object) => unknown) => defaults({ immutableCheck: false, serializableCheck: false }) }) }
+  return { selection, roster, store: configure({ reducer: { daily: reducer, dailyHistory: history, profileSelection: () => selection, profiles: () => roster }, middleware: (defaults: (options: object) => unknown) => defaults({ immutableCheck: false, serializableCheck: false }) }) }
 })
-const { selection: mockSelection, roster, store } = jest.requireMock('@/redux/store') as { selection: { 1: string | null }; roster: { id: string; name: string }[]; store: ReturnType<typeof configureStore<{ daily: ReturnType<typeof daily> }>> }
+const { selection: mockSelection, roster, store } = jest.requireMock('@/redux/store') as { selection: { 1: string | null }; roster: { id: string; name: string }[]; store: ReturnType<typeof configureStore<{ daily: ReturnType<typeof daily>; dailyHistory: Record<string, Record<string, string[]>> }>> }
 
 type Reply = { status?: number; body?: unknown } | 'offline'
 const calls: { method: string; path: string; body: unknown; token?: string; headers: Record<string, string> }[] = []
@@ -133,6 +134,15 @@ describe('a Daily win', () => {
     await submitDailyWin('klondike', actions)
     expect(calls.at(-1)).toMatchObject({ method: 'POST', path: `/daily/${today}/klondike/run`, body: { actions }, token: online.playerOf('kid')?.token })
     expect(dailyDealFor('klondike', today)).toMatchObject({ result: RESULT, unsent: null, refused: false })
+  })
+
+  it("goes into the player's history for the Records calendar, and leaves it with the player", async () => {
+    await startDailyDeal('klondike')
+    await submitDailyWin('klondike', actions)
+    const player = online.playerOf('kid')!.id
+    expect(store.getState().dailyHistory).toEqual({ [player]: { [today]: ['klondike'] } })
+    await online.removeAll()
+    expect(store.getState().dailyHistory).toEqual({})
   })
 
   it('is kept when the server cannot be reached, and sent next time', async () => {

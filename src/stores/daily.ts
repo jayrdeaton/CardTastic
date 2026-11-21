@@ -3,6 +3,7 @@ import type { RunAction } from '@tastic/cardtastic-engine'
 import { OnlineError } from '@tastic/profile/online'
 
 import { dailyPlayHref } from '@/components/daily/dailyRoutes'
+import { dailyHistoryActions } from '@/redux/dailyHistorySlice'
 import { dailyActions, type DailyDeal, type DailyResult, type DailyState } from '@/redux/dailySlice'
 import { store } from '@/redux/store'
 
@@ -105,12 +106,19 @@ async function asPlayer<T>(owner: string, method: string, path: string, body?: u
 
 const dealPath = (day: string, game: SolitaireGameId) => `/daily/${day}/${game}`
 
+// A Daily the server took, in the history of the player that won it (the Records tab's calendar)
+function noteWin(owner: string, day: string, game: SolitaireGameId) {
+  const player = dailyState()?.players[owner]?.player
+  if (player) store.dispatch(dailyHistoryActions.won({ player, day, game }))
+}
+
 /** Today's deal in `game` for the active profile: its seed, and their clock, which starts now the first time. */
 export async function startDailyDeal(game: SolitaireGameId): Promise<DailyDeal> {
   const owner = activeOwner()
   const day = localDay()
   const started = await asPlayer<Pick<DailyDeal, 'seed' | 'startedAt' | 'result'>>(owner, 'POST', `${dealPath(day, game)}/start`, {})
   store.dispatch(dailyActions.dealStarted({ owner, game, deal: { ...started, day } }))
+  if (started.result) noteWin(owner, day, game)
   return dailyDealFor(game, day) as DailyDeal
 }
 
@@ -131,6 +139,7 @@ export async function sendDailyWin(game: SolitaireGameId): Promise<void> {
   try {
     const result = await asPlayer<DailyResult>(owner, 'POST', `${dealPath(day, game)}/run`, { actions: unsent })
     store.dispatch(dailyActions.runPosted({ owner, game, result }))
+    noteWin(owner, day, game)
   } catch (error) {
     if (!(error instanceof OnlineError) || error.status === 0 || error.status >= 500 || error.status === 426 || error.status === 429) throw error
     // Already on the board (a retry whose first try got through): the server has the result
@@ -138,6 +147,7 @@ export async function sendDailyWin(game: SolitaireGameId): Promise<void> {
       const started = await asPlayer<Pick<DailyDeal, 'seed' | 'startedAt' | 'result'>>(owner, 'POST', `${dealPath(day, game)}/start`, {}).catch(() => null)
       if (started?.result) {
         store.dispatch(dailyActions.runPosted({ owner, game, result: started.result }))
+        noteWin(owner, day, game)
         return
       }
     }

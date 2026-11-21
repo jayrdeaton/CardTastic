@@ -27,6 +27,11 @@ jest.mock('@/stores/gameStats', () => {
 })
 jest.mock('@/stores/profiles', () => ({ useProfiles: () => ({ profiles: mockProfilesList }) }))
 jest.mock('@/stores/achievementCatalog', () => ({ ACHIEVEMENT_CATALOG: [] }))
+// The Records tab's Daily calendar reads the store itself (tested in dailyCalendar.test.tsx): here it only says who it's for
+jest.mock('@/components/daily/DailyCalendar', () => {
+  const { Text: RNText } = require('react-native')
+  return { DailyCalendar: ({ profileId }: { profileId: string | null }) => <RNText testID='daily-calendar'>{String(profileId)}</RNText> }
+})
 jest.mock('@tastic/achievements', () => ({
   ...jest.requireActual('@tastic/achievements'),
   // One stand-in row, so the list has something to show.
@@ -71,7 +76,7 @@ describe("the Stats tab's section across every game", () => {
     let stats = DEFAULT_STATS
     for (let i = 0; i < 20; i++) stats = applyDealAbandoned(stats, 'spider', null)
     mockStats = stats
-    await render(<SolitaireStatsSections profileId={null} gameId={null} />)
+    await render(<SolitaireStatsSections profileId={null} gameId={null} gameIds={null} />)
     expect(sectionLabels()).toEqual(['CALENDAR', 'OVERALL', 'ACTIVITY'])
     // 20 Spider deals of 104 cards.
     expect(rowValue('Cards Dealt')).toEqual(['2,080'])
@@ -79,11 +84,11 @@ describe("the Stats tab's section across every game", () => {
 
   it('narrowed to one game: its totals under its name, and no cross-game rows', async () => {
     mockStats = applyDealWon(applyDealWon(DEFAULT_STATS, 'klondike', WON, null), 'spider', WON, null)
-    const { rerender } = await render(<SolitaireStatsSections profileId={null} gameId={null} />)
+    const { rerender } = await render(<SolitaireStatsSections profileId={null} gameId={null} gameIds={null} />)
     expect(rowValue('Games Played')).toEqual(['2'])
     expect(screen.queryByTestId('row:Games Solved')).not.toBeNull()
 
-    await rerender(<SolitaireStatsSections profileId={null} gameId='spider' />)
+    await rerender(<SolitaireStatsSections profileId={null} gameId='spider' gameIds={['spider']} />)
     expect(sectionLabels()).toEqual(['CALENDAR', 'SPIDER', 'ACTIVITY'])
     expect(rowValue('Games Played')).toEqual(['1'])
     expect(screen.queryByTestId('row:Games Solved')).toBeNull()
@@ -91,12 +96,20 @@ describe("the Stats tab's section across every game", () => {
     expect(screen.queryByTestId('row:Win Streak, All Games')).toBeNull()
   })
 
+  // The game picker's Two Player tab (or one of its games): the two-player games' own sections say it all
+  it('draws nothing for the Two Player tab, and everything for the Solitaire tab', async () => {
+    const { rerender, toJSON } = await render(<SolitaireStatsSections profileId={null} gameId={null} gameIds={['ratslap', 'war']} />)
+    expect(toJSON()).toBeNull()
+    await rerender(<SolitaireStatsSections profileId={null} gameId={null} gameIds={['klondike', 'spider']} />)
+    expect(sectionLabels()).toContain('OVERALL')
+  })
+
   it("shows guest's own stats under Guest, and the phone's totals under Everyone", async () => {
     // A profile played twice, guest once.
     mockStats = applyDealWon(applyDealAbandoned(applyDealWon(DEFAULT_STATS, 'klondike', WON, 'kid'), 'klondike', 'kid'), 'golf', WON, 'guest')
-    const { rerender } = await render(<SolitaireStatsSections profileId='guest' gameId={null} />)
+    const { rerender } = await render(<SolitaireStatsSections profileId='guest' gameId={null} gameIds={null} />)
     expect(rowValue('Games Played')).toEqual(['1'])
-    await rerender(<SolitaireStatsSections profileId={null} gameId={null} />)
+    await rerender(<SolitaireStatsSections profileId={null} gameId={null} gameIds={null} />)
     expect(rowValue('Games Played')).toEqual(['3'])
   })
 
@@ -105,7 +118,7 @@ describe("the Stats tab's section across every game", () => {
     const par = parFor('klondike')
     const score = Math.round(par.score * 0.9)
     mockStats = applyDealWon(DEFAULT_STATS, 'klondike', { seconds: par.seconds, moves: score - par.seconds, score, usedHint: false }, null)
-    await render(<SolitaireStatsSections profileId={null} gameId={null} />)
+    await render(<SolitaireStatsSections profileId={null} gameId={null} gameIds={null} />)
     // Overall has no par row near it, so its row names par in the label.
     expect(rowValue('Best vs Par')).toEqual(['10% under'])
   })
@@ -160,7 +173,7 @@ describe('the Records tab', () => {
   it("lists each rule set's best wins by best score, ranked, and by fastest on the switch", async () => {
     mockTopWins = { guest: { klondike: boards({ moves: 100, seconds: 300, at: oct21 }, { moves: 150, seconds: 200, at: null }, { moves: 90, seconds: 400, at: oct21 }) } }
     mockStats = statsWith([{ player: null, n: 3 }])
-    await render(<RecordsTab profileId={null} gameId={null} />)
+    await render(<RecordsTab profileId={null} gameId={null} gameIds={null} />)
 
     expect(sectionLabels()).toEqual(['KLONDIKE · DRAW 1'])
     expect(records()).toEqual(['#1, score 350, time 3:20, 150 moves', '#2, score 400, time 5:00, 100 moves, Oct 21', '#3, score 490, time 6:40, 90 moves, Oct 21'])
@@ -176,10 +189,10 @@ describe('the Records tab', () => {
       { player: 'kid', n: 1 },
       { player: 'guest', n: 1 }
     ])
-    const { rerender } = await render(<RecordsTab profileId='kid' gameId={null} />)
+    const { rerender } = await render(<RecordsTab profileId='kid' gameId={null} gameIds={null} />)
     expect(records()).toEqual(['#1, score 400, time 5:00, 100 moves'])
 
-    await rerender(<RecordsTab profileId={null} gameId={null} />)
+    await rerender(<RecordsTab profileId={null} gameId={null} gameIds={null} />)
     // The name takes the moves' place.
     expect(records()).toEqual(['#1, score 300, time 3:20, Guest', '#2, score 400, time 5:00, Kid'])
   })
@@ -187,24 +200,42 @@ describe('the Records tab', () => {
   it('shares a place between equal wins', async () => {
     mockTopWins = { guest: { klondike: boards({ moves: 100, seconds: 200, at: null }, { moves: 120, seconds: 180, at: null }, { moves: 100, seconds: 250, at: null }) } }
     mockStats = statsWith([{ player: null, n: 3 }])
-    await render(<RecordsTab profileId={null} gameId={null} />)
+    await render(<RecordsTab profileId={null} gameId={null} gameIds={null} />)
     expect(records().map((r) => r.split(', ')[0])).toEqual(['#1', '#1', '#3'])
   })
 
   it("doesn't number a board missing some of the wins (won before the boards were kept), and says so", async () => {
     mockTopWins = { guest: { klondike: boards({ moves: 100, seconds: 300, at: null }) } }
     mockStats = statsWith([{ player: null, n: 4 }])
-    await render(<RecordsTab profileId={null} gameId={null} />)
+    await render(<RecordsTab profileId={null} gameId={null} gameIds={null} />)
     expect(records()).toEqual(['score 400, time 5:00, 100 moves'])
     expect(screen.getByText('Not ranked: some earlier wins weren’t kept')).toBeTruthy()
   })
 
   it('says there are no wins yet, under the game picked', async () => {
-    const { rerender } = await render(<RecordsTab profileId={null} gameId={null} />)
+    const { rerender } = await render(<RecordsTab profileId={null} gameId={null} gameIds={null} />)
     expect(sectionLabels()).toEqual(['RECORDS'])
     expect(screen.getByText('No wins yet')).toBeTruthy()
-    await rerender(<RecordsTab profileId={null} gameId='golf' />)
+    await rerender(<RecordsTab profileId={null} gameId='golf' gameIds={['golf']} />)
     expect(sectionLabels()).toEqual(['GOLF'])
+  })
+
+  it('leads with the Daily calendar for a profile or Everyone, never for Guest, who never plays one', async () => {
+    const { rerender } = await render(<RecordsTab profileId={null} gameId={null} gameIds={null} />)
+    expect(screen.getByTestId('daily-calendar')).toHaveTextContent('null')
+    await rerender(<RecordsTab profileId='kid' gameId={null} gameIds={null} />)
+    expect(screen.getByTestId('daily-calendar')).toHaveTextContent('kid')
+    await rerender(<RecordsTab profileId='guest' gameId={null} gameIds={null} />)
+    expect(screen.queryByTestId('daily-calendar')).toBeNull()
+  })
+
+  // It threw on a two-player game (GAME_TITLES has only the solitaire games)
+  it('says a two-player game, or the Two Player tab, keeps no records', async () => {
+    const { rerender } = await render(<RecordsTab profileId={null} gameId='ratslap' gameIds={['ratslap']} />)
+    expect(sectionLabels()).toEqual(['RECORDS'])
+    expect(screen.getByText('Records are kept for solitaire games')).toBeTruthy()
+    await rerender(<RecordsTab profileId={null} gameId={null} gameIds={['ratslap', 'war']} />)
+    expect(screen.getByText('Records are kept for solitaire games')).toBeTruthy()
   })
 })
 

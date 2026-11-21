@@ -4,6 +4,7 @@ import { DAILY_OWNER_SUFFIX } from '@/stores/dailyScope'
 import { SOLITAIRE_GAME_IDS } from '@/stores/statsTypes'
 
 import achievements, { dropProfileStats } from './achievementsSlice'
+import dailyHistory from './dailyHistorySlice'
 import daily, { dailyActions } from './dailySlice'
 import gameInProgress, { gameInProgressActions } from './gameInProgressSlice'
 import guide from './guideSlice'
@@ -40,6 +41,8 @@ export const packReducers = {
   matchStats: onProfileRemoved(matchStats, (state, profileId) => matchStats(state, matchStatsActions.forget(profileId))),
   // The Daily Deals: each player's anonymous player on Tastic-Server and the deal they last started in each game (see dailySlice.ts).
   daily: onProfileRemoved(daily, (state, profileId) => daily(state, dailyActions.forget(profileId))),
+  // Each server player's Daily wins by day, for the Records tab's calendar (see dailyHistorySlice.ts): a player's go with it.
+  dailyHistory,
   // Which version of the how-to-play flow this player has finished or skipped. Its own key rather than a Settings
   // field, so it survives Reset Stats. See guideSlice.ts's own doc.
   guide,

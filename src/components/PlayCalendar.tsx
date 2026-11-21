@@ -1,15 +1,15 @@
 import { getBlendedColor, useAutoPaperTheme } from '@rific/auto-paper'
+import { Pressable as FeedbackPressable } from '@rific/feedback-press'
 import Heatmap, { type ColorScale, type DataPoint, type TimelineDataPoint } from '@rific/heatmap'
 import { localDateString } from '@tastic/achievements'
 import { useMemo, useState } from 'react'
 import { type LayoutChangeEvent, Pressable, StyleSheet, Text as NativeText, View } from 'react-native'
-import { SegmentedButtons, Text, useTheme } from 'react-native-paper'
+import { Text, useTheme } from 'react-native-paper'
 
 import type { DayRecord } from '@/stores/statsTypes'
 import { commaString } from '@/utils/commaString'
 
 import { isMotionReduced } from './reducedMotionFlag'
-import { SEGMENT_THEME } from './segmentedButtons'
 import { useTableColors } from './theme'
 
 /** How much of the felt an empty day keeps, over the well's surface: a softened ("disabled") felt that still reads as felt in dark mode (at 0.45 it all but vanished there). */
@@ -169,13 +169,31 @@ export function hoursKeptFrom(days: Record<string, DayRecord>, startTime: number
 
 export type CalendarUnit = 'days' | 'hours'
 
-const UNITS = [
-  { value: 'days', label: 'Days' },
-  { value: 'hours', label: 'Hours' }
+const UNITS: { value: CalendarUnit; label: string; hint: string }[] = [
+  { value: 'days', label: 'Days', hint: 'Shows the calendar as days in weeks' },
+  { value: 'hours', label: 'Hours', hint: 'Shows the calendar as hours, six to a column' }
 ]
+// A finger's worth round the two words, as Lumber's
+const UNIT_HIT_SLOP = { bottom: 10, left: 6, right: 6, top: 10 }
 
 // The calendar's tooltip is the well's title line instead (see PlayCalendar), so the package draws none
 const noTooltip = () => null
+
+/** The calendars' look, the Stats tab's and the Records tab's Daily one: the package's theme on the well, and the shades. */
+export function useCalendarLook() {
+  const { colors } = useAutoPaperTheme()
+  const { tableFelt } = useTableColors()
+  const theme = useMemo(() => ({ backgroundColor: 'transparent', monthLabelColor: colors.onSurfaceVariant, dayLabelColor: colors.onSurfaceVariant, todayBorderColor: 'transparent', selectedBorderColor: colors.onSurface }), [colors])
+  // An empty day is the felt, muted (Jay, 2026-10-22: "the felt color, or a disabled variant of it"); a day played is the
+  // player's color, in even steps from a pale tint to full. The package's own scale fades from near-black in dark mode (or
+  // white in light), so its lightest shades sat almost on the empty color against this well.
+  const colorScale = useMemo(() => {
+    const empty = getBlendedColor(tableFelt, colors.surface, EMPTY_DAY_FELT)
+    const shade = (amount: number) => getBlendedColor(colors.primary, colors.surface, amount)
+    return { emptyColor: empty, colors: [empty, shade(0.35), shade(0.58), shade(0.8), colors.primary] }
+  }, [colors, tableFelt])
+  return { theme, colorScale }
+}
 
 /**
  * A year of play, a square a day, the most recent week on the right and the year before it a scroll away
@@ -191,7 +209,6 @@ const noTooltip = () => null
  */
 export function PlayCalendar({ days }: { days: Record<string, DayRecord> }) {
   const { colors } = useAutoPaperTheme()
-  const { tableFelt } = useTableColors()
   const { dark } = useTheme()
   const [unit, setUnit] = useState<CalendarUnit>('days')
   // At most one of them: a day (tapped on the calendar, or by its name over the hours) or an hour
@@ -199,15 +216,7 @@ export function PlayCalendar({ days }: { days: Record<string, DayRecord> }) {
   const [selectedHour, setSelectedHour] = useState<number | null>(null)
   const [width, setWidth] = useState(0)
   const data = useMemo<DataPoint[]>(() => Object.entries(days).map(([date, day]) => ({ date, value: day.played })), [days])
-  const theme = useMemo(() => ({ backgroundColor: 'transparent', monthLabelColor: colors.onSurfaceVariant, dayLabelColor: colors.onSurfaceVariant, todayBorderColor: 'transparent', selectedBorderColor: colors.onSurface }), [colors])
-  // An empty day is the felt, muted (Jay, 2026-10-22: "the felt color, or a disabled variant of it"); a day played is the
-  // player's color, in even steps from a pale tint to full. The package's own scale fades from near-black in dark mode (or
-  // white in light), so its lightest shades sat almost on the empty color against this well.
-  const colorScale = useMemo(() => {
-    const empty = getBlendedColor(tableFelt, colors.surface, EMPTY_DAY_FELT)
-    const shade = (amount: number) => getBlendedColor(colors.primary, colors.surface, amount)
-    return { emptyColor: empty, colors: [empty, shade(0.35), shade(0.58), shade(0.8), colors.primary] }
-  }, [colors, tableFelt])
+  const { theme, colorScale } = useCalendarLook()
 
   const selectDay = (date: string | null) => {
     setSelectedDay(date)
@@ -242,7 +251,17 @@ export function PlayCalendar({ days }: { days: Record<string, DayRecord> }) {
         {line}
       </Text>
       {unit === 'days' ? <Heatmap.Calendar data={data} color={colors.primary} colorScheme={dark ? 'dark' : 'light'} colorScale={colorScale} theme={theme} animated={!isMotionReduced()} selectedDate={selectedDay} onSelectionChange={selectDay} renderTooltip={noTooltip} tooltipLabel='deal' tooltipEmptyLabel='No deals' /> : width > 0 ? <HourCalendar days={days} width={width} colorScale={colorScale} dark={dark} selectedDay={selectedDay} selectedHour={selectedHour} onSelectDay={selectDay} onSelectHour={selectHour} /> : <View style={styles.hours} />}
-      <SegmentedButtons value={unit} onValueChange={switchUnit} buttons={UNITS} theme={SEGMENT_THEME} />
+      {/* Days or Hours, as two quiet words under the calendar, the one showing in the accent (Jay, 2026-11-20: Lumber's look, since it's
+      rarely switched; it was a segmented switch) */}
+      <View style={styles.units}>
+        {UNITS.map(({ value, label, hint }) => (
+          <FeedbackPressable key={value} onPress={() => switchUnit(value)} hitSlop={UNIT_HIT_SLOP} accessibilityRole='button' accessibilityState={{ selected: unit === value }} accessibilityLabel={label} accessibilityHint={hint}>
+            <Text variant='labelSmall' style={[styles.unit, { color: unit === value ? colors.primary : colors.onSurfaceVariant }]}>
+              {label}
+            </Text>
+          </FeedbackPressable>
+        ))}
+      </View>
     </View>
   )
 }
@@ -344,5 +363,7 @@ const styles = StyleSheet.create({
   dayOutline: { borderWidth: 1.5, bottom: -CELL_GAP / 2, position: 'absolute', top: -CELL_GAP / 2 },
   // The calendar's box: its height, and its squares' padding round the grid, so the bottom rows line up
   hours: { height: CALENDAR_HEIGHT, paddingBottom: CELL_GAP / 2, paddingHorizontal: CELL_GAP / 2 },
-  pressed: { opacity: 0.6 }
+  pressed: { opacity: 0.6 },
+  unit: { letterSpacing: 1, textTransform: 'uppercase' },
+  units: { alignSelf: 'flex-end', flexDirection: 'row', gap: 14 }
 })
