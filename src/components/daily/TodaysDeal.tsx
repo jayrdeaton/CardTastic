@@ -4,34 +4,35 @@ import { useCallback, useState } from 'react'
 import { StyleSheet, View } from 'react-native'
 import { useSelector } from 'react-redux'
 
-import { GUEST_PLAYER_ID } from '@/constants/player'
 import { ordinal } from '@/engine/topWins'
 import { type VariantId, variantInfo } from '@/engine/variants'
 import type { RootState } from '@/redux/store'
-import { fetchDailyBoard, flushDailyDeletions, localDay, sendDailyWin, startDailyDeal, syncDailyLook } from '@/stores/daily'
-import { usePlayer } from '@/stores/profiles'
+import { dailyErrorText, fetchDailyBoard, localDay, sendDailyWin, startDailyDeal, syncDailyLook } from '@/stores/daily'
+import { usePlayer, useProfiles } from '@/stores/profiles'
 import type { SolitaireGameId } from '@/stores/statsTypes'
 import { commaString } from '@/utils/commaString'
 
 import { dailyBoardHref, dailyPlayHref } from './dailyRoutes'
 import { DailyRow } from './DailyRow'
-
-const errorText = (error: unknown) => (error instanceof Error ? error.message : 'Something went wrong')
+import { NamePrompt, tagOfName } from './NamePrompt'
 
 /**
  * A solitaire game's Daily Deal on its setup screen (games/shared/solitaireLoadout.tsx): playing today's deal, the same shuffle for
  * everyone under the game's default rules, and its board. The server's clock starts with the tap that first deals it and never
- * stops, so playing is always this deliberate tap, never a regular New Game.
+ * stops, so playing is always this deliberate tap, never a regular New Game. A Daily is always a profile's (stores/online.ts): a guest
+ * tapping either row is asked their name first, and a profile made from it in their color is picked (Jay, 2026-11-20).
  */
 export function TodaysDeal({ game }: { game: SolitaireGameId }) {
   const toast = useToast()
-  const { profile, profileId, color } = usePlayer()
-  const owner = profileId ?? GUEST_PLAYER_ID
+  const { profile, profileId, color, select } = usePlayer()
+  const { createProfile } = useProfiles()
+  // What a guest was about to do when asked their name
+  const [naming, setNaming] = useState<'play' | 'board' | null>(null)
   const [day, setDay] = useState(localDay)
   const [busy, setBusy] = useState(false)
   const [wins, setWins] = useState<number | null>(null)
-  const deal = useSelector((state: RootState) => state.daily.deals[owner]?.[game])
-  const player = useSelector((state: RootState) => state.daily.players[owner])
+  const deal = useSelector((state: RootState) => (profileId ? state.daily.deals[profileId]?.[game] : undefined))
+  const player = useSelector((state: RootState) => (profileId ? state.daily.players[profileId] : undefined))
   const today = deal?.day === day ? deal : null
   const hasPlayer = !!player
   const listed = player?.listed === true
@@ -43,7 +44,6 @@ export function TodaysDeal({ game }: { game: SolitaireGameId }) {
       const now = localDay()
       setDay(now)
       setWins(null)
-      flushDailyDeletions().catch(() => {})
       sendDailyWin(game).catch(() => {})
       if (hasPlayer) {
         syncDailyLook({ tag, color }).catch(() => {})
@@ -60,12 +60,35 @@ export function TodaysDeal({ game }: { game: SolitaireGameId }) {
   )
 
   async function play() {
+    if (!profileId) {
+      setNaming('play')
+      return
+    }
+    await startDeal()
+  }
+
+  function openBoard() {
+    if (!profileId) setNaming('board')
+    else router.push(dailyBoardHref(game))
+  }
+
+  // A guest's name: a profile in their own color, its first letter the tag, picked as the player before anything goes online
+  function named(name: string) {
+    const next = naming
+    setNaming(null)
+    const made = createProfile({ name, color, tag: tagOfName(name) })
+    select(made.id)
+    if (next === 'play') void startDeal()
+    else router.push(dailyBoardHref(game))
+  }
+
+  async function startDeal() {
     setBusy(true)
     try {
       const started = await startDailyDeal(game)
       if (!started.result) router.push(dailyPlayHref(game, started.day))
     } catch (error) {
-      toast.info(errorText(error), undefined, undefined, { icon: 'wifi-off' })
+      toast.info(dailyErrorText(error), undefined, undefined, { icon: 'wifi-off' })
     } finally {
       setBusy(false)
     }
@@ -84,7 +107,8 @@ export function TodaysDeal({ game }: { game: SolitaireGameId }) {
   return (
     <View style={styles.rows} testID={`${game}-todays-deal`}>
       <DailyRow icon='calendar-star' label="Today's Deal" caption={caption} disabled={busy} onPress={done ? undefined : () => void play()} trailing={done ? undefined : 'play'} testID={`${game}-daily-play`} />
-      <DailyRow icon='podium' label="Today's Board" caption={wins === null ? 'See who is ahead' : wins === 1 ? '1 win posted' : `${commaString(wins)} wins posted`} onPress={() => router.push(dailyBoardHref(game))} trailing='chevron-right' testID={`${game}-daily-board`} />
+      <DailyRow icon='podium' label="Today's Board" caption={wins === null ? 'See who is ahead' : wins === 1 ? '1 win posted' : `${commaString(wins)} wins posted`} onPress={openBoard} trailing='chevron-right' testID={`${game}-daily-board`} />
+      <NamePrompt visible={naming !== null} confirmLabel={naming === 'board' ? 'Continue' : 'Play'} onDone={named} onCancel={() => setNaming(null)} />
     </View>
   )
 }

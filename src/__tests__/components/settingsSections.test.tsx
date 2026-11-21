@@ -18,7 +18,10 @@ jest.mock('@/components/theme', () => {
 })
 jest.mock('@/components/cardFont', () => ({ CARD_FONT_FAMILY: 'TestSerif' }))
 // The Monogram back's preview shows the selected player's tag; a guest has none.
-jest.mock('@/components/daily/DailySettingsSection', () => ({ DailySettingsSection: () => null }))
+jest.mock('@/components/daily/DailySettingsSection', () => {
+  const { Text } = require('react-native')
+  return { DailySettingsSection: () => <Text>DAILY DEALS</Text>, OnlineSection: () => <Text>ONLINE</Text> }
+})
 jest.mock('@/stores/profiles', () => ({ usePlayer: () => ({ profile: null }) }))
 // The sheet shows the rules of the game it's opened in, found from the route.
 let mockPath = '/'
@@ -71,6 +74,20 @@ describe("Solitaire's own Settings sections", () => {
     await renderSections()
 
     expect(screen.getByText('After 30 seconds')).toBeTruthy()
+  })
+
+  // Delete Online Data is every profile's at once, so it's in every sheet; whether to show on the Daily boards is the
+  // solitaire games'
+  it("has the ONLINE section in every sheet, and the Daily's own row in a solitaire game's", async () => {
+    mockPath = '/play/klondike'
+    await renderSections()
+    expect(screen.getByText('DAILY DEALS')).toBeTruthy()
+    expect(screen.getByText('ONLINE')).toBeTruthy()
+
+    mockPath = '/play/ginrummy'
+    await renderSections()
+    expect(screen.queryByText('DAILY DEALS')).toBeNull()
+    expect(screen.getByText('ONLINE')).toBeTruthy()
   })
 })
 

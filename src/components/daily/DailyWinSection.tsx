@@ -6,27 +6,23 @@ import { StyleSheet, View } from 'react-native'
 import { Text } from 'react-native-paper'
 import { useSelector } from 'react-redux'
 
-import { GUEST_PLAYER_ID } from '@/constants/player'
 import { ordinal } from '@/engine/topWins'
 import type { RootState } from '@/redux/store'
-import { sendDailyWin, setDailyListed } from '@/stores/daily'
+import { dailyErrorText, sendDailyWin, setDailyListed } from '@/stores/daily'
 import { usePlayer } from '@/stores/profiles'
 import type { SolitaireGameId } from '@/stores/statsTypes'
-
-const errorText = (error: unknown) => (error instanceof Error ? error.message : 'Something went wrong')
 
 /**
  * The win card's Daily Deal lines: where the win stands today, and, the first time a profile wins one, whether to show on the public
  * boards (Jay, 2026-11-18). The win is on the server already, unseen (players.listed), so the question costs no time on the clock.
- * Guest plays the Daily but never shows.
+ * A Daily is always a profile's (stores/online.ts).
  */
 export function DailyWinSection({ game }: { game: SolitaireGameId }) {
   const { colors } = useAutoPaperTheme()
   const { fg, fgMuted } = useOverlayCardColors()
   const { profile, profileId, color } = usePlayer()
-  const owner = profileId ?? GUEST_PLAYER_ID
-  const deal = useSelector((state: RootState) => state.daily.deals[owner]?.[game])
-  const player = useSelector((state: RootState) => state.daily.players[owner])
+  const deal = useSelector((state: RootState) => (profileId ? state.daily.deals[profileId]?.[game] : undefined))
+  const player = useSelector((state: RootState) => (profileId ? state.daily.players[profileId] : undefined))
   const [busy, setBusy] = useState(false)
   const [unreachable, setUnreachable] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -44,7 +40,7 @@ export function DailyWinSection({ game }: { game: SolitaireGameId }) {
     try {
       await setDailyListed(listed, { tag: profile?.tag ?? '', color })
     } catch (failure) {
-      setError(errorText(failure))
+      setError(dailyErrorText(failure))
     } finally {
       setBusy(false)
     }

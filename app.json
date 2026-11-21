@@ -73,6 +73,12 @@
           "enableBackgroundPlayback": false
         }
       ],
+      [
+        "expo-secure-store",
+        {
+          "faceIDPermission": false
+        }
+      ],
       "expo-asset"
     ],
     "extra": {

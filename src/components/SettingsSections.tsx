@@ -7,7 +7,7 @@ import { StyleSheet, View } from 'react-native'
 import { Icon, Text } from 'react-native-paper'
 
 import { CardBackArt } from '@/components/CardBackArt'
-import { DailySettingsSection } from '@/components/daily/DailySettingsSection'
+import { DailySettingsSection, OnlineSection } from '@/components/daily/DailySettingsSection'
 import { useSystemReduceMotion } from '@/components/reducedMotion'
 import { GameRulesSection, RuleRows } from '@/components/RuleRows'
 import { SettingsSection } from '@/components/SettingsSection'
@@ -182,6 +182,8 @@ export function SettingsSections() {
         </View>
       </SettingsSection>
       {solitaireRows && <DailySettingsSection />}
+      {/* Delete Online Data, every profile's at once, in every sheet once one has played a Daily (as in every Tastic game) */}
+      <OnlineSection />
       <SettingsSection label='CARDS'>
         {/* Same bare-row shape as BaseSettingsDialog's own Sound/Haptics rows (an icon badge whose
         color/glyph flips with state, plus a single-line label, no separate Switch) - that

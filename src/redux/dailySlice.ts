@@ -3,13 +3,15 @@ import type { RunAction } from '@tastic/cardtastic-engine'
 
 import type { SolitaireGameId } from '@/stores/statsTypes'
 
-// The Daily Deals, per player (a profile's id, or GUEST_PLAYER_ID): their player on Tastic-Server and the deal they last started in
-// each game. Read and written through stores/daily.ts.
+// The Daily Deals, per profile: whether they show on the public boards and the deal they last started in each game. Their player
+// on Tastic-Server (its id and key) is @tastic/profile/online's (stores/online.ts), kept in the Keychain, not here. Read and written
+// through stores/daily.ts.
 
-/** A player's account on the server: anonymous (no name, no sign-in), one per profile. */
+/** What a profile's server player shows on the boards. Tied to that player's id: a new player (Delete Online Data, a player the
+ * server lost) starts over here too. */
 export interface DailyPlayer {
-  id: string
-  token: string
+  // The server's id for the profile's player
+  player: string
   // Whether their wins show on the public boards: null until they've been asked, on their first Daily win
   listed: boolean | null
   // The tag and color the server last got for them, so a change can be sent
@@ -39,29 +41,42 @@ export interface DailyDeal {
 export interface DailyState {
   players: Record<string, DailyPlayer>
   deals: Record<string, Partial<Record<SolitaireGameId, DailyDeal>>>
-  // Tokens of deleted profiles' players, whose server data is still to be deleted
-  orphans: string[]
   // The Daily Deal on the play screen last opened, so a relaunch into that game goes back to it and not to the regular game
   playing: { owner: string; game: SolitaireGameId; day: string } | null
 }
 
-const initialState: DailyState = { players: {}, deals: {}, orphans: [], playing: null }
+const initialState: DailyState = { players: {}, deals: {}, playing: null }
+
+const fresh = (player: string): DailyPlayer => ({ player, listed: null, shownTag: null, shownColor: null })
 
 const slice = createSlice({
   name: 'daily',
   initialState,
   reducers: {
-    playerMade: (state, action: PayloadAction<{ owner: string; player: DailyPlayer }>) => {
-      state.players[action.payload.owner] = action.payload.player
+    // The profile's player, as the server knows it now. Another player than the one on file (the server lost the last one) starts
+    // the profile over: what showed and the deals started belonged to the old one
+    playerJoined: (state, action: PayloadAction<{ owner: string; player: string }>) => {
+      const { owner, player } = action.payload
+      if (state.players[owner]?.player === player) return
+      state.players[owner] = fresh(player)
+      delete state.deals[owner]
     },
-    playerChanged: (state, action: PayloadAction<{ owner: string; changes: Partial<DailyPlayer> }>) => {
+    playerChanged: (state, action: PayloadAction<{ owner: string; changes: Partial<Omit<DailyPlayer, 'player'>> }>) => {
       const player = state.players[action.payload.owner]
       if (player) Object.assign(player, action.payload.changes)
     },
-    // The server no longer knows this player (its token was refused): a new one will be made. Their deals went with them.
-    playerLost: (state, action: PayloadAction<string>) => {
-      delete state.players[action.payload]
-      delete state.deals[action.payload]
+    // The players kept on the device (stores/online.ts), each a profile: a profile whose player is gone or replaced (deleted with the
+    // profile, by Delete Online Data, or forgotten after the server refused its key) is forgotten here too
+    playersKept: (state, action: PayloadAction<{ owner: string; player: string }[]>) => {
+      const live = new Map(action.payload.map(({ owner, player }) => [owner, player]))
+      const players: DailyState['players'] = {}
+      const deals: DailyState['deals'] = {}
+      for (const [owner, known] of Object.entries(state.players)) {
+        if (live.get(owner) !== known.player) continue
+        players[owner] = known
+        if (state.deals[owner]) deals[owner] = state.deals[owner]
+      }
+      return { players, deals, playing: state.playing }
     },
     dealStarted: (state, action: PayloadAction<{ owner: string; game: SolitaireGameId; deal: Pick<DailyDeal, 'day' | 'seed' | 'startedAt' | 'result'> }>) => {
       const { owner, game, deal } = action.payload
@@ -86,18 +101,13 @@ const slice = createSlice({
       deal.unsent = null
       deal.refused = true
     },
-    // A player gone from this device (a deleted profile, or Delete Daily Scores): their server data is deleted as soon as it can be
+    // A deleted profile: its server player goes with it (stores/online.ts' sync)
     forget: (state, action: PayloadAction<string>) => {
-      const player = state.players[action.payload]
-      if (player) state.orphans.push(player.token)
       delete state.players[action.payload]
       delete state.deals[action.payload]
     },
     playingSet: (state, action: PayloadAction<DailyState['playing']>) => {
       state.playing = action.payload
-    },
-    orphanDeleted: (state, action: PayloadAction<string>) => {
-      state.orphans = state.orphans.filter((token) => token !== action.payload)
     }
   }
 })

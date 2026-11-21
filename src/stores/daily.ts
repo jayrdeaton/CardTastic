@@ -1,30 +1,18 @@
 import { localDateString } from '@tastic/achievements'
-import { RULES_VERSION, type RunAction } from '@tastic/cardtastic-engine'
+import type { RunAction } from '@tastic/cardtastic-engine'
+import { OnlineError } from '@tastic/profile/online'
 
 import { dailyPlayHref } from '@/components/daily/dailyRoutes'
-import { GUEST_PLAYER_ID } from '@/constants/player'
-import { dailyActions, type DailyDeal, type DailyPlayer, type DailyResult, type DailyState } from '@/redux/dailySlice'
+import { dailyActions, type DailyDeal, type DailyResult, type DailyState } from '@/redux/dailySlice'
 import { store } from '@/redux/store'
 
+import { online } from './online'
 import type { SolitaireGameId } from './statsTypes'
 
 // The Daily Deals on Tastic-Server (its CLAUDE.md, "Daily leaderboards"): each solitaire game's default rules deal one shuffle a day,
 // the same for everyone. Starting one starts the server's clock; a win goes to the server the moment it happens, which replays it
-// with @tastic/cardtastic-engine and stops the clock. A player is anonymous, and shows on a public board only once they've said yes.
-
-export const SERVER_URL = process.env.EXPO_PUBLIC_ONLINE_URL ?? 'https://play.infinitetoken.com'
-const GAME = 'cardtastic'
-// The server wants a name for every player and only ever shows it in games that have seats. No one's real name goes to it
-const PLAYER_NAME = 'CardTastic'
-
-export class DailyError extends Error {
-  constructor(
-    readonly status: number,
-    message: string
-  ) {
-    super(message)
-  }
-}
+// with @tastic/cardtastic-engine and stops the clock. Every call is made as the profile's own anonymous player (stores/online.ts),
+// which shows on a public board only once they've said yes.
 
 /** How a player shows on a board. */
 export interface DailyLook {
@@ -46,24 +34,34 @@ export interface DailyBoard {
   you: DailyBoardYou
 }
 
+/** What to tell the player about a failed Daily call. */
+export function dailyErrorText(error: unknown): string {
+  if (error instanceof OnlineError && error.status === 0) return 'The Daily needs an internet connection'
+  return error instanceof Error ? error.message : 'Something went wrong'
+}
+
 /** Today, by the player's own calendar: a board holds one date's deal. */
 export const localDay = (): string => localDateString(new Date())
 
-const dailyState = (): DailyState | undefined => (store.getState() as { daily?: DailyState }).daily
+type OwnerState = { daily?: DailyState; profileSelection?: Record<1, string | null>; profiles?: { id: string; name: string }[] }
+const state = (): OwnerState => store.getState() as OwnerState
+const dailyState = (): DailyState | undefined => state().daily
 
-/** Whose Daily this is: seat 1's profile, or guest. */
-export const dailyOwner = (): string => (store.getState() as { profileSelection?: Record<1, string | null> }).profileSelection?.[1] ?? GUEST_PLAYER_ID
+/** Whose Daily this is: seat 1's profile. A Daily is always a profile's, never Guest's (null). */
+export const dailyOwner = (): string | null => state().profileSelection?.[1] ?? null
 
-/** The deal the active player has started in `game` on `day`, if any. */
+/** The deal the active profile has started in `game` on `day`, if any. */
 export const dailyDealFor = (game: SolitaireGameId, day: string): DailyDeal | null => {
-  const deal = dailyState()?.deals[dailyOwner()]?.[game]
+  const owner = dailyOwner()
+  const deal = owner ? dailyState()?.deals[owner]?.[game] : undefined
   return deal?.day === day ? deal : null
 }
 
 /** Remembers which Daily Deal a play screen opened on (`day`), or that it opened on the regular game (null). */
 export function noteDailyInPlay(game: SolitaireGameId, day: string | null): void {
   const playing = dailyState()?.playing
-  if (day) store.dispatch(dailyActions.playingSet({ owner: dailyOwner(), game, day }))
+  const owner = dailyOwner()
+  if (day && owner) store.dispatch(dailyActions.playingSet({ owner, game, day }))
   else if (playing?.game === game) store.dispatch(dailyActions.playingSet(null))
 }
 
@@ -76,74 +74,68 @@ export function dailyResumeHref(game: string) {
   return deal && !deal.result && !deal.unsent && !deal.refused ? dailyPlayHref(playing.game, playing.day) : null
 }
 
-async function call<T>(method: string, path: string, body?: unknown, token?: string): Promise<T> {
-  let res: Response
-  try {
-    res = await fetch(`${SERVER_URL}${path}`, {
-      method,
-      headers: { 'Content-Type': 'application/json', 'X-Game': GAME, 'X-Rules-Version': RULES_VERSION, ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-      body: body === undefined ? undefined : JSON.stringify(body)
-    })
-  } catch {
-    throw new DailyError(0, 'The Daily needs an internet connection')
-  }
-  const json = (await res.json().catch(() => ({}))) as T & { error?: string }
-  if (!res.ok) throw new DailyError(res.status, json.error ?? `The server answered ${res.status}`)
-  return json
+// Seat 1's profile. Today's Deal asks a guest's name and makes them one first (components/daily/NamePrompt.tsx)
+function activeOwner(guest = 'Pick a profile to play the Daily'): string {
+  const owner = dailyOwner()
+  if (!owner) throw new Error(guest)
+  return owner
 }
 
-async function ensurePlayer(owner: string): Promise<DailyPlayer> {
-  const known = dailyState()?.players[owner]
-  if (known) return known
-  const made = await call<{ player: { id: string }; token: string }>('POST', '/players', { name: PLAYER_NAME })
-  const player: DailyPlayer = { id: made.player.id, token: made.token, listed: null, shownTag: null, shownColor: null }
-  store.dispatch(dailyActions.playerMade({ owner, player }))
-  return player
+// The profile's player, made the first time it goes online. A player other than the one on file (the server lost the last one)
+// starts the profile's Daily over
+async function join(owner: string): Promise<void> {
+  const profile = state().profiles?.find((p) => p.id === owner)
+  if (!profile) throw new Error('Pick a profile to play the Daily')
+  const player = await online.ensure(profile)
+  store.dispatch(dailyActions.playerJoined({ owner, player: player.id }))
 }
 
-// Runs a call as `owner`'s player, making one if they have none. A token the server has stopped knowing makes a new player once.
-async function asPlayer<T>(owner: string, run: (token: string) => Promise<T>): Promise<T> {
-  const player = await ensurePlayer(owner)
+// A call as `owner`'s player. A key the server refuses (it no longer knows the player) is forgotten by the call, so the retry makes a
+// new player, once
+async function asPlayer<T>(owner: string, method: string, path: string, body?: unknown): Promise<T> {
+  await join(owner)
   try {
-    return await run(player.token)
+    return await online.call<T>(owner, method, path, body)
   } catch (error) {
-    if (!(error instanceof DailyError) || error.status !== 401) throw error
-    store.dispatch(dailyActions.playerLost(owner))
-    return run((await ensurePlayer(owner)).token)
+    if (!(error instanceof OnlineError) || error.status !== 401) throw error
+    await join(owner)
+    return online.call<T>(owner, method, path, body)
   }
 }
 
 const dealPath = (day: string, game: SolitaireGameId) => `/daily/${day}/${game}`
 
-/** Today's deal in `game` for the active player: its seed, and their clock, which starts now the first time. */
+/** Today's deal in `game` for the active profile: its seed, and their clock, which starts now the first time. */
 export async function startDailyDeal(game: SolitaireGameId): Promise<DailyDeal> {
-  const owner = dailyOwner()
+  const owner = activeOwner()
   const day = localDay()
-  const started = await asPlayer(owner, (token) => call<Pick<DailyDeal, 'seed' | 'startedAt' | 'result'>>('POST', `${dealPath(day, game)}/start`, {}, token))
+  const started = await asPlayer<Pick<DailyDeal, 'seed' | 'startedAt' | 'result'>>(owner, 'POST', `${dealPath(day, game)}/start`, {})
   store.dispatch(dailyActions.dealStarted({ owner, game, deal: { ...started, day } }))
   return dailyDealFor(game, day) as DailyDeal
 }
 
 /** A Daily win, kept until the server has it, and sent. */
 export function submitDailyWin(game: SolitaireGameId, actions: RunAction[]): Promise<void> {
-  store.dispatch(dailyActions.runWon({ owner: dailyOwner(), game, actions }))
+  const owner = dailyOwner()
+  if (!owner) return Promise.resolve()
+  store.dispatch(dailyActions.runWon({ owner, game, actions }))
   return sendDailyWin(game)
 }
 
-/** Sends the active player's unsent win in `game`. Fails only if the server can't be reached: it stays unsent, to be tried again. */
+/** Sends the active profile's unsent win in `game`. Fails only if the server can't be reached: it stays unsent, to be tried again. */
 export async function sendDailyWin(game: SolitaireGameId): Promise<void> {
   const owner = dailyOwner()
-  const deal = dailyState()?.deals[owner]?.[game]
-  if (!deal?.unsent) return
+  const deal = owner ? dailyState()?.deals[owner]?.[game] : undefined
+  if (!owner || !deal?.unsent) return
   const { day, unsent } = deal
   try {
-    const result = await asPlayer(owner, (token) => call<DailyResult>('POST', `${dealPath(day, game)}/run`, { actions: unsent }, token))
+    const result = await asPlayer<DailyResult>(owner, 'POST', `${dealPath(day, game)}/run`, { actions: unsent })
     store.dispatch(dailyActions.runPosted({ owner, game, result }))
   } catch (error) {
-    if (!(error instanceof DailyError) || error.status === 0 || error.status >= 500 || error.status === 426 || error.status === 429) throw error
+    if (!(error instanceof OnlineError) || error.status === 0 || error.status >= 500 || error.status === 426 || error.status === 429) throw error
     // Already on the board (a retry whose first try got through): the server has the result
     if (error.status === 409) {
-      const started = await asPlayer(owner, (token) => call<Pick<DailyDeal, 'seed' | 'startedAt' | 'result'>>('POST', `${dealPath(day, game)}/start`, {}, token)).catch(() => null)
+      const started = await asPlayer<Pick<DailyDeal, 'seed' | 'startedAt' | 'result'>>(owner, 'POST', `${dealPath(day, game)}/start`, {}).catch(() => null)
       if (started?.result) {
         store.dispatch(dailyActions.runPosted({ owner, game, result: started.result }))
         return
@@ -153,38 +145,39 @@ export async function sendDailyWin(game: SolitaireGameId): Promise<void> {
   }
 }
 
-export const fetchDailyBoard = (game: SolitaireGameId, day: string): Promise<DailyBoard> => asPlayer(dailyOwner(), (token) => call<DailyBoard>('GET', dealPath(day, game), undefined, token))
+/** A game's board on `day`, read as the active profile's player (made now if they have none: the server shows each player where
+ * they stand). */
+export const fetchDailyBoard = (game: SolitaireGameId, day: string): Promise<DailyBoard> => asPlayer<DailyBoard>(activeOwner("Pick a profile to see today's board"), 'GET', dealPath(day, game))
 
-/** The active player's answer to showing on the public boards. A yes sends their tag and color with it. */
+/** The active profile's answer to showing on the public boards. A yes sends their tag and color with it. */
 export async function setDailyListed(listed: boolean, look: DailyLook): Promise<void> {
-  const owner = dailyOwner()
-  await asPlayer(owner, (token) => call('PATCH', '/players/me', listed ? { listed, tag: look.tag, color: look.color } : { listed }, token))
+  const owner = activeOwner()
+  await asPlayer(owner, 'PATCH', '/players/me', listed ? { listed, tag: look.tag, color: look.color } : { listed })
   store.dispatch(dailyActions.playerChanged({ owner, changes: listed ? { listed, shownTag: look.tag, shownColor: look.color } : { listed } }))
 }
 
-/** Keeps a listed player's tag and color on the boards current. A tag the server won't show stays as it was there. */
+/** Keeps a listed profile's tag and color on the boards current. A tag the server won't show stays as it was there. */
 export async function syncDailyLook(look: DailyLook): Promise<void> {
   const owner = dailyOwner()
-  const player = dailyState()?.players[owner]
-  if (!player?.listed || (player.shownTag === look.tag && player.shownColor === look.color)) return
-  await call('PATCH', '/players/me', { tag: look.tag, color: look.color }, player.token)
+  const player = owner ? dailyState()?.players[owner] : undefined
+  if (!owner || !player?.listed || (player.shownTag === look.tag && player.shownColor === look.color)) return
+  await online.call(owner, 'PATCH', '/players/me', { tag: look.tag, color: look.color })
   store.dispatch(dailyActions.playerChanged({ owner, changes: { shownTag: look.tag, shownColor: look.color } }))
 }
 
-/** Deletes what the server holds for players gone from this device. Anything it can't reach now is tried again next time. */
-export async function flushDailyDeletions(): Promise<void> {
-  for (const token of dailyState()?.orphans ?? []) {
-    try {
-      await call('DELETE', '/players/me', undefined, token)
-    } catch (error) {
-      if (!(error instanceof DailyError) || error.status !== 401) continue
-    }
-    store.dispatch(dailyActions.orphanDeleted(token))
+/** Forgets the Daily of every profile whose server player is gone from this device (deleted with the profile, by Delete Online Data,
+ * or forgotten when the server refused its key), once the players have loaded and whenever they change. */
+export function followOnlinePlayers(): () => void {
+  let stopped = false
+  let unsubscribe = () => {}
+  const keep = () => store.dispatch(dailyActions.playersKept(online.players().map((p) => ({ owner: p.profileId, player: p.id }))))
+  void online.load().then(() => {
+    if (stopped) return
+    keep()
+    unsubscribe = online.subscribe(keep)
+  })
+  return () => {
+    stopped = true
+    unsubscribe()
   }
-}
-
-/** Takes the active player's scores off the server and forgets their player here. */
-export function deleteDailyData(): Promise<void> {
-  store.dispatch(dailyActions.forget(dailyOwner()))
-  return flushDailyDeletions()
 }

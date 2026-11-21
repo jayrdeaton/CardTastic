@@ -25,6 +25,20 @@
         "8093"
       ],
       "port": 8093
+    },
+    {
+      "name": "cardtastic-web-local-server",
+      "runtimeExecutable": "env",
+      "runtimeArgs": [
+        "EXPO_PUBLIC_ONLINE_URL=http://localhost:4100",
+        "npx",
+        "expo",
+        "start",
+        "--web",
+        "--port",
+        "8095"
+      ],
+      "port": 8095
     }
   ]
 }

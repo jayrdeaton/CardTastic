@@ -1,5 +1,6 @@
 import { useAutoPaperTheme, useThemeSettings } from '@rific/auto-paper'
-import type { FeedbackSounds, PackGuide, StackScreenOptions } from '@tastic/shell'
+import { useOnlinePlayersSync } from '@tastic/profile/online'
+import { type FeedbackSounds, type PackGuide, type StackScreenOptions, useProfiles } from '@tastic/shell'
 import { type ReactNode, useEffect } from 'react'
 
 import { ReducedMotionBridge, useMotionReduced } from '@/components/reducedMotion'
@@ -9,8 +10,9 @@ import { GUIDE_VERSION } from '@/constants/guide'
 import { getGuideSteps } from '@/constants/guideSteps'
 import { guideActions, selectGuideVersionSeen } from '@/redux/guideSlice'
 import type { RootState } from '@/redux/store'
-import { flushDailyDeletions } from '@/stores/daily'
+import { followOnlinePlayers } from '@/stores/daily'
 import { GameStatsProvider } from '@/stores/gameStats'
+import { online } from '@/stores/online'
 import { usePlayer } from '@/stores/profiles'
 
 // The pack's root pieces (pack.ts): what @tastic/shell's RootLayout mounts and calls for Solitaire.
@@ -51,18 +53,25 @@ function ProfileThemeSync() {
   return null
 }
 
+/** Each profile's Daily Deal player (stores/online.ts) follows the roster: a profile deleted here or in a sibling game takes
+ * its player off the server, a deletion the server can't take now being tried again at the next change or launch. The Daily
+ * state of a profile whose player is gone goes with it (followOnlinePlayers). */
+function OnlinePlayersSync() {
+  const { profiles, loaded } = useProfiles()
+  useOnlinePlayersSync(online, profiles, loaded)
+  useEffect(followOnlinePlayers, [])
+  return null
+}
+
 /** Solitaire's own root (the pack's `Provider`), inside the shell's store, Theme and ProfilesProvider, around How to
- * Play and the stack: one stats and achievements context across all eleven games, Reduce Motion applied app-wide, and
- * the theme sync above. */
+ * Play and the stack: one stats and achievements context across all eleven games, Reduce Motion applied app-wide, the
+ * theme sync above and the profiles' online players. */
 export function SolitaireProvider({ children }: { children: ReactNode }) {
-  // What the server still holds for players deleted from this device (a profile deleted while offline, say)
-  useEffect(() => {
-    flushDailyDeletions().catch(() => {})
-  }, [])
   return (
     <GameStatsProvider>
       <ProfileThemeSync />
       <ReducedMotionBridge />
+      <OnlinePlayersSync />
       {children}
     </GameStatsProvider>
   )

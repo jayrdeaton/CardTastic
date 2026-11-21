@@ -7,6 +7,7 @@ import * as RNPaper from 'react-native-paper'
 import { Provider as PaperProvider } from 'react-native-paper'
 import { Provider } from 'react-redux'
 
+import { DailySettingsSection, OnlineSection } from '@/components/daily/DailySettingsSection'
 import { DailyWinSection } from '@/components/daily/DailyWinSection'
 import { TodaysDeal } from '@/components/daily/TodaysDeal'
 import { GameChrome } from '@/components/GameChrome'
@@ -17,7 +18,12 @@ import { setDailyScope } from '@/stores/dailyScope'
 
 const TODAY = '2026-11-18'
 let mockProfile: { id: string; tag: string } | null = { id: 'kid', tag: 'KID' }
-jest.mock('@/stores/profiles', () => ({ usePlayer: () => ({ profile: mockProfile, profileId: mockProfile?.id ?? null, color: '#3b82f6' }) }))
+const mockSelect = jest.fn()
+const mockCreate = jest.fn((input: { name: string; color: string; tag: string }) => ({ id: 'made', ...input }))
+jest.mock('@/stores/profiles', () => ({
+  usePlayer: () => ({ profile: mockProfile, profileId: mockProfile?.id ?? null, color: '#3b82f6', select: mockSelect }),
+  useProfiles: () => ({ createProfile: mockCreate })
+}))
 const mockStart = jest.fn()
 const mockSend = jest.fn(() => Promise.resolve())
 const mockListed = jest.fn((_listed: boolean, _look: unknown) => Promise.resolve())
@@ -27,12 +33,38 @@ jest.mock('@/stores/daily', () => ({
   sendDailyWin: () => mockSend(),
   setDailyListed: (listed: boolean, look: unknown) => mockListed(listed, look),
   fetchDailyBoard: () => Promise.resolve({ entries: [], finished: 4, you: { started: false } }),
-  flushDailyDeletions: () => Promise.resolve(),
-  syncDailyLook: () => Promise.resolve()
+  syncDailyLook: () => Promise.resolve(),
+  dailyErrorText: (error: Error) => error.message
 }))
 const mockInfo = jest.fn()
+const mockSuccess = jest.fn()
 const mockDismissTo = jest.fn()
-jest.mock('@rific/toaster', () => ({ useToast: () => ({ info: mockInfo }) }))
+jest.mock('@rific/toaster', () => ({ useToast: () => ({ info: mockInfo, success: mockSuccess, error: jest.fn() }) }))
+// The profiles' players on the device (stores/online.ts), as Settings' ONLINE section reads them: the server knows each as
+// "CardTastic", the section names their profiles
+const mockRemoveAll = jest.fn()
+jest.mock('@/stores/online', () => {
+  let players = [
+    { profileId: 'dad', id: 'p1', token: 't1', name: 'CardTastic', profileName: 'Dad' },
+    { profileId: 'kid', id: 'p2', token: 't2', name: 'CardTastic', profileName: 'Kid' }
+  ]
+  const listeners = new Set<() => void>()
+  return {
+    online: {
+      load: async () => {},
+      players: () => players,
+      subscribe: (listener: () => void) => {
+        listeners.add(listener)
+        return () => listeners.delete(listener)
+      },
+      removeAll: async () => {
+        mockRemoveAll()
+        players = []
+        for (const listener of listeners) listener()
+      }
+    }
+  }
+})
 jest.mock('expo-router', () => {
   const { useEffect } = require('react')
   return { router: { push: jest.fn() }, useRouter: () => ({ dismissTo: mockDismissTo }), useIsFocused: () => true, useFocusEffect: (run: () => void) => useEffect(run, [run]) }
@@ -43,12 +75,12 @@ jest.mock('@/hooks/useSettings', () => ({ useSettings: () => ({ settings: { ...j
 jest.mock('@/components/cardFont', () => ({ CARD_FONT_FAMILY: 'TestSerif' }))
 jest.mock('@/stores/gameStats', () => ({ useGameStats: () => ({ getPlayerPar: jest.fn() }) }))
 
-const PLAYER: DailyPlayer = { id: 'p', token: 't', listed: null, shownTag: null, shownColor: null }
+const PLAYER: DailyPlayer = { player: 'p', listed: null, shownTag: null, shownColor: null }
 const DEAL: DailyDeal = { day: TODAY, seed: 7, startedAt: '', result: null, unsent: null, refused: false }
 const RESULT = { moves: 120, seconds: 90, score: 210, rank: 3 }
 
 async function show(element: ReactNode, state: Partial<DailyState> = {}) {
-  const preloadedState = { daily: { players: {}, deals: {}, orphans: [], playing: null, ...state } }
+  const preloadedState = { daily: { players: {}, deals: {}, playing: null, ...state } }
   const store = configureStore({ reducer: { daily }, preloadedState })
   await render(
     <Provider store={store}>
@@ -113,6 +145,54 @@ describe("Today's Deal", () => {
     await press('spider-daily-board')
     expect(router.push).toHaveBeenCalledWith({ pathname: '/daily/[game]', params: { game: 'spider' } })
   })
+
+  describe('for a guest', () => {
+    beforeEach(() => {
+      mockProfile = null
+    })
+
+    it('asks their name, makes and picks a profile in their color, then deals', async () => {
+      mockStart.mockResolvedValue({ ...DEAL })
+      await show(<TodaysDeal game='klondike' />)
+      await press('klondike-daily-play')
+      expect(mockStart).not.toHaveBeenCalled()
+      expect(screen.getByText("Who's Playing?")).toBeTruthy()
+      expect(screen.getByTestId('daily-name-play')).toBeDisabled()
+      await act(async () => {
+        fireEvent.changeText(screen.getByTestId('daily-name-input'), '  emma ')
+      })
+      await press('daily-name-play')
+      expect(mockCreate).toHaveBeenCalledWith({ name: 'emma', color: '#3b82f6', tag: 'E' })
+      expect(mockSelect).toHaveBeenCalledWith('made')
+      expect(mockStart).toHaveBeenCalledWith('klondike')
+      expect(router.push).toHaveBeenCalledWith({ pathname: '/play/[game]', params: { game: 'klondike', daily: TODAY } })
+      expect(screen.queryByText("Who's Playing?")).toBeNull()
+    })
+
+    it('asks before the board too', async () => {
+      await show(<TodaysDeal game='spider' />)
+      await press('spider-daily-board')
+      expect(router.push).not.toHaveBeenCalled()
+      expect(screen.getByText('Continue')).toBeTruthy()
+      await act(async () => {
+        fireEvent.changeText(screen.getByTestId('daily-name-input'), 'Sam')
+      })
+      await press('daily-name-play')
+      expect(mockCreate).toHaveBeenCalledWith({ name: 'Sam', color: '#3b82f6', tag: 'S' })
+      expect(router.push).toHaveBeenCalledWith({ pathname: '/daily/[game]', params: { game: 'spider' } })
+    })
+
+    it('makes nothing when they cancel', async () => {
+      await show(<TodaysDeal game='klondike' />)
+      await press('klondike-daily-play')
+      await act(async () => {
+        fireEvent.press(screen.getByText('Cancel'))
+      })
+      expect(screen.queryByText("Who's Playing?")).toBeNull()
+      expect(mockCreate).not.toHaveBeenCalled()
+      expect(mockStart).not.toHaveBeenCalled()
+    })
+  })
 })
 
 describe('the win card', () => {
@@ -137,10 +217,11 @@ describe('the win card', () => {
     expect(screen.queryByTestId('daily-list-yes')).toBeNull()
   })
 
-  it('never asks Guest', async () => {
+  // A Daily is always a profile's (stores/online.ts): Guest has none to show
+  it('has nothing for Guest', async () => {
     mockProfile = null
-    await show(<DailyWinSection game='klondike' />, { players: { guest: PLAYER }, deals: { guest: { klondike: { ...DEAL, result: RESULT } } } })
-    expect(screen.getByText("You'd be 3rd today")).toBeTruthy()
+    await show(<DailyWinSection game='klondike' />, won)
+    expect(screen.queryByTestId('daily-win-line')).toBeNull()
     expect(screen.queryByTestId('daily-list-yes')).toBeNull()
   })
 
@@ -189,5 +270,31 @@ describe('a Daily Deal in the game footer', () => {
     await show(chrome)
     expect(screen.getByText('Hint')).toBeTruthy()
     expect(screen.getByText('New Game')).toBeTruthy()
+  })
+})
+
+describe('Settings', () => {
+  it('shows whether this profile shows on the boards, once it has played a Daily, and turns it on', async () => {
+    await show(<DailySettingsSection />)
+    expect(screen.queryByTestId('daily-listed')).toBeNull()
+    await show(<DailySettingsSection />, { players: { kid: PLAYER } })
+    expect(screen.getByText('Hidden from everyone')).toBeTruthy()
+    await press('daily-listed')
+    expect(mockListed).toHaveBeenCalledWith(true, { tag: 'KID', color: '#3b82f6' })
+  })
+
+  it("deletes every profile's online data at once, naming the profiles, not the server's name for them", async () => {
+    await show(<OnlineSection />)
+    expect(screen.getByText('Online as Dad and Kid')).toBeTruthy()
+    await act(async () => {
+      fireEvent.press(screen.getByText('Delete Online Data'))
+    })
+    expect(screen.getByText("Your profiles' Daily Deal wins come off every board, and their players are deleted from the server. Today's deals start over. This can't be undone.")).toBeTruthy()
+    await act(async () => {
+      fireEvent.press(screen.getByText('Delete'))
+    })
+    expect(mockRemoveAll).toHaveBeenCalled()
+    expect(mockSuccess).toHaveBeenCalledWith('Online data deleted')
+    expect(screen.queryByText('Delete Online Data')).toBeNull()
   })
 })
