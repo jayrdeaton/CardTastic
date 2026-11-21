@@ -507,10 +507,12 @@ export function GameChrome({ title, subtitle, onNewGame, onUndo: undoMove, onUnd
         <View style={styles.cornerButtons} pointerEvents='box-none'>
           <CornerActionButtons
             onBack={() => {
-              // Back to the game's setup screen (Jay, 2026-11-18: every game opens one now). dismissTo() pops to the one already
-              // beneath this game, as it was left, and only opens it when there is none (a deep link, or a cold launch that resumed
-              // straight into this game; router.back() errors there with "GO_BACK was not handled"). Either way this screen unmounts,
-              // and the shell's play route (PlayRoute) forgets the resume with it.
+              // Back to the game's setup screen (Jay, 2026-11-18: every game opens one now). dismissTo() pops to the one beneath this
+              // game: the player's own, or the one a cold launch that resumed this game puts beneath it (the shell's Home pushes the
+              // setup screen and then this one). Only a deep link or a page reloaded on the web has none, and then dismissTo opens
+              // it in this screen's place (router.back() errors there with "GO_BACK was not handled"), sliding in from the left like
+              // a pop (the shell's stack gives every screen but a play screen animationTypeForReplace 'pop'). Either way this screen
+              // unmounts, and the shell's play route (PlayRoute) forgets the resume with it.
               router.dismissTo(gameSetupHref(gameOfVariant(variant)))
             }}
             onSettings={() => setSettingsOpen(true)}

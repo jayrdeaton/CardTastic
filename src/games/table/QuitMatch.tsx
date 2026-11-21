@@ -19,7 +19,8 @@ export interface QuitMatch {
 }
 
 /** Every back on a table: to the game's setup screen, or, while a match is under way, Quit Match? (the block stops the navigation).
- * dismissTo pops to the setup screen beneath the table, and opens one when there is none (a page reloaded on the web). */
+ * dismissTo pops to the setup screen beneath the table, and opens one in its place when there is none (a page reloaded on the web),
+ * which the shell's stack slides in from the left like a pop. */
 export function useTableBack(): () => void {
   const { game } = useLocalSearchParams<{ game: string }>()
   return useCallback(() => router.dismissTo(gameSetupHref(game)), [game])
