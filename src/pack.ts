@@ -1,6 +1,7 @@
 import type { PackDefinition, PackGameDefinition } from '@tastic/shell'
 
 import { CARD_FONT_FAMILY, CARD_FONTS } from '@/components/cardFont'
+import { ProfileOnline } from '@/components/daily/ProfileOnline'
 import { HeroTitle } from '@/components/HeroTitle'
 import { packGuide, SolitaireProvider, useFeedbackSounds, useScreenOptions } from '@/components/packRoot'
 import { SettingsSections, useSettingsRules } from '@/components/SettingsSections'
@@ -84,6 +85,8 @@ const solitaire = {
   statsGameTitles: false,
   // A new profile on Profiles starts on the seat color, as a fresh install does.
   newProfileColor: DEFAULT_SEED_COLOR,
+  // A profile's Daily Deal player on its Edit Profile screen: Show on Public Boards and Delete Online Data (components/daily/ProfileOnline.tsx)
+  ProfileSections: ProfileOnline,
   // The felt, drawn once behind every screen (see TableBackground), and what Home, Stats and Profiles draw on it in.
   Backdrop: TableBackground,
   foreground: CHROME_FG,

@@ -149,9 +149,9 @@ export async function sendDailyWin(game: SolitaireGameId): Promise<void> {
  * they stand). */
 export const fetchDailyBoard = (game: SolitaireGameId, day: string): Promise<DailyBoard> => asPlayer<DailyBoard>(activeOwner("Pick a profile to see today's board"), 'GET', dealPath(day, game))
 
-/** The active profile's answer to showing on the public boards. A yes sends their tag and color with it. */
-export async function setDailyListed(listed: boolean, look: DailyLook): Promise<void> {
-  const owner = activeOwner()
+/** A profile's answer to showing on the public boards (the active one's, by default; any one from its Edit Profile screen). A yes
+ * sends their tag and color with it. */
+export async function setDailyListed(listed: boolean, look: DailyLook, owner: string = activeOwner()): Promise<void> {
   await asPlayer(owner, 'PATCH', '/players/me', listed ? { listed, tag: look.tag, color: look.color } : { listed })
   store.dispatch(dailyActions.playerChanged({ owner, changes: listed ? { listed, shownTag: look.tag, shownColor: look.color } : { listed } }))
 }

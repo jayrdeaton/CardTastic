@@ -76,8 +76,9 @@ export function ThemedToaster() {
   const captionStyle = useMemo(() => [fonts.bodySmall, styles.caption, { color: colors.onSurfaceVariant }], [colors.onSurfaceVariant, fonts.bodySmall])
   // clearButton/historyButton default to a "clear"/"history" chip stacked by the toasts - this app never surfaces a reason to dig through past
   // toasts or bulk-dismiss them, so both are turned off outright (passing null, not omitting the prop, is what suppresses the default).
-  // limit is already 3 by default; passed explicitly so it doesn't silently drift with a future library bump.
-  return <Toaster position='top' Card={ToastCard} Icon={ToastIcon} levelIcons={TOAST_LEVEL_ICONS} levelColors={levelColors} textColor={colors.onSurface} labelStyle={labelStyle} captionStyle={captionStyle} toastStyle={styles.card} wrapperStyle={wrapperStyle} clearButton={null} historyButton={null} limit={3} />
+  // One toast at a time (Jay, 2026-11-20): a newer one takes the older one's place, which comes back if the newer is swiped away
+  // before the older's time is up. The toaster's default is 3.
+  return <Toaster position='top' Card={ToastCard} Icon={ToastIcon} levelIcons={TOAST_LEVEL_ICONS} levelColors={levelColors} textColor={colors.onSurface} labelStyle={labelStyle} captionStyle={captionStyle} toastStyle={styles.card} wrapperStyle={wrapperStyle} clearButton={null} historyButton={null} limit={1} />
 }
 
 const styles = StyleSheet.create({

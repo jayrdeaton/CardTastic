@@ -7,8 +7,8 @@ import * as RNPaper from 'react-native-paper'
 import { Provider as PaperProvider } from 'react-native-paper'
 import { Provider } from 'react-redux'
 
-import { DailySettingsSection, OnlineSection } from '@/components/daily/DailySettingsSection'
 import { DailyWinSection } from '@/components/daily/DailyWinSection'
+import { ProfileOnline } from '@/components/daily/ProfileOnline'
 import { TodaysDeal } from '@/components/daily/TodaysDeal'
 import { GameChrome } from '@/components/GameChrome'
 import daily, { type DailyDeal, type DailyPlayer, type DailyState } from '@/redux/dailySlice'
@@ -26,12 +26,12 @@ jest.mock('@/stores/profiles', () => ({
 }))
 const mockStart = jest.fn()
 const mockSend = jest.fn(() => Promise.resolve())
-const mockListed = jest.fn((_listed: boolean, _look: unknown) => Promise.resolve())
+const mockListed = jest.fn((_listed: boolean, _look: unknown, _owner?: string) => Promise.resolve())
 jest.mock('@/stores/daily', () => ({
   localDay: () => '2026-11-18',
   startDailyDeal: (game: string) => mockStart(game),
   sendDailyWin: () => mockSend(),
-  setDailyListed: (listed: boolean, look: unknown) => mockListed(listed, look),
+  setDailyListed: (...args: [boolean, unknown, string?]) => mockListed(...args),
   fetchDailyBoard: () => Promise.resolve({ entries: [], finished: 4, you: { started: false } }),
   syncDailyLook: () => Promise.resolve(),
   dailyErrorText: (error: Error) => error.message
@@ -42,7 +42,7 @@ const mockDismissTo = jest.fn()
 jest.mock('@rific/toaster', () => ({ useToast: () => ({ info: mockInfo, success: mockSuccess, error: jest.fn() }) }))
 // The profiles' players on the device (stores/online.ts), as Settings' ONLINE section reads them: the server knows each as
 // "CardTastic", the section names their profiles
-const mockRemoveAll = jest.fn()
+const mockRemove = jest.fn()
 jest.mock('@/stores/online', () => {
   let players = [
     { profileId: 'dad', id: 'p1', token: 't1', name: 'CardTastic', profileName: 'Dad' },
@@ -57,9 +57,9 @@ jest.mock('@/stores/online', () => {
         listeners.add(listener)
         return () => listeners.delete(listener)
       },
-      removeAll: async () => {
-        mockRemoveAll()
-        players = []
+      remove: async (profileId: string) => {
+        mockRemove(profileId)
+        players = players.filter((player) => player.profileId !== profileId)
         for (const listener of listeners) listener()
       }
     }
@@ -81,7 +81,8 @@ const RESULT = { moves: 120, seconds: 90, score: 210, rank: 3 }
 
 async function show(element: ReactNode, state: Partial<DailyState> = {}) {
   const preloadedState = { daily: { players: {}, deals: {}, playing: null, ...state } }
-  const store = configureStore({ reducer: { daily }, preloadedState })
+  // The color a profile plays under: a pick for Kid
+  const store = configureStore({ reducer: { daily, seatColors: () => ({ profileColors: { kid: { color: '#ff9800', profileColor: '#3b82f6' } } }) }, preloadedState })
   await render(
     <Provider store={store}>
       <PaperProvider>
@@ -273,27 +274,34 @@ describe('a Daily Deal in the game footer', () => {
   })
 })
 
-describe('Settings', () => {
-  it('shows whether this profile shows on the boards, once it has played a Daily, and turns it on', async () => {
-    await show(<DailySettingsSection />)
-    expect(screen.queryByTestId('daily-listed')).toBeNull()
-    await show(<DailySettingsSection />, { players: { kid: PLAYER } })
-    expect(screen.getByText('Hidden from everyone')).toBeTruthy()
-    await press('daily-listed')
-    expect(mockListed).toHaveBeenCalledWith(true, { tag: 'KID', color: '#3b82f6' })
+// A profile's ONLINE section on its Edit Profile screen (the pack's ProfileSections)
+describe('Edit Profile', () => {
+  const KID = { id: 'kid', name: 'Kid', tag: 'KID', color: '#3b82f6', createdAt: 0, updatedAt: 0 }
+  const SAM = { id: 'sam', name: 'Sam', tag: 'S', color: '#4caf50', createdAt: 0, updatedAt: 0 }
+
+  it('has nothing for a profile that has never played online', async () => {
+    await show(<ProfileOnline profile={SAM} />)
+    expect(screen.queryByText('Delete Online Data')).toBeNull()
   })
 
-  it("deletes every profile's online data at once, naming the profiles, not the server's name for them", async () => {
-    await show(<OnlineSection />)
-    expect(screen.getByText('Online as Dad and Kid')).toBeTruthy()
-    await act(async () => {
-      fireEvent.press(screen.getByText('Delete Online Data'))
-    })
-    expect(screen.getByText("Your profiles' Daily Deal wins come off every board, and their players are deleted from the server. Today's deals start over. This can't be undone.")).toBeTruthy()
+  it('shows whether this profile shows on the boards, once it has played a Daily, sending the color it plays under with a yes', async () => {
+    await show(<ProfileOnline profile={KID} />)
+    expect(screen.queryByTestId('daily-listed')).toBeNull()
+    await show(<ProfileOnline profile={KID} />, { players: { kid: PLAYER } })
+    expect(screen.getAllByText(/^(ONLINE|Show on Public Boards|Delete Online Data)$/).map((node) => node.props.children)).toEqual(['ONLINE', 'Show on Public Boards', 'Delete Online Data'])
+    expect(screen.getByText('Hidden from everyone')).toBeTruthy()
+    await press('daily-listed')
+    expect(mockListed).toHaveBeenCalledWith(true, { tag: 'KID', color: '#ff9800' }, 'kid')
+  })
+
+  it("deletes this profile's online data, keeping the profile", async () => {
+    await show(<ProfileOnline profile={KID} />)
+    await press('profile-online-delete')
+    expect(screen.getByText("Kid's Daily Deal wins come off every board, and their player is deleted from the server. The profile stays, and today's deals start over. This can't be undone.")).toBeTruthy()
     await act(async () => {
       fireEvent.press(screen.getByText('Delete'))
     })
-    expect(mockRemoveAll).toHaveBeenCalled()
+    expect(mockRemove).toHaveBeenCalledWith('kid')
     expect(mockSuccess).toHaveBeenCalledWith('Online data deleted')
     expect(screen.queryByText('Delete Online Data')).toBeNull()
   })

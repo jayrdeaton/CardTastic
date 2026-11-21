@@ -180,6 +180,16 @@ describe('the public boards', () => {
     expect(players().kid).toMatchObject({ listed: true, shownTag: 'KID' })
   })
 
+  it("takes another profile's answer, from that profile's Edit Profile screen", async () => {
+    mockSelection[1] = 'dad'
+    await startDailyDeal('klondike')
+    mockSelection[1] = 'kid'
+    await setDailyListed(true, { tag: 'D', color: '#ef4444' }, 'dad')
+    expect(calls.at(-1)).toMatchObject({ method: 'PATCH', path: '/players/me', token: online.playerOf('dad')?.token, body: { listed: true, tag: 'D', color: '#ef4444' } })
+    expect(players().dad.listed).toBe(true)
+    expect(players().kid).toBeUndefined()
+  })
+
   it('keeps a listed player current, once per change', async () => {
     await startDailyDeal('klondike')
     await setDailyListed(true, look)
