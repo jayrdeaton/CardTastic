@@ -27,6 +27,7 @@ import { useGameStats } from '@/stores/gameStats'
 import type { SolitaireGameId } from '@/stores/statsTypes'
 
 import { variantOfSave } from './savedVariant'
+import { WithSetupHero } from './SetupHero'
 
 /** A section's width: the dialogs' 360, never closer than 16pt to an edge. */
 const SECTION_MAX_WIDTH = 360
@@ -52,32 +53,35 @@ export function SolitaireSetup({ game, rules, seats, onReady, inProgress, progre
   }
 
   return (
-    <View style={styles.column} testID={`${game}-setup`}>
-      {/* Who's playing comes first (Jay, 2026-11-18): it's who plays the Daily and the random deal alike */}
-      {seats}
-      <View style={sideBySide ? styles.sectionsRow : styles.sections}>
-        <View style={[styles.section, { width }]} testID={`${game}-daily-section`}>
-          <SetupDivider label={`Daily Deal · ${formatDay(day, new Date())}`} />
-          <CardWell>
-            <TodaysDeal game={game} day={day} />
-          </CardWell>
+    // The game's preview over it all, in what height the screen has left (SetupHero.tsx)
+    <WithSetupHero game={game} enabled={!!seats} width={Math.min(SECTION_MAX_WIDTH, window.width - 2 * SECTION_MARGIN)}>
+      <View style={styles.column} testID={`${game}-setup`}>
+        {/* Who's playing comes first (Jay, 2026-11-18): it's who plays the Daily and the random deal alike */}
+        {seats}
+        <View style={sideBySide ? styles.sectionsRow : styles.sections}>
+          <View style={[styles.section, { width }]} testID={`${game}-daily-section`}>
+            <SetupDivider label={`Daily Deal · ${formatDay(day, new Date())}`} />
+            <CardWell>
+              <TodaysDeal game={game} day={day} />
+            </CardWell>
+          </View>
+          <View style={[styles.section, { width }]} testID={`${game}-random-section`}>
+            <SetupDivider label='Random Deal' />
+            <CardWell testID={`${game}-random-card`}>
+              {inProgress && <DailyRow icon='play-circle-outline' label='Continue' caption={progress ?? 'Your game in progress'} onPress={onReady} trailing='play' testID={`${game}-continue`} />}
+              {rules.length > 0 && (
+                <View testID={`${game}-rules`}>
+                  <RuleRows rules={rules} />
+                </View>
+              )}
+              <DailyRow icon='shuffle-variant' label='New Deal' caption={inProgress ? 'Ends the game in progress' : 'A new shuffle'} onPress={() => (gameInProgressMoves(game) > 0 ? setConfirmingNewDeal(true) : dealOverGame())} trailing='play' testID={`${game}-new-deal`} />
+            </CardWell>
+          </View>
         </View>
-        <View style={[styles.section, { width }]} testID={`${game}-random-section`}>
-          <SetupDivider label='Random Deal' />
-          <CardWell testID={`${game}-random-card`}>
-            {inProgress && <DailyRow icon='play-circle-outline' label='Continue' caption={progress ?? 'Your game in progress'} onPress={onReady} trailing='play' testID={`${game}-continue`} />}
-            {rules.length > 0 && (
-              <View testID={`${game}-rules`}>
-                <RuleRows rules={rules} />
-              </View>
-            )}
-            <DailyRow icon='shuffle-variant' label='New Deal' caption={inProgress ? 'Ends the game in progress' : 'A new shuffle'} onPress={() => (gameInProgressMoves(game) > 0 ? setConfirmingNewDeal(true) : dealOverGame())} trailing='play' testID={`${game}-new-deal`} />
-          </CardWell>
-        </View>
+        {/* The game's own New Game confirm, word for word (GameChrome) */}
+        <ConfirmDialog visible={confirmingNewDeal} title='Start a New Game?' message='This game is still in progress. Starting a new one counts it as a loss.' confirmLabel='New Game' cancelLabel='Cancel' icon='alert-circle-outline' onConfirm={dealOverGame} onCancel={() => setConfirmingNewDeal(false)} />
       </View>
-      {/* The game's own New Game confirm, word for word (GameChrome) */}
-      <ConfirmDialog visible={confirmingNewDeal} title='Start a New Game?' message='This game is still in progress. Starting a new one counts it as a loss.' confirmLabel='New Game' cancelLabel='Cancel' icon='alert-circle-outline' onConfirm={dealOverGame} onCancel={() => setConfirmingNewDeal(false)} />
-    </View>
+    </WithSetupHero>
   )
 }
 

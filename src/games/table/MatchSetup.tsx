@@ -17,6 +17,7 @@ import { CardWell } from '@/components/cardRows'
 import type { GameRule } from '@/components/gameRule'
 import { RuleRows } from '@/components/RuleRows'
 import { CHROME_FG } from '@/components/theme'
+import { WithSetupHero } from '@/games/shared/SetupHero'
 
 import { RulePickers, type TableRule } from './RulePickers'
 
@@ -38,6 +39,8 @@ export const RULES_CARD_RESERVED_HEIGHT_ALONE = 260
  * to face with three seat pills (Four Crowns or Crazy Eights with a CPU in seat 3: the pills wrap one to a row there),
  * where 180 pushed both Ready buttons 19pt off the screen. */
 export const RULES_CARD_MIN_HEIGHT = 120
+/** What the shell draws under the options with one person: READY? (44pt) and the 28pt over it. */
+const READY_BELOW = 72
 /** The column's gap, above the seat pills. */
 const COLUMN_GAP = 16
 
@@ -51,24 +54,27 @@ export function MatchSetup({ game, title, titleShown, rules, extraSeats, seats, 
   const reserved = seats ? RULES_CARD_RESERVED_HEIGHT_ALONE : RULES_CARD_RESERVED_HEIGHT
   const maxHeight = Math.max(RULES_CARD_MIN_HEIGHT, window.height - reserved - (hasSeatPills ? seatPillsHeight + COLUMN_GAP : 0))
   return (
-    <View style={styles.column} testID={`${game}-setup`}>
-      {!titleShown && (
-        <Text variant='headlineSmall' style={[styles.center, { color: CHROME_FG }]} accessibilityRole='header'>
-          {title}
-        </Text>
-      )}
-      {/* Who's playing comes first (Jay, 2026-11-18): with one person the shell hands the seat buttons over (GameLoadout.placesSeats) */}
-      {seats}
-      {rules.length > 0 && (
-        // Its row runs to the card's edges (components/cardRows.tsx), so the whole card is the touch target
-        <CardWell style={{ width }} testID={`${game}-rules`}>
-          <FadingScrollView style={{ maxHeight }} alwaysBounceVertical={false} showsVerticalScrollIndicator={false}>
-            <RuleRows rules={rules} />
-          </FadingScrollView>
-        </CardWell>
-      )}
-      {hasSeatPills && <RulePickers game={game} rules={extraSeats} host={host} accentColor={accentColor} dark={dark} onLayout={(event) => setSeatPillsHeight(event.nativeEvent.layout.height)} />}
-    </View>
+    // With one person, the game's preview over it all, in what height the screen has left over READY? (SetupHero.tsx)
+    <WithSetupHero game={game} enabled={!!seats} width={width} below={READY_BELOW}>
+      <View style={styles.column} testID={`${game}-setup`}>
+        {!titleShown && (
+          <Text variant='headlineSmall' style={[styles.center, { color: CHROME_FG }]} accessibilityRole='header'>
+            {title}
+          </Text>
+        )}
+        {/* Who's playing comes first (Jay, 2026-11-18): with one person the shell hands the seat buttons over (GameLoadout.placesSeats) */}
+        {seats}
+        {rules.length > 0 && (
+          // Its row runs to the card's edges (components/cardRows.tsx), so the whole card is the touch target
+          <CardWell style={{ width }} testID={`${game}-rules`}>
+            <FadingScrollView style={{ maxHeight }} alwaysBounceVertical={false} showsVerticalScrollIndicator={false}>
+              <RuleRows rules={rules} />
+            </FadingScrollView>
+          </CardWell>
+        )}
+        {hasSeatPills && <RulePickers game={game} rules={extraSeats} host={host} accentColor={accentColor} dark={dark} onLayout={(event) => setSeatPillsHeight(event.nativeEvent.layout.height)} />}
+      </View>
+    </WithSetupHero>
   )
 }
 

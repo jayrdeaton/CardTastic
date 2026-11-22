@@ -70,7 +70,7 @@ const COLS = 13
 // 360x200 design canvas: the widest tile (the wide layout's grid) is ~240pt, 720px at 3x.
 const PREVIEW_GAMES = ['klondike', 'freecell', 'yukon', 'canfield', 'fortythieves', 'spider', 'scorpion', 'pyramid', 'golf', 'tripeaks', 'acesup']
 const PREVIEW_BUILDERS = { klondike: 'Klondike', freecell: 'FreeCell', yukon: 'Yukon', canfield: 'Canfield', fortythieves: 'FortyThieves', spider: 'Spider', scorpion: 'Scorpion', pyramid: 'Pyramid', golf: 'Golf', tripeaks: 'TriPeaks', acesup: 'AcesUp' }
-const PREVIEW_SCALE = 2
+const PREVIEW_SCALE = 3
 
 function bundle() {
   fs.writeFileSync(
