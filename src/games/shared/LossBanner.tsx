@@ -1,6 +1,6 @@
 import { useAutoPaperTheme } from '@rific/auto-paper'
 import { Button } from '@rific/feedback-press'
-import { DialogHeader, overlayActionStyles, OverlayBackdrop, OverlayCard, useCompactDialog, useOverlayCardColors } from '@tastic/hud/chrome'
+import { DialogHeader, overlayActionStyles, OverlayBackdrop, OverlayCard, SecondaryButton, useCompactDialog, useOverlayCardColors } from '@tastic/hud/chrome'
 import { StyleSheet, View } from 'react-native'
 import { Text } from 'react-native-paper'
 
@@ -31,9 +31,9 @@ export function LossBanner({ onNewGame, onUndo }: LossBannerProps) {
         </Text>
         <View style={overlayActionStyles.actions}>
           {onUndo ? (
-            <Button mode='outlined' onPress={onUndo} style={overlayActionStyles.actionButton} testID='loss-undo'>
+            <SecondaryButton onPress={onUndo} testID='loss-undo'>
               Undo
-            </Button>
+            </SecondaryButton>
           ) : null}
           <Button mode='contained' onPress={onNewGame} style={onUndo ? overlayActionStyles.actionButton : overlayActionStyles.actionButtonSingle} buttonColor={colors.primary} textColor={colors.onPrimary} testID='loss-new-game'>
             New Game

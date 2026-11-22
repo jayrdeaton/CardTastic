@@ -2,10 +2,11 @@ import { act, fireEvent, render, screen, within } from '@testing-library/react-n
 
 import { PileRef } from '@/engine/gameTypes'
 import { Card, Suit } from '@/engine/types'
+import { winnableSeeds } from '@/engine/winnable'
 import AcesUpScreen from '@/games/acesup/AcesUpScreen'
 import { AcesUpState } from '@/games/acesup/rules'
 
-import { expectSavedRunToReplay, movableCardIds, resetGameInProgress, seedGameInProgress } from '../../../testUtils/gameInProgressStore'
+import { expectSavedRunToReplay, movableCardIds, resetGameInProgress, savedDeal, seedGameInProgress } from '../../../testUtils/gameInProgressStore'
 import { peelableFlights } from '../../../testUtils/peelableFlights'
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -92,7 +93,10 @@ const mockDeal = { start: (_entries: { cardId: string }[], _cardWidth: number, _
 
 // A fresh deal's seed, fixed so the run test below plays the same deal every time
 const mockSeed = 4242
+// Winnable Deals is off but for its own test: the rest pin their own deal (mockSeed)
+const mockWinnable = { on: false }
 jest.mock('@/engine/rng', () => ({ ...jest.requireActual('@/engine/rng'), randomSeed: () => mockSeed }))
+jest.mock('@/hooks/useSettings', () => ({ useSettings: () => ({ settings: { ...jest.requireActual('@/redux/settingsSlice').DEFAULT_SETTINGS, winnableDeals: mockWinnable.on } }) }))
 jest.mock('@/redux/store', () => require('../../../testUtils/gameInProgressStore').storeModule)
 jest.mock('@/components/dragdrop/DragGhostLayer', () => ({ DragGhostProvider: ({ children }: { children: unknown }) => children, useDragGhost: () => mockGhost }))
 jest.mock('@/components/dealing/DealLayer', () => ({ DealProvider: ({ children }: { children: unknown }) => children, useDealAnimator: () => mockDeal }))
@@ -510,5 +514,22 @@ describe('Aces Up screen - the deal run', () => {
     expect(run.actions).toContain('u')
     expect(run.actions).toContain('d')
     dealing.mockRestore()
+  })
+})
+
+describe('Aces Up screen - Winnable Deals', () => {
+  afterEach(() => {
+    mockWinnable.on = false
+  })
+
+  it('deals the next winnable deal of its rule set while the setting is on', async () => {
+    mockWinnable.on = true
+    resetGameInProgress()
+    await render(<AcesUpScreen />)
+    await flush(3000) // the deal, and its first save
+    const { variant, seed } = savedDeal('acesup')
+    expect(variant).toBe('acesup')
+    expect(winnableSeeds(variant)).toContain(seed)
+    expect(seed).not.toBe(mockSeed)
   })
 })

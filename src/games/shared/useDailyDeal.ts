@@ -9,6 +9,8 @@ import { dailyDealFor, noteDailyInPlay, submitDailyWin } from '@/stores/daily'
 import { setDailyScope } from '@/stores/dailyScope'
 import type { SolitaireGameId } from '@/stores/statsTypes'
 
+import { useDailyReminder } from './useDailyReminder'
+
 // The rules a Daily Deal is played under, whatever the player has picked for their own games: everyone's run is on the same rules
 const DAILY_RULES = {
   klondikeDraw: DEFAULT_SETTINGS.klondikeDraw,
@@ -42,11 +44,13 @@ export function useDailyDeal(game: SolitaireGameId, won: boolean, session: Pick<
   const day = useDailyParam()
   const [deal] = useState(() => {
     const started = day ? dailyDealFor(game, day) : null
-    setDailyScope(started ? { game, day: started.day } : null)
+    setDailyScope(started ? { game, day: started.day, seed: started.seed } : null)
     return started
   })
   // So closing the app here comes back here (the pack's resumeHref)
   useEffect(() => noteDailyInPlay(game, deal?.day ?? null), [game, deal])
+  // A regular game's screen says when the game's new Daily is out
+  useDailyReminder(game, !deal)
   const sent = useRef(false)
   useEffect(() => {
     if (!deal || !won || sent.current) return

@@ -36,10 +36,9 @@ import { TRIPEAKS_RULES } from '@/constants/gameRules'
 import { PileRef } from '@/engine/gameTypes'
 import { findHint, hintCountFor, HintResult } from '@/engine/hint'
 import { top } from '@/engine/pile'
-import { randomSeed } from '@/engine/rng'
 import { computeScore } from '@/engine/score'
 import { Card } from '@/engine/types'
-import { tripeaksVariant } from '@/engine/variants'
+import { tripeaksVariant, type VariantId } from '@/engine/variants'
 import { showNoHintToast } from '@/games/shared/gameToasts'
 import { LossBanner } from '@/games/shared/LossBanner'
 import { MoveInfo, UndoEntry } from '@/games/shared/undoTypes'
@@ -58,6 +57,7 @@ import { sweptWaste, useWinStockSweep } from '@/games/shared/useWinStockSweep'
 import { WinBanner } from '@/games/shared/WinBanner'
 import { withGameProviders } from '@/games/shared/withGameProviders'
 import { loadGameInProgress, SavedGame, saveGameInProgress } from '@/stores/gameInProgress'
+import { dealSeed } from '@/stores/winnableDeals'
 
 import { buildTriPeaksDealSequence } from './dealSequence'
 import { BASE_WIDTH, boardHeight, boardWidth, buildCardPositions, CONTROL_ROW_MARGIN_BOTTOM, peaksCardScreenPoint, tripeaksCardWidth } from './geometry'
@@ -269,9 +269,9 @@ function TriPeaksScreenInner() {
   // whose own setting just changed (handleNewGame) must build and pass the new controller itself
   // instead of dealing with the current render's now-stale memoized one. Same shape Spider's own
   // startNewGame uses for its identical numSuits setting.
-  function startNewGame(ctrl: ReturnType<typeof createTriPeaksController>) {
+  function startNewGame(ctrl: ReturnType<typeof createTriPeaksController>, dealt: VariantId) {
     const myToken = ++dealTokenRef.current
-    const seed = daily?.seed ?? randomSeed()
+    const seed = daily?.seed ?? dealSeed(dealt, settings.winnableDeals)
     const s = ctrl.newGame(seed)
     setUndoStack([])
     setHint(null)
@@ -323,7 +323,7 @@ function TriPeaksScreenInner() {
   function handleNewGame() {
     if (session.moves > 0 && !won) recordDealAbandoned(variant, { seconds: session.getElapsed(), moves: session.getMoves() })
     setTripeaksRankWrap(settings.tripeaksRankWrap)
-    startNewGame(createTriPeaksController(settings.tripeaksRankWrap))
+    startNewGame(createTriPeaksController(settings.tripeaksRankWrap), tripeaksVariant(settings.tripeaksRankWrap))
   }
 
   // Deals from a real stock pile (stockViewRef), same as Golf/Klondike. The 28 tableau destinations
@@ -461,7 +461,7 @@ function TriPeaksScreenInner() {
   useEffect(() => {
     loadGameInProgress<TriPeaksState, UndoEntry<TriPeaksState, MoveInfo>>('tripeaks').then((saved) => {
       if (saved) restoreGame(saved)
-      else startNewGame(controller)
+      else startNewGame(controller, variant)
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])

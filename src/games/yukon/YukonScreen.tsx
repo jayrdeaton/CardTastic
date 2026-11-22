@@ -29,7 +29,6 @@ import { FOUNDATION_SUITS, suitIndex } from '@/engine/foundation'
 import { AccessibleCard, PileRef } from '@/engine/gameTypes'
 import { findHint, hintCountFor, HintResult } from '@/engine/hint'
 import { alwaysValidRun, runCountFrom, top } from '@/engine/pile'
-import { randomSeed } from '@/engine/rng'
 import { computeScore } from '@/engine/score'
 import { Card } from '@/engine/types'
 import { useCascadeFeedback } from '@/games/shared/cascadeFeedback'
@@ -55,6 +54,7 @@ import { WinBanner } from '@/games/shared/WinBanner'
 import { withGameProviders } from '@/games/shared/withGameProviders'
 import { useSettings } from '@/hooks/useSettings'
 import { loadGameInProgress, SavedGame, saveGameInProgress } from '@/stores/gameInProgress'
+import { dealSeed } from '@/stores/winnableDeals'
 
 import { buildYukonDealSequence } from './dealSequence'
 import { canAutoFinish, createYukonController, nextFinishMove, YukonState } from './rules'
@@ -242,7 +242,7 @@ function YukonScreenInner() {
     // deal is never finished for the player, even one that happens to be solved (see useAutoFinish's suppress).
     finish.suppress()
     cascade.disarm()
-    const seed = daily?.seed ?? randomSeed()
+    const seed = daily?.seed ?? dealSeed('yukon', settings.winnableDeals)
     const s = controller.newGame(seed)
     setUndoStack([])
     setHint(null)

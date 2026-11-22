@@ -1,10 +1,11 @@
 import { act, fireEvent, render, screen } from '@testing-library/react-native'
 
 import { Card, Suit } from '@/engine/types'
+import { winnableSeeds } from '@/engine/winnable'
 import { TriPeaksState } from '@/games/tripeaks/rules'
 import TriPeaksScreen from '@/games/tripeaks/TriPeaksScreen'
 
-import { expectSavedRunToReplay, movableCardIds, resetGameInProgress, seedGameInProgress } from '../../../testUtils/gameInProgressStore'
+import { expectSavedRunToReplay, movableCardIds, resetGameInProgress, savedDeal, seedGameInProgress } from '../../../testUtils/gameInProgressStore'
 
 // ---------------------------------------------------------------------------------------------------------------------
 // A screen-level test for TriPeaks' win: the REAL TriPeaksScreen, real rules, real useFlightConcurrency / useDerivedWinCheck /
@@ -100,6 +101,8 @@ const mockDeal = {
 
 // A fresh deal's seed, fixed so the run test below plays the same deal every time
 const mockSeed = 4242
+// Winnable Deals is off but for its own test: the rest pin their own deal (mockSeed)
+const mockWinnable = { on: false }
 jest.mock('@/engine/rng', () => ({ ...jest.requireActual('@/engine/rng'), randomSeed: () => mockSeed }))
 jest.mock('@/redux/store', () => require('../../../testUtils/gameInProgressStore').storeModule)
 jest.mock('@/components/dragdrop/DragGhostLayer', () => ({ DragGhostProvider: ({ children }: { children: unknown }) => children, useDragGhost: () => mockGhost }))
@@ -144,7 +147,7 @@ jest.mock('@/games/shared/WinBanner', () => {
 jest.mock('@/stores/gameStats', () => ({ useGameStats: () => ({ recordDealWon: mockRecordWon, recordDealAbandoned: () => {}, recordHintUsed: () => {} }) }))
 jest.mock('@/hooks/useSettings', () => {
   const actual = jest.requireActual('@/redux/settingsSlice')
-  return { useSettings: () => ({ settings: { ...actual.DEFAULT_SETTINGS } }) }
+  return { useSettings: () => ({ settings: { ...actual.DEFAULT_SETTINGS, winnableDeals: mockWinnable.on } }) }
 })
 jest.mock('@/components/theme', () => {
   const actual = jest.requireActual('@/components/theme')
@@ -652,5 +655,22 @@ describe('TriPeaks screen - the deal run', () => {
     expect(run.actions.some((action) => Array.isArray(action))).toBe(true)
     expect(run.actions).toContain('u')
     expect(run.actions).toContain('d')
+  })
+})
+
+describe('TriPeaks screen - Winnable Deals', () => {
+  afterEach(() => {
+    mockWinnable.on = false
+  })
+
+  it('deals the next winnable deal of its rule set while the setting is on', async () => {
+    mockWinnable.on = true
+    resetGameInProgress()
+    await render(<TriPeaksScreen />)
+    await flush(3000) // the deal, and its first save
+    const { variant, seed } = savedDeal('tripeaks')
+    expect(variant).toBe('tripeaks')
+    expect(winnableSeeds(variant)).toContain(seed)
+    expect(seed).not.toBe(mockSeed)
   })
 })

@@ -34,7 +34,6 @@ import { FOUNDATION_SUITS, suitIndex } from '@/engine/foundation'
 import { AccessibleCard, PileRef } from '@/engine/gameTypes'
 import { findHint, hintCountFor, HintResult } from '@/engine/hint'
 import { isDescendingAltColor, runCountFrom, top } from '@/engine/pile'
-import { randomSeed } from '@/engine/rng'
 import { computeScore } from '@/engine/score'
 import { Card } from '@/engine/types'
 import { klondikeVariant } from '@/engine/variants'
@@ -61,6 +60,7 @@ import { useWinReveal } from '@/games/shared/useWinReveal'
 import { WinBanner } from '@/games/shared/WinBanner'
 import { withGameProviders } from '@/games/shared/withGameProviders'
 import { loadGameInProgress, SavedGame, saveGameInProgress } from '@/stores/gameInProgress'
+import { dealSeed } from '@/stores/winnableDeals'
 
 import { buildKlondikeDealSequence } from './dealSequence'
 import { canAutoFinish, createKlondikeController, KlondikeState, nextFinishMove } from './rules'
@@ -272,7 +272,7 @@ function KlondikeScreenInner() {
     cascade.disarm()
     controllerRef.current = createKlondikeController(settings.klondikeDraw)
     setKlondikeDraw(settings.klondikeDraw)
-    const seed = daily?.seed ?? randomSeed()
+    const seed = daily?.seed ?? dealSeed(klondikeVariant(settings.klondikeDraw), settings.winnableDeals)
     const s = controllerRef.current.newGame(seed)
     setUndoStack([])
     setHint(null)

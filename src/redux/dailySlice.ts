@@ -43,9 +43,12 @@ export interface DailyState {
   deals: Record<string, Partial<Record<SolitaireGameId, DailyDeal>>>
   // The Daily Deal on the play screen last opened, so a relaunch into that game goes back to it and not to the regular game
   playing: { owner: string; game: SolitaireGameId; day: string } | null
+  // The day each profile was last told a game's new Daily is out (games/shared/useDailyReminder.ts), so it's said once a day.
+  // Absent from a store saved before it
+  reminded?: Record<string, Partial<Record<SolitaireGameId, string>>>
 }
 
-const initialState: DailyState = { players: {}, deals: {}, playing: null }
+const initialState: DailyState = { players: {}, deals: {}, playing: null, reminded: {} }
 
 const fresh = (player: string): DailyPlayer => ({ player, listed: null, shownTag: null, shownColor: null })
 
@@ -76,7 +79,7 @@ const slice = createSlice({
         players[owner] = known
         if (state.deals[owner]) deals[owner] = state.deals[owner]
       }
-      return { players, deals, playing: state.playing }
+      return { players, deals, playing: state.playing, reminded: state.reminded }
     },
     dealStarted: (state, action: PayloadAction<{ owner: string; game: SolitaireGameId; deal: Pick<DailyDeal, 'day' | 'seed' | 'startedAt' | 'result'> }>) => {
       const { owner, game, deal } = action.payload
@@ -105,6 +108,12 @@ const slice = createSlice({
     forget: (state, action: PayloadAction<string>) => {
       delete state.players[action.payload]
       delete state.deals[action.payload]
+      if (state.reminded) delete state.reminded[action.payload]
+    },
+    reminded: (state, action: PayloadAction<{ owner: string; game: SolitaireGameId; day: string }>) => {
+      const { owner, game, day } = action.payload
+      state.reminded ??= {}
+      state.reminded[owner] = { ...state.reminded[owner], [game]: day }
     },
     playingSet: (state, action: PayloadAction<DailyState['playing']>) => {
       state.playing = action.payload

@@ -106,12 +106,16 @@ export function WinBanner({ elapsedSeconds, moves, score, variant, onNewGame }: 
             </Text>
           )}
         </View>
-        {daily && <DailyWinSection game={daily.game} />}
-        <View style={overlayActionStyles.actions}>
-          <Button mode='contained' onPress={daily ? () => router.push(dailyBoardHref(daily.game)) : onNewGame} style={overlayActionStyles.actionButtonSingle} buttonColor={colors.primary} textColor={colors.onPrimary} testID='win-new-game'>
-            {daily ? 'See Board' : 'New Game'}
-          </Button>
-        </View>
+        {/* A Daily's card ends in its own buttons (DailyWinSection: its board, or the question of showing on it) */}
+        {daily ? (
+          <DailyWinSection game={daily.game} onSeeBoard={() => router.push(dailyBoardHref(daily.game))} />
+        ) : (
+          <View style={overlayActionStyles.actions}>
+            <Button mode='contained' onPress={onNewGame} style={overlayActionStyles.actionButtonSingle} buttonColor={colors.primary} textColor={colors.onPrimary} testID='win-new-game'>
+              New Game
+            </Button>
+          </View>
+        )}
       </OverlayCard>
     </OverlayBackdrop>
   )

@@ -7,8 +7,9 @@ import { MatchSetup } from '@/games/table/MatchSetup'
 import { useNextRound } from '@/games/table/useNextRound'
 import { DEFAULT_SETTINGS } from '@/redux/settingsSlice'
 
-// A two-player game's setup screen (Jay, 2026-11-10: "both places"): the game's name, then its rules as the same rows
-// the Settings sheet has, a tap opening a rule's choices right there. Seats 3 and 4 stay pills, since they're players.
+// A two-player game's setup screen (Jay, 2026-11-10: "both places"): who's playing, then its rules as the same row the
+// Settings sheet has, a tap sliding every rule's choices open right there (2026-11-21). Seats 3 and 4 stay pills, since
+// they're players. The game's name is the shell's header's, but in 2 Player face to face, whose band names it here.
 // And a Rematch takes the rules from Settings as they are when it's pressed (games/table/useNextRound.ts).
 
 const mockDispatch = jest.fn()
@@ -38,27 +39,31 @@ describe('MatchSetup', () => {
     await render(<MatchSetup {...optionsProps} game='crazyeights' title='Crazy Eights' rules={eightsRuleSettings(DEFAULT_SETTINGS, jest.fn())} seats={<Text>Who is playing</Text>} />)
     const drawn = JSON.stringify(screen.toJSON())
     expect(drawn.indexOf('Crazy Eights')).toBeLessThan(drawn.indexOf('Who is playing'))
-    expect(drawn.indexOf('Who is playing')).toBeLessThan(drawn.indexOf('When Nothing Fits'))
+    expect(drawn.indexOf('Who is playing')).toBeLessThan(drawn.indexOf('Rules'))
   })
 
-  it('names the game and shows each rule as a row, its name over the choice in effect, as in Settings', async () => {
+  it("leaves the game's name to the shell's header wherever it has one", async () => {
+    await render(<MatchSetup {...optionsProps} titleShown game='crazyeights' title='Crazy Eights' rules={eightsRuleSettings(DEFAULT_SETTINGS, jest.fn())} />)
+    expect(screen.queryByText('Crazy Eights')).toBeNull()
+  })
+
+  it('names the game and shows its rules as one row saying every choice in effect, as in Settings', async () => {
     await render(<MatchSetup {...optionsProps} game='crazyeights' title='Crazy Eights' rules={eightsRuleSettings(DEFAULT_SETTINGS, jest.fn())} />)
 
     expect(screen.getByText('Crazy Eights')).toBeTruthy()
     expect(screen.getByTestId('crazyeights-rules')).toBeTruthy()
-    for (const label of ['When Nothing Fits', 'Special Cards', 'Hand Size']) expect(screen.getByText(label)).toBeTruthy()
-    for (const choice of ['Keep Drawing', 'Only 8s', '7 Cards, 5 for 3+']) expect(screen.getByText(choice)).toBeTruthy()
+    expect(screen.getByText('Keep Drawing · Only 8s · 7 Cards, 5 for 3+')).toBeTruthy()
   })
 
-  it("opens a rule's choices right there, and a pick writes the setting the Settings sheet shows", async () => {
+  it('slides every rule open right there, and a pick writes the setting the Settings sheet shows', async () => {
     const setSettings = jest.fn()
     await render(<MatchSetup {...optionsProps} game='crazyeights' title='Crazy Eights' rules={eightsRuleSettings(DEFAULT_SETTINGS, setSettings)} />)
 
     expect(screen.queryByText('2s Draw Two')).toBeNull()
-    await fireEvent.press(screen.getByText('Special Cards'))
+    await fireEvent.press(screen.getByText('Rules'))
+    for (const label of ['When Nothing Fits', 'Special Cards', 'Hand Size']) expect(screen.getByText(label)).toBeTruthy()
     await fireEvent.press(screen.getByText('2s Draw Two'))
     expect(setSettings).toHaveBeenCalledWith({ eightsSpecials: 'twos' })
-    expect(screen.queryByText('2s Draw Two')).toBeNull()
   })
 
   it('has no card for a game without rules', async () => {

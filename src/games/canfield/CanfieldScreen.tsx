@@ -44,7 +44,6 @@ import { FOUNDATION_SUITS, suitIndex } from '@/engine/foundation'
 import { AccessibleCard, PileRef } from '@/engine/gameTypes'
 import { findHint, hintCountFor, HintResult } from '@/engine/hint'
 import { runCountFrom, top } from '@/engine/pile'
-import { randomSeed } from '@/engine/rng'
 import { computeScore } from '@/engine/score'
 import { Card } from '@/engine/types'
 import { canfieldVariant } from '@/engine/variants'
@@ -71,6 +70,7 @@ import { useWinReveal } from '@/games/shared/useWinReveal'
 import { WinBanner } from '@/games/shared/WinBanner'
 import { withGameProviders } from '@/games/shared/withGameProviders'
 import { loadGameInProgress, SavedGame, saveGameInProgress } from '@/stores/gameInProgress'
+import { dealSeed } from '@/stores/winnableDeals'
 
 import { buildCanfieldDealSequence } from './dealSequence'
 import { canAutoFinish, CanfieldState, createCanfieldController, findSafeAutoPlay, isDescendingAltColorCyclic, nextFinishMove } from './rules'
@@ -268,7 +268,7 @@ function CanfieldScreenInner() {
     const myToken = ++dealTokenRef.current
     controllerRef.current = createCanfieldController(settings.canfieldDraw)
     setCanfieldDraw(settings.canfieldDraw)
-    const seed = daily?.seed ?? randomSeed()
+    const seed = daily?.seed ?? dealSeed(canfieldVariant(settings.canfieldDraw), settings.winnableDeals)
     const s = controllerRef.current.newGame(seed)
     // A still-armed cascade must not fire on the new deal (see useAutoFoundationCascade's disarm), nor a finish start on one
     // that happens to be solved: only the player's own move does that (see useAutoFinish's suppress).

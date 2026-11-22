@@ -5,15 +5,16 @@ import { GUEST_PLAYER_ID } from '@/constants/player'
 import { FOUNDATION_LAYOUT } from '@/engine/foundation'
 import type { DealRun } from '@/engine/run'
 import gameInProgress, { gameInProgressActions, type SavedGame } from '@/redux/gameInProgressSlice'
+import winnableDeals from '@/redux/winnableDealsSlice'
 import { SOLITAIRE_GAME_IDS, type SolitaireGameId } from '@/stores/statsTypes'
 
 // Test-only stand-in for '@/redux/store' in game-screen tests: a store holding just the real saved-games
-// slice, so the real stores/gameInProgress module (debounce, flush, load, clear) runs against it without
+// slice (and where the device is in each list of winnable deals, which a new deal moves on), so the real stores/gameInProgress module (debounce, flush, load, clear) runs against it without
 // pulling in the app's whole store and every package its reducers come from. Wire it with
 //   jest.mock('@/redux/store', () => require('<relative path>/testUtils/gameInProgressStore').storeModule)
 // Lives outside __tests__ because jest runs every file under there as a suite. It has no profileSelection
 // slice, so every save here is guest's (GUEST_PLAYER_ID).
-const store = configureStore({ reducer: { gameInProgress }, middleware: (getDefaultMiddleware) => getDefaultMiddleware({ serializableCheck: false, immutableCheck: false }) })
+const store = configureStore({ reducer: { gameInProgress, winnableDeals }, middleware: (getDefaultMiddleware) => getDefaultMiddleware({ serializableCheck: false, immutableCheck: false }) })
 
 export const storeModule = { store, persistor: { flush: () => Promise.resolve() } }
 
@@ -49,6 +50,13 @@ const VARIANT_OF: Record<SolitaireGameId, (config?: number) => string> = {
   scorpion: (c) => (c === 0 ? 'scorpion-classic' : 'scorpion'),
   fortythieves: (c) => (c === 1 ? 'fortythieves-runs' : 'fortythieves'),
   acesup: () => 'acesup'
+}
+
+/** The rule set and seed of `gameId`'s saved deal. */
+export function savedDeal(gameId: SolitaireGameId): { variant: VariantId; seed: number } {
+  const saved = storedGame(gameId)
+  if (!saved?.run) throw new Error(`${gameId}'s save has no run`)
+  return { variant: VARIANT_OF[gameId](saved.config) as VariantId, seed: saved.run.seed }
 }
 
 /** The run `gameId`'s save carries, after checking that replaying it with the rules (@tastic/cardtastic-engine, as Tastic-Server

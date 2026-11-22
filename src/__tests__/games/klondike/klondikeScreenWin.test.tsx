@@ -8,12 +8,13 @@ import { setMotionReduced } from '@/components/reducedMotionFlag'
 import { FOUNDATION_SUITS } from '@/engine/foundation'
 import { PileRef } from '@/engine/gameTypes'
 import { Card, Suit } from '@/engine/types'
+import { winnableSeeds } from '@/engine/winnable'
 import KlondikeScreen from '@/games/klondike/KlondikeScreen'
 import * as klondikeRules from '@/games/klondike/rules'
 import { KlondikeState } from '@/games/klondike/rules'
 import { STOCK_QUEUE_GAP_MS } from '@/games/shared/stockWait'
 
-import { expectSavedRunToReplay, movableCardIds, resetGameInProgress, seedGameInProgress } from '../../../testUtils/gameInProgressStore'
+import { expectSavedRunToReplay, movableCardIds, resetGameInProgress, savedDeal, seedGameInProgress } from '../../../testUtils/gameInProgressStore'
 import { peelableFlights } from '../../../testUtils/peelableFlights'
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -139,6 +140,8 @@ const mockDeal = {
 // put the loss dialog over them; it isn't what these tests are about.
 // A fresh deal's seed, fixed so the run test below plays the same deal every time
 const mockSeed = 4242
+// Winnable Deals is off but for its own test: the rest pin their own deal (mockSeed)
+const mockWinnable = { on: false }
 jest.mock('@/engine/rng', () => ({ ...jest.requireActual('@/engine/rng'), randomSeed: () => mockSeed }))
 jest.mock('@/games/shared/useBoardLookahead', () => ({ useBoardLookahead: () => false }))
 jest.mock('@/redux/store', () => require('../../../testUtils/gameInProgressStore').storeModule)
@@ -193,7 +196,7 @@ jest.mock('@/games/shared/WinBanner', () => {
 jest.mock('@/stores/gameStats', () => ({ useGameStats: () => ({ recordDealWon: mockRecordWon, recordDealAbandoned: () => {}, recordHintUsed: () => {} }) }))
 jest.mock('@/hooks/useSettings', () => {
   const actual = jest.requireActual('@/redux/settingsSlice')
-  return { useSettings: () => ({ settings: { ...actual.DEFAULT_SETTINGS, autoMoveToFoundation: mockSettings.autoMove } }) }
+  return { useSettings: () => ({ settings: { ...actual.DEFAULT_SETTINGS, winnableDeals: mockWinnable.on, autoMoveToFoundation: mockSettings.autoMove } }) }
 })
 jest.mock('@/components/theme', () => {
   const actual = jest.requireActual('@/components/theme')
@@ -1613,5 +1616,22 @@ describe('Klondike screen - the deal run', () => {
     expect(run.actions.some((action) => Array.isArray(action))).toBe(true)
     expect(run.actions).toContain('u')
     expect(run.actions).toContain('d')
+  })
+})
+
+describe('Klondike screen - Winnable Deals', () => {
+  afterEach(() => {
+    mockWinnable.on = false
+  })
+
+  it('deals the next winnable deal of its rule set while the setting is on', async () => {
+    mockWinnable.on = true
+    resetGameInProgress()
+    await render(<KlondikeScreen />)
+    await flush(3000) // the deal, and its first save
+    const { variant, seed } = savedDeal('klondike')
+    expect(variant).toBe('klondike')
+    expect(winnableSeeds(variant)).toContain(seed)
+    expect(seed).not.toBe(mockSeed)
   })
 })

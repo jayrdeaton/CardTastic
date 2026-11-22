@@ -4,7 +4,7 @@
 
 import { useAutoPaperTheme } from '@rific/auto-paper'
 import { Button } from '@rific/feedback-press'
-import { DialogHeader, overlayActionStyles, OverlayBackdrop, OverlayCard, useCompactDialog, useOverlayCardColors } from '@tastic/hud/chrome'
+import { DialogHeader, overlayActionStyles, OverlayBackdrop, OverlayCard, SecondaryButton, useCompactDialog, useOverlayCardColors } from '@tastic/hud/chrome'
 import { useAtComputer, useProfiles, useSeatColors } from '@tastic/shell'
 import { type ReactNode, useEffect, useState } from 'react'
 import { AppState, StyleSheet, View } from 'react-native'
@@ -138,9 +138,9 @@ function TableOverlayCard({ viewer, content, compact, actionLabel, onAction, sho
       {content.details}
       <View style={overlayActionStyles.actions}>
         {showBack ? (
-          <Button mode='outlined' onPress={back} style={overlayActionStyles.actionButton} testID={`${testID}-back-${viewer}`}>
+          <SecondaryButton onPress={back} testID={`${testID}-back-${viewer}`}>
             Back
-          </Button>
+          </SecondaryButton>
         ) : null}
         <Button mode='contained' onPress={onAction} style={overlayActionStyles.actionButton} buttonColor={colors.primary} textColor={colors.onPrimary} testID={`${testID}-action-${viewer}`}>
           {actionLabel}

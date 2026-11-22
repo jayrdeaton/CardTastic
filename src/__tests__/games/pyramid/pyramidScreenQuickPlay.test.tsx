@@ -2,11 +2,12 @@ import { act, fireEvent, render, screen } from '@testing-library/react-native'
 
 import { FLIGHT_SPRING, springSettleMs } from '@/components/dragdrop/dragSpring'
 import { Card, Suit } from '@/engine/types'
+import { winnableSeeds } from '@/engine/winnable'
 import PyramidScreen, { DEFER_MAX_WAIT_MS, topLandedCard } from '@/games/pyramid/PyramidScreen'
 import { PyramidController, PyramidState } from '@/games/pyramid/rules'
 import { WIN_REVEAL_HOLD_MS } from '@/games/shared/useWinReveal'
 
-import { expectSavedRunToReplay, resetGameInProgress, seedGameInProgress, storedGame } from '../../../testUtils/gameInProgressStore'
+import { expectSavedRunToReplay, resetGameInProgress, savedDeal, seedGameInProgress, storedGame } from '../../../testUtils/gameInProgressStore'
 
 // ---------------------------------------------------------------------------------------------------------------------
 // RAPID-INPUT tests for the REAL PyramidScreen (same harness approach as pyramidScreenWin.test.tsx: real rules, flight
@@ -66,6 +67,8 @@ const mockInvalid = { count: 0 }
 let mockDropTarget: { zone: string; index: number } | null = null
 let mockDealLands = false
 let mockSeed = 1
+// Winnable Deals is off but for its own test: the rest pin their own deal (mockSeed)
+const mockWinnable = { on: false }
 
 const mockLatency = (ms: number) => (ms > 0 ? new Promise<void>((resolve) => setTimeout(resolve, ms)) : Promise.resolve())
 
@@ -137,6 +140,7 @@ jest.mock('@/components/dragdrop/DropZoneRegistry', () => ({ useDropZoneRegistry
 jest.mock('@/components/dealing/DealLayer', () => ({ DealProvider: ({ children }: { children: unknown }) => children, useDealAnimator: () => mockDealer }))
 jest.mock('@/components/winning/WinCascadeLayer', () => ({ WinCascadeProvider: ({ children }: { children: unknown }) => children, WinCascadeGhosts: () => null, useWinCascade: () => ({ startChains: () => {}, clear: () => {} }) }))
 jest.mock('@/engine/rng', () => ({ ...jest.requireActual('@/engine/rng'), randomSeed: () => mockSeed }))
+jest.mock('@/hooks/useSettings', () => ({ useSettings: () => ({ settings: { ...jest.requireActual('@/redux/settingsSlice').DEFAULT_SETTINGS, winnableDeals: mockWinnable.on } }) }))
 // Every plain container measures somewhere different (each stand-in below tags its own host view), so a flight's endpoint says which lookup produced it.
 jest.mock('@/components/dealing/measureView', () => ({
   measureView: async (view: { __pile?: string } | null) => {
@@ -1663,5 +1667,22 @@ describe('Pyramid screen - the deal run', () => {
     expect(run.actions.some((action) => Array.isArray(action))).toBe(true)
     expect(run.actions).toContain('u')
     expect(run.actions).toContain('d')
+  })
+})
+
+describe('Pyramid screen - Winnable Deals', () => {
+  afterEach(() => {
+    mockWinnable.on = false
+  })
+
+  it('deals the next winnable deal of its rule set while the setting is on', async () => {
+    mockWinnable.on = true
+    resetGameInProgress()
+    await render(<PyramidScreen />)
+    await flush(3000) // the deal, and its first save
+    const { variant, seed } = savedDeal('pyramid')
+    expect(variant).toBe('pyramid')
+    expect(winnableSeeds(variant)).toContain(seed)
+    expect(seed).not.toBe(mockSeed)
   })
 })

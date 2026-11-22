@@ -11,10 +11,13 @@ import { useSystemReduceMotion } from '@/components/reducedMotion'
 import { GameRulesSection, RuleRows } from '@/components/RuleRows'
 import { SettingsSection } from '@/components/SettingsSection'
 import { useTableColors } from '@/components/theme'
+import { variantInfo } from '@/engine/variants'
+import { hasWinnableDeals, nextDealVariant } from '@/engine/winnable'
 import { GAME_RULE_SETTINGS, ruleGameForPath } from '@/games/ruleSettings'
 import { useSettings } from '@/hooks/useSettings'
 import { MATCH_GAME_IDS } from '@/redux/matchStatsSlice'
 import { usePlayer } from '@/stores/profiles'
+import { SOLITAIRE_GAME_IDS, type SolitaireGameId } from '@/stores/statsTypes'
 import { AUTO_HINT_CHOICES, type AutoHintSeconds, type Settings } from '@/types'
 
 const PREVIEW_WIDTH = 44
@@ -72,6 +75,17 @@ function autoHintCaption(seconds: AutoHintSeconds): string {
   return seconds === 0 ? 'Off' : `After ${seconds} seconds`
 }
 
+/** The Winnable Deals row's caption: what it does, or, in a game whose rules have no winnable deals yet (2- and 4-suit
+ * Spider), that it doesn't apply there. */
+function winnableCaption(path: string, settings: Settings): string {
+  const game = path.split('/').filter(Boolean).pop()
+  if (game && (SOLITAIRE_GAME_IDS as string[]).includes(game)) {
+    const variant = nextDealVariant(game as SolitaireGameId, settings)
+    if (!hasWinnableDeals(variant)) return `Not for ${variantInfo(variant).label ?? 'this game'} yet`
+  }
+  return "Skip deals that can't be won"
+}
+
 /** The rules of the game the Settings sheet is opened in (games/ruleSettings.ts, found from the route, so a game's play
  * screen and its setup screen show the same), as the pack's `useSettingsRules`: @tastic/shell puts them FIRST, above its
  * own rows (Jay, 2026-11-10: below Sound, How to Play and Appearance they went unfound). Null on Home, which has no game,
@@ -106,6 +120,25 @@ export function SettingsSections() {
       toggle-group spacing. */}
       <SettingsSection label='GAMEPLAY'>
         <View style={styles.rows}>
+          {/* Winnable Deals (Jay, 2026-11-21: on by default): every solitaire game's random deal is one that can be won
+          (stores/winnableDeals.ts). First, since it decides the deal itself. Its caption says so where it doesn't apply. */}
+          {solitaireRows && (
+            <TouchableRipple onPress={() => setSettings({ winnableDeals: !settings.winnableDeals })} style={styles.toggleButton} accessibilityLabel={`Winnable deals ${settings.winnableDeals ? 'on' : 'off'}, ${winnableCaption(path, settings)}`}>
+              <View style={styles.toggleContent}>
+                <View style={[styles.iconBadge, { backgroundColor: settings.winnableDeals ? paperColors.tertiaryContainer : paperColors.surfaceVariant }]}>
+                  <Icon source={settings.winnableDeals ? 'check-decagram' : 'check-decagram-outline'} size={18} color={settings.winnableDeals ? paperColors.tertiary : paperColors.onSurfaceVariant} />
+                </View>
+                <View style={styles.flexShrink}>
+                  <Text variant='bodyLarge' style={{ color: paperColors.onSurface }}>
+                    Winnable Deals
+                  </Text>
+                  <Text variant='bodySmall' numberOfLines={1} style={{ color: paperColors.onSurfaceVariant }}>
+                    {winnableCaption(path, settings)}
+                  </Text>
+                </View>
+              </View>
+            </TouchableRipple>
+          )}
           {/* Same bare-row shape as BaseSettingsDialog's own Sound/Haptics rows (an icon badge whose
           color/glyph flips with state, plus a single-line label, no separate Switch) - that
           component doesn't export its SettingIcon helper, so the small badge is replicated here

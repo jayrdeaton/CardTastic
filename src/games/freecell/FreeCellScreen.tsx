@@ -32,7 +32,6 @@ import { FOUNDATION_SUITS } from '@/engine/foundation'
 import { AccessibleCard, PileRef } from '@/engine/gameTypes'
 import { findHint, hintCountFor, HintResult } from '@/engine/hint'
 import { isDescendingAltColor, runCountFrom, top } from '@/engine/pile'
-import { randomSeed } from '@/engine/rng'
 import { computeScore } from '@/engine/score'
 import { Card } from '@/engine/types'
 import { useCascadeFeedback } from '@/games/shared/cascadeFeedback'
@@ -59,6 +58,7 @@ import { WinBanner } from '@/games/shared/WinBanner'
 import { withGameProviders } from '@/games/shared/withGameProviders'
 import { useSettings } from '@/hooks/useSettings'
 import { loadGameInProgress, SavedGame, saveGameInProgress } from '@/stores/gameInProgress'
+import { dealSeed } from '@/stores/winnableDeals'
 
 import { canAutoFinish, nextFinishMove, nextSafeCascadeStep } from './autoPlay'
 import { buildFreeCellDealSequence } from './dealSequence'
@@ -549,7 +549,7 @@ function FreeCellScreenInner() {
     const myToken = ++dealTokenRef.current
     finish.suppress()
     cascade.disarm()
-    const seed = daily?.seed ?? randomSeed()
+    const seed = daily?.seed ?? dealSeed('freecell', settings.winnableDeals)
     const s = FreeCellController.newGame(seed)
     setUndoStack([])
     setHint(null)

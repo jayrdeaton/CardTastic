@@ -34,7 +34,6 @@ import { useWinCascade, WinCascadeGhosts } from '@/components/winning/WinCascade
 import { PYRAMID_RULES } from '@/constants/gameRules'
 import { PileRef } from '@/engine/gameTypes'
 import { findHint, hintCountFor, HintResult } from '@/engine/hint'
-import { randomSeed } from '@/engine/rng'
 import { computeScore } from '@/engine/score'
 import { Card } from '@/engine/types'
 import { DiscardCell } from '@/games/shared/DiscardCell'
@@ -56,7 +55,9 @@ import { useWinReveal } from '@/games/shared/useWinReveal'
 import { SWEEP_PILE_BLANK_LAG_MS, SWEEP_WIN_REVEAL_MAX_WAIT_MS } from '@/games/shared/useWinStockSweep'
 import { WinBanner } from '@/games/shared/WinBanner'
 import { withGameProviders } from '@/games/shared/withGameProviders'
+import { useSettings } from '@/hooks/useSettings'
 import { loadGameInProgress, SavedGame, saveGameInProgress } from '@/stores/gameInProgress'
+import { dealSeed } from '@/stores/winnableDeals'
 
 import { buildPyramidDealSequence } from './dealSequence'
 import { cardPosition, pyramidCardWidth, pyramidCellScreenPoint, ROWS, triangleHeight, triangleWidth } from './geometry'
@@ -510,6 +511,8 @@ function PyramidScreenInner() {
   const { won, recordedRef: recordedWinRef, pendingWinCascadeRef } = useDerivedWinCheck(PyramidController, state, 'pyramid', session, dealTokenRef, recordDealWon, hintsUsedRef)
   // The Daily Deal this screen was opened for, if any: its seed deals the board, and a win goes to the server (useDailyDeal)
   const daily = useDailyDeal('pyramid', won, session)
+  // The player's own settings: only Winnable Deals is read here, for the seed of a new deal (stores/winnableDeals.ts)
+  const { settings } = useSettings()
   // Nothing in the air (every removal/draw/undo flight, pair flights included, is counted by
   // startFlights/settleFlight) and no card still waiting on the initial deal - what the win
   // celebration waits for (see useWinReveal).
@@ -965,7 +968,7 @@ function PyramidScreenInner() {
 
   function startNewGame() {
     const myToken = ++dealTokenRef.current
-    const seed = daily?.seed ?? randomSeed()
+    const seed = daily?.seed ?? dealSeed('pyramid', settings.winnableDeals)
     const s = PyramidController.newGame(seed)
     setSelected(null)
     // The last shake belongs to the old board: card ids are reused by the next deal, so a cell dealt the shaken card must

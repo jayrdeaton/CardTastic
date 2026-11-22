@@ -107,6 +107,10 @@ export interface Settings {
   // useAutoHint), or 0 for never. An auto hint counts exactly like a pressed one (Hints Used, and the
   // win no longer counts toward Wins Without Hint). Defaults 0, so nothing changes until it's turned on.
   autoHintSeconds: AutoHintSeconds
+  // Global, not per-game: whether a solitaire game's random deal is only ever one that can be won (Jay, 2026-11-21: on by
+  // default). A deal counts when some line wins it with every card known, the bar the Daily Deals use, and the deals come
+  // from a list found ahead of time (stores/winnableDeals.ts). 2- and 4-suit Spider have no list yet and deal as before.
+  winnableDeals: boolean
   // 'decorated' renders the full-colour illustrated deck instead of the compact corner-index +
   // big-pip layout. 'tarot' is a peer option, not a sub-mode of 'compact': the same corner-index +
   // big-pip layout, but with cups/coins/wands/swords in place of hearts/diamonds/clubs/spades -

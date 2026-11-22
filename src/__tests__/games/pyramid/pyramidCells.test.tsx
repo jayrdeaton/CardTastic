@@ -71,6 +71,7 @@ const mockDealer = {
 const mockDropZones = { register: () => {}, unregister: () => {}, hitTest: async () => null }
 
 jest.mock('@/redux/store', () => require('../../../testUtils/gameInProgressStore').storeModule)
+jest.mock('@/hooks/useSettings', () => ({ useSettings: () => ({ settings: jest.requireActual('@/redux/settingsSlice').DEFAULT_SETTINGS }) }))
 jest.mock('react-native-reanimated', () => {
   const { useRef } = require('react')
   const base = jest.requireActual('../../../__mocks__/react-native-reanimated')

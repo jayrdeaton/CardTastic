@@ -35,7 +35,6 @@ import { FOUNDATION_SUITS } from '@/engine/foundation'
 import { AccessibleCard, PileRef } from '@/engine/gameTypes'
 import { findHint, hintCountFor, HintResult } from '@/engine/hint'
 import { isDescendingSameSuit, runCountFrom, top } from '@/engine/pile'
-import { randomSeed } from '@/engine/rng'
 import { computeScore } from '@/engine/score'
 import { Card } from '@/engine/types'
 import { fortyThievesVariant } from '@/engine/variants'
@@ -62,6 +61,7 @@ import { useWinReveal } from '@/games/shared/useWinReveal'
 import { WinBanner } from '@/games/shared/WinBanner'
 import { withGameProviders } from '@/games/shared/withGameProviders'
 import { loadGameInProgress, SavedGame, saveGameInProgress } from '@/stores/gameInProgress'
+import { dealSeed } from '@/stores/winnableDeals'
 
 import { buildFortyThievesDealSequence } from './dealSequence'
 import { canAutoFinish, createFortyThievesController, FortyThievesState, isFullyAutoCompletableWithDraws, nextAutoCompleteMoveWithDraws, nextFinishMove } from './rules'
@@ -209,7 +209,7 @@ function FortyThievesScreenInner() {
     cascade.disarm()
     controllerRef.current = createFortyThievesController(settings.fortyThievesRunMoves)
     setRunMoves(settings.fortyThievesRunMoves)
-    const seed = daily?.seed ?? randomSeed()
+    const seed = daily?.seed ?? dealSeed(fortyThievesVariant(settings.fortyThievesRunMoves), settings.winnableDeals)
     const s = controllerRef.current.newGame(seed)
     setUndoStack([])
     setHint(null)

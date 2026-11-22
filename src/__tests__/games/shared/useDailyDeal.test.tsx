@@ -16,12 +16,14 @@ const mockDealFor = jest.fn((_game: string, day: string) => (day === mockDeal.da
 const mockSubmit = jest.fn((_game: string, _actions: unknown[]) => Promise.resolve())
 const mockNote = jest.fn()
 jest.mock('@/stores/daily', () => ({ dailyDealFor: (game: string, day: string) => mockDealFor(game, day), noteDailyInPlay: (game: string, day: string | null) => mockNote(game, day), submitDailyWin: (game: string, actions: unknown[]) => mockSubmit(game, actions) }))
+const mockReminder = jest.fn()
+jest.mock('@/games/shared/useDailyReminder', () => ({ useDailyReminder: (game: string, enabled: boolean) => mockReminder(game, enabled) }))
 
 beforeEach(() => {
   mockParams = {}
   mockSubmit.mockClear()
   mockNote.mockClear()
-  setDailyScope({ game: 'spider', day: 'left over' })
+  setDailyScope({ game: 'spider', day: 'left over', seed: 1 })
 })
 
 const session = (seed = 77) => ({ getRun: () => ({ seed, actions: ['d' as const] }) })
@@ -34,6 +36,14 @@ describe('useDailyDeal', () => {
     expect(mockSubmit).not.toHaveBeenCalled()
   })
 
+  it("says a new Daily is out on a regular game's screen, never on a Daily's own", async () => {
+    await renderHook(() => useDailyDeal('klondike', false, session()))
+    expect(mockReminder).toHaveBeenLastCalledWith('klondike', true)
+    mockParams = { daily: mockDeal.day }
+    await renderHook(() => useDailyDeal('klondike', false, session()))
+    expect(mockReminder).toHaveBeenLastCalledWith('klondike', false)
+  })
+
   it('hands a Daily screen its deal, and scopes its saves, from the first render', async () => {
     mockParams = { daily: mockDeal.day }
     let scopeAtFirstRender: unknown
@@ -43,7 +53,7 @@ describe('useDailyDeal', () => {
       return deal
     })
     expect(result.current?.seed).toBe(77)
-    expect(scopeAtFirstRender).toEqual({ game: 'klondike', day: mockDeal.day })
+    expect(scopeAtFirstRender).toEqual({ game: 'klondike', day: mockDeal.day, seed: 77 })
   })
 
   it('plays a regular game if the deal was never started', async () => {

@@ -13,6 +13,7 @@ import playerSettings, { playerSettingsActions } from './playerSettingsSlice'
 import recentWins, { recentWinsActions } from './recentWinsSlice'
 import settings from './settingsSlice'
 import topWins, { topWinsActions } from './topWinsSlice'
+import winnableDeals from './winnableDealsSlice'
 
 // A saved board for a deleted profile, in every game: through the reducer, so each game's own persisted entry is
 // rewritten too.
@@ -46,6 +47,8 @@ export const packReducers = {
   // Which version of the how-to-play flow this player has finished or skipped. Its own key rather than a Settings
   // field, so it survives Reset Stats. See guideSlice.ts's own doc.
   guide,
+  // Where the device is in each rule set's list of winnable deals (see winnableDealsSlice.ts and stores/winnableDeals.ts).
+  winnableDeals,
   // The persisted settings (see settingsSlice.ts): the selected player's, for the ones that follow the player.
   settings,
   // Every other player's settings, swapped with the live ones whenever seat 1 changes (see playerSettingsSlice.ts).

@@ -1,5 +1,6 @@
-import { fireEvent, render, renderHook, screen } from '@testing-library/react-native'
+import { act, fireEvent, render, renderHook, screen } from '@testing-library/react-native'
 
+import { RULES_EXPAND_MS } from '@/components/RuleRows'
 import { SettingsSections, useSettingsRules } from '@/components/SettingsSections'
 
 // Solitaire's own Settings rows (Jay, 2026-10-15): two labeled sections like hud's APPEARANCE, so no
@@ -53,7 +54,7 @@ describe("Solitaire's own Settings sections", () => {
     expect(screen.getByText('CARDS')).toBeTruthy()
   })
 
-  it("shows Auto Hint's choice as the row's caption, and opens its choices in place on a tap", async () => {
+  it("shows Auto Hint's choice as the row's caption, and slides its choices open on a tap, open until tapped again", async () => {
     await renderSections()
     expect(screen.getByText('Off')).toBeTruthy()
     expect(screen.queryByText('After 15 seconds')).toBeNull()
@@ -61,7 +62,11 @@ describe("Solitaire's own Settings sections", () => {
     await fireEvent.press(screen.getByText('Auto Hint'))
     await fireEvent.press(screen.getByText('After 15 seconds'))
     expect(mockSetSettings).toHaveBeenCalledWith({ autoHintSeconds: 15 })
-    // Picking one closes the choices again.
+    // Picking one leaves them open, so another can be picked
+    expect(screen.getByText('After 15 seconds')).toBeTruthy()
+    // A tap on the row slides them shut, and they go once they have
+    await fireEvent.press(screen.getByText('Auto Hint'))
+    await act(() => new Promise((resolve) => setTimeout(resolve, RULES_EXPAND_MS + 20)))
     expect(screen.queryByText('After 15 seconds')).toBeNull()
   })
 
@@ -105,24 +110,25 @@ describe("the game's rules in Settings", () => {
     await renderSections()
 
     expect(screen.getByText('GIN RUMMY')).toBeTruthy()
-    for (const label of ['Match', 'Knocking', 'Bonuses', 'Meld Help']) expect(screen.getByText(label)).toBeTruthy()
+    // One row for them all (Jay, 2026-11-21), saying every choice in effect
+    expect(screen.getByText('Rules')).toBeTruthy()
+    expect(screen.getByText('To 100 · Knock at 10 · Gin 25, Under 25 · Melds and Count')).toBeTruthy()
     // No hint rows in a two-player game.
     expect(screen.queryByText('Auto Hint')).toBeNull()
   })
 
-  it('opens one rule at a time, and picking the choice already in effect writes nothing', async () => {
+  it('opens every rule at once, and picking the choice already in effect writes nothing', async () => {
     mockPath = '/play/ginrummy'
     await renderSections()
 
-    await fireEvent.press(screen.getByText('Knocking'))
+    expect(screen.queryByText('Knocking')).toBeNull()
+    await fireEvent.press(screen.getByText('Rules'))
+    for (const label of ['Match', 'Knocking', 'Bonuses', 'Meld Help']) expect(screen.getByText(label)).toBeTruthy()
     expect(screen.getByText('Oklahoma')).toBeTruthy()
-    await fireEvent.press(screen.getByText('Bonuses'))
-    expect(screen.queryByText('Oklahoma')).toBeNull()
-    // The choice in effect, in the list under its row (the row's caption says it too).
-    const inEffect = screen.getAllByText('Gin 25, Under 25')
-    expect(inEffect).toHaveLength(2)
-    await fireEvent.press(inEffect[1])
+    await fireEvent.press(screen.getByText('Knock at 10'))
     expect(mockSetSettings).not.toHaveBeenCalled()
+    await fireEvent.press(screen.getByText('Oklahoma'))
+    expect(mockSetSettings).toHaveBeenCalledWith({ ginKnock: 'oklahoma' })
   })
 
   it('has no section for a game without rules', async () => {

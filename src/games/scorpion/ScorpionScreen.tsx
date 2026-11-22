@@ -38,10 +38,9 @@ import { SCORPION_RULES } from '@/constants/gameRules'
 import { PileRef } from '@/engine/gameTypes'
 import { findHint, hintCountFor, HintResult } from '@/engine/hint'
 import { alwaysValidRun, runCountFrom } from '@/engine/pile'
-import { randomSeed } from '@/engine/rng'
 import { computeScore } from '@/engine/score'
 import { Card } from '@/engine/types'
-import { scorpionVariant } from '@/engine/variants'
+import { scorpionVariant, type VariantId } from '@/engine/variants'
 import { showNoHintToast } from '@/games/shared/gameToasts'
 import { liftTappedRun, peelInAir } from '@/games/shared/inAirRun'
 import { LossBanner } from '@/games/shared/LossBanner'
@@ -60,6 +59,7 @@ import { useWinReveal } from '@/games/shared/useWinReveal'
 import { WinBanner } from '@/games/shared/WinBanner'
 import { withGameProviders } from '@/games/shared/withGameProviders'
 import { loadGameInProgress, SavedGame, saveGameInProgress } from '@/stores/gameInProgress'
+import { dealSeed } from '@/stores/winnableDeals'
 
 import { buildScorpionDealSequence } from './dealSequence'
 import { createScorpionController, ScorpionState } from './rules'
@@ -248,9 +248,9 @@ function ScorpionScreenInner() {
   // whose own setting just changed (handleNewGame) must build and pass the new controller itself
   // instead of dealing with the current render's now-stale memoized one. Same shape Spider's own
   // startNewGame uses for its identical numSuits setting.
-  function startNewGame(ctrl: ReturnType<typeof createScorpionController>) {
+  function startNewGame(ctrl: ReturnType<typeof createScorpionController>, dealt: VariantId) {
     const myToken = ++dealTokenRef.current
-    const seed = daily?.seed ?? randomSeed()
+    const seed = daily?.seed ?? dealSeed(dealt, settings.winnableDeals)
     const s = ctrl.newGame(seed)
     setUndoStack([])
     setHint(null)
@@ -304,7 +304,7 @@ function ScorpionScreenInner() {
   function handleNewGame() {
     if (session.moves > 0 && !won) recordDealAbandoned(variant, { seconds: session.getElapsed(), moves: session.getMoves() })
     setAssistedStock(settings.scorpionAssistedStock)
-    startNewGame(createScorpionController(settings.scorpionAssistedStock))
+    startNewGame(createScorpionController(settings.scorpionAssistedStock), scorpionVariant(settings.scorpionAssistedStock))
   }
 
   // Every card in the initial deal flies face-down regardless of its real final state (columns
@@ -546,7 +546,7 @@ function ScorpionScreenInner() {
   useEffect(() => {
     loadGameInProgress<ScorpionState>('scorpion').then((saved) => {
       if (saved) restoreGame(saved)
-      else startNewGame(controller)
+      else startNewGame(controller, variant)
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])

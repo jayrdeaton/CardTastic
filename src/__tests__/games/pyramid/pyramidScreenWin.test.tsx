@@ -217,6 +217,8 @@ jest.mock('@/redux/store', () => require('../../../testUtils/gameInProgressStore
 jest.mock('@/components/dragdrop/DragGhostLayer', () => ({ DragGhostProvider: ({ children }: { children: unknown }) => children, useDragGhost: () => mockGhost }))
 jest.mock('@/components/dealing/DealLayer', () => ({ DealProvider: ({ children }: { children: unknown }) => children, useDealAnimator: () => mockDeal }))
 jest.mock('@/engine/rng', () => ({ ...jest.requireActual('@/engine/rng'), randomSeed: () => mockSeed }))
+// These tests pin their own deal (randomSeed above), so Winnable Deals is off (its test is in pyramidScreenQuickPlay)
+jest.mock('@/hooks/useSettings', () => ({ useSettings: () => ({ settings: { ...jest.requireActual('@/redux/settingsSlice').DEFAULT_SETTINGS, winnableDeals: false } }) }))
 jest.mock('@/components/winning/WinCascadeLayer', () => ({
   // Unmounting drops a cascade that has not shown yet, like the real provider (a test can end mid-wait).
   WinCascadeProvider: ({ children }: { children: unknown }) => {

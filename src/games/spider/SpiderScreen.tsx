@@ -33,10 +33,9 @@ import { SPIDER_RULES } from '@/constants/gameRules'
 import { PileRef } from '@/engine/gameTypes'
 import { findHint, hintCountFor, HintResult } from '@/engine/hint'
 import { isDescendingSameSuit, runCountFrom } from '@/engine/pile'
-import { randomSeed } from '@/engine/rng'
 import { computeScore } from '@/engine/score'
 import { Card } from '@/engine/types'
-import { spiderVariant } from '@/engine/variants'
+import { spiderVariant, type VariantId } from '@/engine/variants'
 import { showNoHintToast } from '@/games/shared/gameToasts'
 import { liftTappedRun, peelInAir } from '@/games/shared/inAirRun'
 import { LossBanner } from '@/games/shared/LossBanner'
@@ -55,6 +54,7 @@ import { useWinReveal } from '@/games/shared/useWinReveal'
 import { WinBanner } from '@/games/shared/WinBanner'
 import { withGameProviders } from '@/games/shared/withGameProviders'
 import { loadGameInProgress, SavedGame, saveGameInProgress } from '@/stores/gameInProgress'
+import { dealSeed } from '@/stores/winnableDeals'
 
 import { buildSpiderDealSequence } from './dealSequence'
 import { createSpiderController, SpiderState } from './rules'
@@ -595,9 +595,10 @@ function SpiderScreenInner() {
   }
 
   const startNewGame = useCallback(
-    (ctrl: ReturnType<typeof createSpiderController>) => {
+    // `winnable` is handed in, not read from settings: this callback is made once, so it would keep the first render's.
+    (ctrl: ReturnType<typeof createSpiderController>, dealt: VariantId, winnable: boolean) => {
       const myToken = ++dealTokenRef.current
-      const seed = daily?.seed ?? randomSeed()
+      const seed = daily?.seed ?? dealSeed(dealt, winnable)
       const s = ctrl.newGame(seed)
       setHistory([])
       setHint(null)
@@ -658,7 +659,7 @@ function SpiderScreenInner() {
   useEffect(() => {
     loadGameInProgress<SpiderState>('spider').then((saved) => {
       if (saved) restoreGame(saved)
-      else startNewGame(controller)
+      else startNewGame(controller, variant, settings.winnableDeals)
       setReady(true)
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1842,7 +1843,7 @@ function SpiderScreenInner() {
     // recording the abandon for any resumed, in-progress game.
     if (session.moves > 0 && !won) recordDealAbandoned(variant, { seconds: session.getElapsed(), moves: session.getMoves() })
     setNumSuits(settings.spiderSuits)
-    startNewGame(createSpiderController(settings.spiderSuits))
+    startNewGame(createSpiderController(settings.spiderSuits), spiderVariant(settings.spiderSuits), settings.winnableDeals)
   }
 
   return (

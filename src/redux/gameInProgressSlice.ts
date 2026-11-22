@@ -54,7 +54,8 @@ export type GameInProgressSlot = Partial<Record<string, SavedGame<unknown, unkno
 // holds more than one game (Android's AsyncStorage can't read back an entry past ~2MB). store.ts
 // blacklists `gameInProgress` from the root persistConfig, and its serializability check skips it.
 // Read and written only through stores/gameInProgress.ts, which coalesces writes; no component
-// subscribes to these slots, so a save never re-renders anything.
+// subscribes to these slots' contents (useHasGameInProgress reads only whether one is there), so a save
+// never re-renders anything.
 const createSlot = (id: SolitaireGameId) =>
   createSlice({
     initialState: {} as GameInProgressSlot,

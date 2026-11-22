@@ -1,4 +1,5 @@
 import { AppState } from 'react-native'
+import { useSelector } from 'react-redux'
 
 import { GUEST_PLAYER_ID } from '@/constants/player'
 import { FOUNDATION_LAYOUT, FOUNDATION_SUITS } from '@/engine/foundation'
@@ -52,8 +53,17 @@ function currentOwner(): string {
 
 // The key `gameId`'s save goes under: the active player's, or beside it for the Daily Deal being played (a Daily never takes the place
 // of their regular game).
-function saveOwner(gameId: SolitaireGameId): string {
-  return activeDailyScope()?.game === gameId ? `${currentOwner()}${DAILY_OWNER_SUFFIX}` : currentOwner()
+/** Whether a save of `gameId` is the Daily Deal's: the Daily's play screen is up for the game and, for a board being saved, it's that
+ * deal's. A regular game's screen still drawn while the Daily's replaces it (stores/dailyScope.ts) saves its own board last. */
+function isDailySave(gameId: SolitaireGameId, saved?: SavedGame<unknown, unknown>): boolean {
+  const scope = activeDailyScope()
+  if (scope?.game !== gameId) return false
+  const seed = saved?.run?.seed
+  return seed === undefined || seed === scope.seed
+}
+
+function saveOwner(gameId: SolitaireGameId, saved?: SavedGame<unknown, unknown>): string {
+  return isDailySave(gameId, saved) ? `${currentOwner()}${DAILY_OWNER_SUFFIX}` : currentOwner()
 }
 
 // Saves from before they were per profile belong to nobody in particular; the player active the first
@@ -145,14 +155,14 @@ export async function loadGameInProgress<TState, TUndo = UndoEntry<TState>>(game
 export function saveGameInProgress<TState, TUndo = UndoEntry<TState>>(gameId: SolitaireGameId, saved: SavedGame<TState, TUndo>): void {
   ensureFlushOnBackground()
   adoptLegacySaves()
-  const owner = saveOwner(gameId)
-  const scope = activeDailyScope()
+  const owner = saveOwner(gameId, saved as SavedGame<unknown, unknown>)
+  const scope = owner.endsWith(DAILY_OWNER_SUFFIX) ? activeDailyScope() : null
   // Another player's save still waiting for this game is theirs: store it before this one takes its place.
   const waiting = pendingSaves.get(gameId)
   if (waiting && waiting.owner !== owner) dispatchPending(gameId)
   const now = Date.now()
   const firstAt = pendingSaves.get(gameId)?.firstAt ?? now
-  pendingSaves.set(gameId, { owner, saved: { ...(saved as SavedGame<unknown, unknown>), foundationLayout: FOUNDATION_LAYOUT, ...(scope?.game === gameId ? { day: scope.day } : {}) }, firstAt })
+  pendingSaves.set(gameId, { owner, saved: { ...(saved as SavedGame<unknown, unknown>), foundationLayout: FOUNDATION_LAYOUT, ...(scope ? { day: scope.day } : {}) }, firstAt })
   const existing = saveTimers.get(gameId)
   if (existing) clearTimeout(existing)
   const wait = Math.max(0, Math.min(SAVE_DEBOUNCE_MS, firstAt + SAVE_MAX_WAIT_MS - now))
@@ -169,6 +179,26 @@ function dropPending(gameId: SolitaireGameId): void {
   pendingSaves.delete(gameId)
 }
 
+type SavesState = { gameInProgress: Record<SolitaireGameId, Record<string, Pick<SavedGame<unknown, unknown>, 'moves' | 'elapsedSeconds'> | undefined>>; profileSelection?: Record<1, string | null> }
+const playersSave = (state: SavesState, gameId: SolitaireGameId) => state.gameInProgress[gameId][state.profileSelection?.[1] ?? GUEST_PLAYER_ID]
+
+/** Whether the active player has a regular game of `gameId` saved (a Daily's is kept apart): the setup screen offers Continue over
+ * one and New Deal otherwise. A boolean, so a save (every few moves) re-renders nothing that reads it. */
+export function useHasGameInProgress(gameId: SolitaireGameId): boolean {
+  return useSelector((state: SavesState) => !!playersSave(state, gameId))
+}
+
+/** The active player's regular game of `gameId` in progress, as the setup screen's Continue says it ("12 moves · 4:05"), or null.
+ * Read only while `active` (the setup screen in focus): it stays mounted under the play screen, which saves every few moves. */
+export function useGameInProgressSummary(gameId: SolitaireGameId, active: boolean): string | null {
+  return useSelector((state: SavesState) => {
+    const saved = active ? playersSave(state, gameId) : undefined
+    if (!saved) return null
+    const seconds = Math.floor(saved.elapsedSeconds)
+    return `${saved.moves} ${saved.moves === 1 ? 'move' : 'moves'} · ${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`
+  })
+}
+
 /** Drops the active player's save for `gameId` (a win, a loss, a New Game). */
 export async function clearGameInProgress(gameId: SolitaireGameId): Promise<void> {
   adoptLegacySaves()
@@ -178,6 +208,26 @@ export async function clearGameInProgress(gameId: SolitaireGameId): Promise<void
   if (pendingSaves.get(gameId)?.owner === owner) dropPending(gameId)
   else dispatchPending(gameId)
   store.dispatch(gameInProgressActions[gameId].setSaved({ owner, saved: null }))
+}
+
+/** How many moves the active player's regular game of `gameId` has, saved or still waiting to be (0 with none). */
+export function gameInProgressMoves(gameId: SolitaireGameId): number {
+  const owner = currentOwner()
+  const pending = pendingSaves.get(gameId)
+  if (pending?.owner === owner) return pending.saved.moves
+  return store.getState().gameInProgress[gameId][owner]?.moves ?? 0
+}
+
+/** Ends the active player's regular game of `gameId` from outside its screen (the setup screen's New Deal over a game in progress)
+ * and hands back what was saved, so the caller can count it as the game's own New Game does. Never a Daily's: that's kept apart. */
+export function abandonGameInProgress(gameId: SolitaireGameId): SavedGame<unknown, unknown> | null {
+  adoptLegacySaves()
+  const owner = currentOwner()
+  // The latest moves still waiting to be stored are the game's last word
+  if (pendingSaves.get(gameId)?.owner === owner) dispatchPending(gameId)
+  const saved = store.getState().gameInProgress[gameId][owner] ?? null
+  if (saved) store.dispatch(gameInProgressActions[gameId].setSaved({ owner, saved: null }))
+  return saved
 }
 
 /** Drops every player's saves for every game (Reset Stats, which resets every player). */

@@ -31,9 +31,8 @@ import { GOLF_RULES } from '@/constants/gameRules'
 import { PileRef } from '@/engine/gameTypes'
 import { findHint, hintCountFor, HintResult } from '@/engine/hint'
 import { top } from '@/engine/pile'
-import { randomSeed } from '@/engine/rng'
 import { computeScore } from '@/engine/score'
-import { golfVariant } from '@/engine/variants'
+import { golfVariant, type VariantId } from '@/engine/variants'
 import { showNoHintToast } from '@/games/shared/gameToasts'
 import { LossBanner } from '@/games/shared/LossBanner'
 import { MoveInfo, UndoEntry } from '@/games/shared/undoTypes'
@@ -53,6 +52,7 @@ import { sweptWaste, useWinStockSweep } from '@/games/shared/useWinStockSweep'
 import { WinBanner } from '@/games/shared/WinBanner'
 import { withGameProviders } from '@/games/shared/withGameProviders'
 import { loadGameInProgress, SavedGame, saveGameInProgress } from '@/stores/gameInProgress'
+import { dealSeed } from '@/stores/winnableDeals'
 
 import { BOARD_MODEL } from './boardModel'
 import { buildGolfDealSequence } from './dealSequence'
@@ -191,9 +191,9 @@ function GolfScreenInner() {
   // whose own setting just changed (handleNewGame) must build and pass the new controller itself
   // instead of dealing with the current render's now-stale memoized one. Same shape Spider's own
   // startNewGame uses for its identical numSuits setting.
-  function startNewGame(ctrl: ReturnType<typeof createGolfController>) {
+  function startNewGame(ctrl: ReturnType<typeof createGolfController>, dealt: VariantId) {
     const myToken = ++dealTokenRef.current
-    const seed = daily?.seed ?? randomSeed()
+    const seed = daily?.seed ?? dealSeed(dealt, settings.winnableDeals)
     const s = ctrl.newGame(seed)
     setUndoStack([])
     setHint(null)
@@ -247,7 +247,7 @@ function GolfScreenInner() {
   function handleNewGame() {
     if (session.moves > 0 && !won) recordDealAbandoned(variant, { seconds: session.getElapsed(), moves: session.getMoves() })
     setGolfRankWrap(settings.golfRankWrap)
-    startNewGame(createGolfController(settings.golfRankWrap))
+    startNewGame(createGolfController(settings.golfRankWrap), golfVariant(settings.golfRankWrap))
   }
 
   // Golf has no placeholder-deck trick (unlike FreeCell/Yukon) - it deals from a real stock pile,
@@ -404,7 +404,7 @@ function GolfScreenInner() {
   useEffect(() => {
     loadGameInProgress<GolfState, UndoEntry<GolfState, MoveInfo>>('golf').then((saved) => {
       if (saved) restoreGame(saved)
-      else startNewGame(controller)
+      else startNewGame(controller, variant)
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])

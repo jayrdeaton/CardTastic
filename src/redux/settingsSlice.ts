@@ -51,6 +51,7 @@ export const DEFAULT_SETTINGS: Settings = {
   autoMoveToFoundation: true,
   dimUnplayable: true,
   autoHintSeconds: 0,
+  winnableDeals: true,
   cardStyle: 'compact',
   cardBackStyle: 'geometric',
   invertDarkModeColors: false,

@@ -48,7 +48,6 @@ import { ACESUP_RULES } from '@/constants/gameRules'
 import { PileRef } from '@/engine/gameTypes'
 import { findHint, hintCountFor, HintResult } from '@/engine/hint'
 import { top } from '@/engine/pile'
-import { randomSeed } from '@/engine/rng'
 import { computeScore } from '@/engine/score'
 import { Card } from '@/engine/types'
 import { DiscardCell } from '@/games/shared/DiscardCell'
@@ -68,7 +67,9 @@ import { useUndoStack } from '@/games/shared/useUndoStack'
 import { useWinReveal } from '@/games/shared/useWinReveal'
 import { WinBanner } from '@/games/shared/WinBanner'
 import { withGameProviders } from '@/games/shared/withGameProviders'
+import { useSettings } from '@/hooks/useSettings'
 import { loadGameInProgress, SavedGame, saveGameInProgress } from '@/stores/gameInProgress'
+import { dealSeed } from '@/stores/winnableDeals'
 
 import { BOARD_MODEL, PILE_MIN_GAP } from './boardModel'
 import { buildAcesUpDealSequence } from './dealSequence'
@@ -139,6 +140,8 @@ function AcesUpScreenInner() {
   const { won, recordedRef: recordedWinRef, pendingWinCascadeRef } = useDerivedWinCheck(AcesUpController, state, 'acesup', session, dealTokenRef, recordDealWon, hintsUsedRef)
   // The Daily Deal this screen was opened for, if any: its seed deals the board, and a win goes to the server (useDailyDeal)
   const daily = useDailyDeal('acesup', won, session)
+  // The player's own settings: only Winnable Deals is read here, for the seed of a new deal (stores/winnableDeals.ts)
+  const { settings } = useSettings()
   // Nothing in the air (every discard/move/round-deal/undo flight is counted by startFlights/
   // settleFlight) and no card still waiting on a deal - what the win celebration waits for (see
   // useWinReveal).
@@ -204,7 +207,7 @@ function AcesUpScreenInner() {
 
   function startNewGame() {
     const myToken = ++dealTokenRef.current
-    const seed = daily?.seed ?? randomSeed()
+    const seed = daily?.seed ?? dealSeed('acesup', settings.winnableDeals)
     const s = AcesUpController.newGame(seed)
     setUndoStack([])
     setHint(null)

@@ -38,6 +38,7 @@ jest.mock('@/stores/daily', () => ({
 }))
 const mockInfo = jest.fn()
 const mockSuccess = jest.fn()
+const mockSeeBoard = jest.fn()
 const mockDismissTo = jest.fn()
 jest.mock('@rific/toaster', () => ({ useToast: () => ({ info: mockInfo, success: mockSuccess, error: jest.fn() }) }))
 // The profiles' players on the device (stores/online.ts), as Settings' ONLINE section reads them: the server knows each as
@@ -108,7 +109,7 @@ beforeEach(() => {
 describe("Today's Deal", () => {
   it('starts the deal and opens it, saying the clock starts on the tap', async () => {
     mockStart.mockResolvedValue({ ...DEAL })
-    await show(<TodaysDeal game='klondike' />)
+    await show(<TodaysDeal game='klondike' day={TODAY} />)
     expect(screen.getByText('Draw 1 · Clock starts on tap')).toBeTruthy()
     await press('klondike-daily-play')
     expect(mockStart).toHaveBeenCalledWith('klondike')
@@ -117,32 +118,45 @@ describe("Today's Deal", () => {
 
   it('says so when the server cannot be reached, and stays put', async () => {
     mockStart.mockRejectedValue(new Error('The Daily needs an internet connection'))
-    await show(<TodaysDeal game='klondike' />)
+    await show(<TodaysDeal game='klondike' day={TODAY} />)
     await press('klondike-daily-play')
     expect(mockInfo).toHaveBeenCalledWith('The Daily needs an internet connection', undefined, undefined, { icon: 'wifi-off' })
     expect(router.push).not.toHaveBeenCalled()
   })
 
   it('offers a deal already started as running, and counts the wins posted', async () => {
-    await show(<TodaysDeal game='klondike' />, { players: { kid: PLAYER }, deals: { kid: { klondike: DEAL } } })
+    await show(<TodaysDeal game='klondike' day={TODAY} />, { players: { kid: PLAYER }, deals: { kid: { klondike: DEAL } } })
     expect(screen.getByText('Clock is running')).toBeTruthy()
     expect(screen.getByText('4 wins posted')).toBeTruthy()
   })
 
-  it("shows a win's place, and doesn't deal it again", async () => {
-    await show(<TodaysDeal game='klondike' />, { players: { kid: { ...PLAYER, listed: true } }, deals: { kid: { klondike: { ...DEAL, result: RESULT } } } })
-    expect(screen.getByText('3rd today · Score 210')).toBeTruthy()
+  // Jay, 2026-11-21: a finished Daily didn't look done
+  it("checks a won deal off with its place, and doesn't deal it again", async () => {
+    await show(<TodaysDeal game='klondike' day={TODAY} />, { players: { kid: { ...PLAYER, listed: true } }, deals: { kid: { klondike: { ...DEAL, result: RESULT } } } })
+    expect(screen.getByText('Done · 3rd · Score 210')).toBeTruthy()
+    expect(screen.getByTestId('klondike-daily-play-done')).toBeTruthy()
     await press('klondike-daily-play')
     expect(mockStart).not.toHaveBeenCalled()
   })
 
+  it("says where a win would stand for a player who isn't on the boards", async () => {
+    await show(<TodaysDeal game='klondike' day={TODAY} />, { players: { kid: { ...PLAYER, listed: false } }, deals: { kid: { klondike: { ...DEAL, result: RESULT } } } })
+    expect(screen.getByText("Done · You'd be 3rd · Score 210")).toBeTruthy()
+  })
+
+  it('checks off a win still on its way to the board too', async () => {
+    await show(<TodaysDeal game='klondike' day={TODAY} />, { players: { kid: PLAYER }, deals: { kid: { klondike: { ...DEAL, unsent: ['d'] } } } })
+    expect(screen.getByText('Won · Posting your win')).toBeTruthy()
+    expect(screen.getByTestId('klondike-daily-play-done')).toBeTruthy()
+  })
+
   it("treats yesterday's deal as gone", async () => {
-    await show(<TodaysDeal game='klondike' />, { players: { kid: PLAYER }, deals: { kid: { klondike: { ...DEAL, day: '2026-11-17', result: RESULT } } } })
+    await show(<TodaysDeal game='klondike' day={TODAY} />, { players: { kid: PLAYER }, deals: { kid: { klondike: { ...DEAL, day: '2026-11-17', result: RESULT } } } })
     expect(screen.getByText('Draw 1 · Clock starts on tap')).toBeTruthy()
   })
 
   it('opens the board', async () => {
-    await show(<TodaysDeal game='spider' />)
+    await show(<TodaysDeal game='spider' day={TODAY} />)
     await press('spider-daily-board')
     expect(router.push).toHaveBeenCalledWith({ pathname: '/daily/[game]', params: { game: 'spider' } })
   })
@@ -154,7 +168,7 @@ describe("Today's Deal", () => {
 
     it('asks their name, makes and picks a profile in their color, then deals', async () => {
       mockStart.mockResolvedValue({ ...DEAL })
-      await show(<TodaysDeal game='klondike' />)
+      await show(<TodaysDeal game='klondike' day={TODAY} />)
       await press('klondike-daily-play')
       expect(mockStart).not.toHaveBeenCalled()
       expect(screen.getByText("Who's Playing?")).toBeTruthy()
@@ -171,7 +185,7 @@ describe("Today's Deal", () => {
     })
 
     it('asks before the board too', async () => {
-      await show(<TodaysDeal game='spider' />)
+      await show(<TodaysDeal game='spider' day={TODAY} />)
       await press('spider-daily-board')
       expect(router.push).not.toHaveBeenCalled()
       expect(screen.getByText('Continue')).toBeTruthy()
@@ -184,7 +198,7 @@ describe("Today's Deal", () => {
     })
 
     it('makes nothing when they cancel', async () => {
-      await show(<TodaysDeal game='klondike' />)
+      await show(<TodaysDeal game='klondike' day={TODAY} />)
       await press('klondike-daily-play')
       await act(async () => {
         fireEvent.press(screen.getByText('Cancel'))
@@ -199,43 +213,59 @@ describe("Today's Deal", () => {
 describe('the win card', () => {
   const won = { players: { kid: PLAYER }, deals: { kid: { klondike: { ...DEAL, result: RESULT } } } }
 
-  it('asks a profile once, sending its tag and color only with a yes', async () => {
-    await show(<DailyWinSection game='klondike' />, won)
+  // Jay, 2026-11-21: one filled button and a muted one, never a second in the primary, and words for what the answer does
+  // (it was Not Now and Show Me, under a See Board button of its own)
+  it('asks a profile once, its own two buttons on the card, sending its tag and color only with a yes', async () => {
+    await show(<DailyWinSection game='klondike' onSeeBoard={mockSeeBoard} />, won)
     expect(screen.getByText("You'd be 3rd today")).toBeTruthy()
+    expect(screen.getByTestId('daily-list-no')).toHaveTextContent('Keep Private')
+    expect(screen.getByTestId('daily-list-yes')).toHaveTextContent('Show My Wins')
+    expect(screen.queryByTestId('win-see-board')).toBeNull()
     await press('daily-list-yes')
     expect(mockListed).toHaveBeenCalledWith(true, { tag: 'KID', color: '#3b82f6' })
   })
 
   it('takes a no', async () => {
-    await show(<DailyWinSection game='klondike' />, won)
+    await show(<DailyWinSection game='klondike' onSeeBoard={mockSeeBoard} />, won)
     await press('daily-list-no')
     expect(mockListed).toHaveBeenCalledWith(false, { tag: 'KID', color: '#3b82f6' })
   })
 
-  it('does not ask again', async () => {
-    await show(<DailyWinSection game='klondike' />, { ...won, players: { kid: { ...PLAYER, listed: true } } })
+  it('does not ask again, and ends in the board', async () => {
+    await show(<DailyWinSection game='klondike' onSeeBoard={mockSeeBoard} />, { ...won, players: { kid: { ...PLAYER, listed: true } } })
     expect(screen.getByText('3rd today')).toBeTruthy()
     expect(screen.queryByTestId('daily-list-yes')).toBeNull()
+    await press('win-see-board')
+    expect(mockSeeBoard).toHaveBeenCalled()
+  })
+
+  // A Daily belongs to the date its clock started (Jay, 2026-11-21: midnight stays the turn of the day), so one dealt before
+  // midnight and won after it stands on its own date's board
+  it("names the deal's date when it was dealt before today", async () => {
+    await show(<DailyWinSection game='klondike' onSeeBoard={mockSeeBoard} />, { players: { kid: { ...PLAYER, listed: true } }, deals: { kid: { klondike: { ...DEAL, day: '2026-11-17', result: RESULT } } } })
+    expect(screen.getByText('3rd on Nov 17')).toBeTruthy()
   })
 
   // A Daily is always a profile's (stores/online.ts): Guest has none to show
-  it('has nothing for Guest', async () => {
+  it('has nothing for Guest but the board', async () => {
     mockProfile = null
-    await show(<DailyWinSection game='klondike' />, won)
+    await show(<DailyWinSection game='klondike' onSeeBoard={mockSeeBoard} />, won)
     expect(screen.queryByTestId('daily-win-line')).toBeNull()
     expect(screen.queryByTestId('daily-list-yes')).toBeNull()
+    expect(screen.getByTestId('win-see-board')).toBeTruthy()
   })
 
-  it('offers another try when the win could not be sent', async () => {
+  it('offers another try when the win could not be sent, beside the board', async () => {
     mockSend.mockRejectedValueOnce(new Error('offline'))
-    await show(<DailyWinSection game='klondike' />, { players: { kid: PLAYER }, deals: { kid: { klondike: { ...DEAL, unsent: ['d'] } } } })
+    await show(<DailyWinSection game='klondike' onSeeBoard={mockSeeBoard} />, { players: { kid: PLAYER }, deals: { kid: { klondike: { ...DEAL, unsent: ['d'] } } } })
     expect(screen.getByText("Couldn't reach the board")).toBeTruthy()
+    expect(screen.getByTestId('win-see-board')).toBeTruthy()
     await press('daily-win-retry')
     expect(mockSend).toHaveBeenCalledTimes(2)
   })
 
   it('says so when the server refused the run', async () => {
-    await show(<DailyWinSection game='klondike' />, { players: { kid: PLAYER }, deals: { kid: { klondike: { ...DEAL, refused: true } } } })
+    await show(<DailyWinSection game='klondike' onSeeBoard={mockSeeBoard} />, { players: { kid: PLAYER }, deals: { kid: { klondike: { ...DEAL, refused: true } } } })
     expect(screen.getByText("This run couldn't be verified, so it isn't on the board")).toBeTruthy()
   })
 })
@@ -250,7 +280,7 @@ describe('a Daily Deal in the game footer', () => {
   afterEach(() => setDailyScope(null))
 
   it('leaves Undo, with no Hint and no New Game', async () => {
-    setDailyScope({ game: 'klondike', day: TODAY })
+    setDailyScope({ game: 'klondike', day: TODAY, seed: 1 })
     await show(chrome)
     expect(screen.getByText('Klondike · Daily Deal')).toBeTruthy()
     expect(screen.getByText('Undo')).toBeTruthy()

@@ -240,21 +240,64 @@ describe('game-in-progress persistence (coalesced saves)', () => {
       api.saveGameInProgress('klondike', board(4))
       await api.flushGameInProgress('klondike')
 
-      setDailyScope({ game: 'klondike', day: '2026-11-18' })
+      setDailyScope({ game: 'klondike', day: '2026-11-18', seed: 1 })
       await expect(api.loadGameInProgress('klondike')).resolves.toBeNull()
       api.saveGameInProgress('klondike', board(9))
       await expect(api.loadGameInProgress('klondike')).resolves.toMatchObject({ moves: 9, day: '2026-11-18' })
 
       // Tomorrow's Daily doesn't resume yesterday's
-      setDailyScope({ game: 'klondike', day: '2026-11-19' })
+      setDailyScope({ game: 'klondike', day: '2026-11-19', seed: 1 })
       await expect(api.loadGameInProgress('klondike')).resolves.toBeNull()
 
       // A win clears the Daily, and leaves the regular game as it was
-      setDailyScope({ game: 'klondike', day: '2026-11-18' })
+      setDailyScope({ game: 'klondike', day: '2026-11-18', seed: 1 })
       await api.clearGameInProgress('klondike')
       await expect(api.loadGameInProgress('klondike')).resolves.toBeNull()
       setDailyScope(null)
       await expect(api.loadGameInProgress('klondike')).resolves.toMatchObject({ moves: 4 })
+    } finally {
+      setDailyScope(null)
+    }
+  })
+
+  // The setup screen's New Deal over a game in progress (Jay, 2026-11-21: a way to quit a deal there)
+  it("ends the player's regular game from outside its screen, handing back what was saved, its latest moves included", async () => {
+    const { setDailyScope } = require('@/stores/dailyScope') as typeof import('@/stores/dailyScope')
+    try {
+      api.saveGameInProgress('klondike', board(4))
+      await api.flushGameInProgress('klondike')
+      setDailyScope({ game: 'klondike', day: '2026-11-21', seed: 1 })
+      api.saveGameInProgress('klondike', { ...board(2), run: { seed: 1, actions: [] } })
+      await api.flushGameInProgress('klondike')
+      setDailyScope(null)
+      // Moves not stored yet are the game's last word
+      api.saveGameInProgress('klondike', board(6))
+      expect(api.gameInProgressMoves('klondike')).toBe(6)
+
+      expect(api.abandonGameInProgress('klondike')).toMatchObject({ moves: 6 })
+      expect(api.gameInProgressMoves('klondike')).toBe(0)
+      await expect(api.loadGameInProgress('klondike')).resolves.toBeNull()
+      // The Daily's is kept apart and untouched
+      setDailyScope({ game: 'klondike', day: '2026-11-21', seed: 1 })
+      await expect(api.loadGameInProgress('klondike')).resolves.toMatchObject({ moves: 2 })
+    } finally {
+      setDailyScope(null)
+    }
+  })
+
+  // The Daily's reminder puts the Daily's screen in place of the regular game's, and the stack draws the old screen until its
+  // transition ends: its last save comes after the Daily's screen set the scope, and must stay the regular game's.
+  it("files a regular game's board saved while the Daily's screen is up as the regular game, by its deal", async () => {
+    const { setDailyScope } = require('@/stores/dailyScope') as typeof import('@/stores/dailyScope')
+    try {
+      setDailyScope({ game: 'klondike', day: '2026-11-21', seed: 1 })
+      api.saveGameInProgress('klondike', { ...board(12), run: { seed: 99, actions: [] } })
+      api.saveGameInProgress('klondike', { ...board(3), run: { seed: 1, actions: [] } })
+      await api.flushGameInProgress('klondike')
+      await expect(api.loadGameInProgress('klondike')).resolves.toMatchObject({ moves: 3, day: '2026-11-21' })
+      setDailyScope(null)
+      await expect(api.loadGameInProgress('klondike')).resolves.toMatchObject({ moves: 12 })
+      await expect(api.loadGameInProgress('klondike')).resolves.not.toHaveProperty('day')
     } finally {
       setDailyScope(null)
     }
