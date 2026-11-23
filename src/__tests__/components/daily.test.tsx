@@ -1,12 +1,15 @@
 import { configureStore } from '@reduxjs/toolkit'
+import { useAutoPaperTheme } from '@rific/auto-paper'
 import { FeedbackPressProvider } from '@rific/feedback-press'
-import { act, fireEvent, render, screen } from '@testing-library/react-native'
+import { act, fireEvent, render, renderHook, screen } from '@testing-library/react-native'
 import { router } from 'expo-router'
 import type { ReactNode } from 'react'
+import { StyleSheet } from 'react-native'
 import * as RNPaper from 'react-native-paper'
 import { Provider as PaperProvider } from 'react-native-paper'
 import { Provider } from 'react-redux'
 
+import { DailyBoardScreen } from '@/components/daily/DailyBoardScreen'
 import { DailyWinSection } from '@/components/daily/DailyWinSection'
 import { ProfileOnline } from '@/components/daily/ProfileOnline'
 import { TodaysDeal } from '@/components/daily/TodaysDeal'
@@ -27,12 +30,13 @@ jest.mock('@/stores/profiles', () => ({
 const mockStart = jest.fn()
 const mockSend = jest.fn(() => Promise.resolve())
 const mockListed = jest.fn((_listed: boolean, _look: unknown, _owner?: string) => Promise.resolve())
+let mockBoard: unknown = { entries: [], finished: 4, you: { started: false } }
 jest.mock('@/stores/daily', () => ({
   localDay: () => '2026-11-18',
   startDailyDeal: (game: string) => mockStart(game),
   sendDailyWin: () => mockSend(),
   setDailyListed: (...args: [boolean, unknown, string?]) => mockListed(...args),
-  fetchDailyBoard: () => Promise.resolve({ entries: [], finished: 4, you: { started: false } }),
+  fetchDailyBoard: () => Promise.resolve(mockBoard),
   syncDailyLook: () => Promise.resolve(),
   dailyErrorText: (error: Error) => error.message
 }))
@@ -68,7 +72,7 @@ jest.mock('@/stores/online', () => {
 })
 jest.mock('expo-router', () => {
   const { useEffect } = require('react')
-  return { router: { push: jest.fn() }, useRouter: () => ({ dismissTo: mockDismissTo }), useIsFocused: () => true, useFocusEffect: (run: () => void) => useEffect(run, [run]) }
+  return { router: { push: jest.fn() }, useRouter: () => ({ dismissTo: mockDismissTo }), useLocalSearchParams: () => ({ game: 'freecell' }), useIsFocused: () => true, useFocusEffect: (run: () => void) => useEffect(run, [run]) }
 })
 jest.mock('@/components/SettingsDialog', () => ({ SettingsDialog: () => null }))
 jest.mock('@/components/RulesDialog', () => ({ RulesDialog: () => null }))
@@ -135,8 +139,14 @@ describe("Today's Deal", () => {
     await show(<TodaysDeal game='klondike' day={TODAY} />, { players: { kid: { ...PLAYER, listed: true } }, deals: { kid: { klondike: { ...DEAL, result: RESULT } } } })
     expect(screen.getByText('Done · 3rd · Score 210')).toBeTruthy()
     expect(screen.getByTestId('klondike-daily-play-done')).toBeTruthy()
+    const badge = StyleSheet.flatten(screen.getByTestId('klondike-daily-play-done').props.style).backgroundColor
     await press('klondike-daily-play')
     expect(mockStart).not.toHaveBeenCalled()
+    // Filled in the theme's tertiary, the on badge one step stronger, never auto-paper's fixed success green (Jay, 2026-11-23).
+    // Read last: renderHook mounts a tree of its own, which screen then points at
+    const { result } = await renderHook(() => useAutoPaperTheme())
+    expect(badge).toBe(result.current.colors.tertiary)
+    expect(badge).not.toBe(result.current.colors.success)
   })
 
   it("says where a win would stand for a player who isn't on the boards", async () => {
@@ -207,6 +217,29 @@ describe("Today's Deal", () => {
       expect(mockCreate).not.toHaveBeenCalled()
       expect(mockStart).not.toHaveBeenCalled()
     })
+  })
+})
+
+describe("Today's Board", () => {
+  // Jay, 2026-11-23: his row was an opaque pale magenta (the theme's tertiaryContainer, for a yellow player) right up to the
+  // rank and the moves. Now it's outlined in his own color, with room round the columns
+  it('outlines your row in your own color, and no one else', async () => {
+    mockBoard = {
+      entries: [
+        { rank: 1, score: 187, seconds: 90, moves: 97, tag: '🦄', color: '#9c27b0', you: false },
+        { rank: 2, score: 690, seconds: 538, moves: 152, tag: '🐲', color: '#ffeb3b', you: true }
+      ],
+      finished: 2,
+      you: { started: true, listed: true, rank: 2, score: 690, seconds: 538, moves: 152, tag: '🐲', color: '#ffeb3b', you: true }
+    }
+    await show(<DailyBoardScreen />)
+    const outlines = screen.getAllByTestId('daily-board-you-outline')
+    expect(outlines).toHaveLength(1)
+    const outline = StyleSheet.flatten(outlines[0].props.style)
+    expect(outline.borderColor).toBe('#ffeb3b')
+    expect(outline.borderWidth).toBe(2)
+    expect(outline.backgroundColor).toBeUndefined()
+    expect(StyleSheet.flatten(screen.getByTestId('daily-board-you').props.style).paddingHorizontal).toBeGreaterThanOrEqual(12)
   })
 })
 

@@ -87,12 +87,18 @@ function Row({ entry, header }: { entry?: DailyBoardEntry; header?: boolean }) {
   const variant = header ? 'labelSmall' : 'bodyMedium'
   const muted = { color: fgMuted }
   const strong = { color: header ? fgMuted : fg }
+  const color = entry?.color ?? colors.primary
   return (
-    <View style={[styles.row, entry?.you && { backgroundColor: colors.tertiaryContainer }]} testID={entry?.you ? 'daily-board-you' : undefined}>
+    <View style={styles.row} testID={entry?.you ? 'daily-board-you' : undefined}>
+      {/* Your row is outlined in your own color, the chip's, as the calendar outlines a picked day. It was the theme's
+          tertiaryContainer, an opaque pale magenta for a yellow player that read as a hole in the well; a see-through fill of
+          the player's color went grey on a blue well, so it's an outline: it reads on any well, in either mode (Jay, 2026-11-23).
+          Drawn over the row rather than as the row's border, so the columns don't move */}
+      {entry?.you && <View pointerEvents='none' style={[StyleSheet.absoluteFill, styles.youOutline, { borderColor: color }]} testID='daily-board-you-outline' />}
       <Text variant={variant} style={[styles.rank, muted]}>
         {entry ? entry.rank : '#'}
       </Text>
-      <View style={styles.player}>{entry && <ProfileChip profile={{ id: 'board', name: '', color: entry.color ?? colors.primary, tag: entry.tag ?? '', createdAt: 0, updatedAt: 0 }} size={26} />}</View>
+      <View style={styles.player}>{entry && <ProfileChip profile={{ id: 'board', name: '', color, tag: entry.tag ?? '', createdAt: 0, updatedAt: 0 }} size={26} />}</View>
       <Text variant={variant} style={[styles.number, strong]}>
         {entry ? commaString(entry.score) : 'SCORE'}
       </Text>
@@ -122,12 +128,18 @@ const styles = StyleSheet.create({
     fontVariant: ['tabular-nums'],
     width: 26
   },
+  // Every row, the header too, runs 8pt into the well's 16pt padding with 12pt inside, so the columns stay where they were
+  // and your row's outline reaches past them with room round the rank and the moves (its highlight ended 4pt from them)
   row: {
     alignItems: 'center',
-    borderRadius: 8,
     flexDirection: 'row',
     gap: 8,
-    minHeight: 32,
-    paddingHorizontal: 4
+    marginHorizontal: -8,
+    minHeight: 36,
+    paddingHorizontal: 12
+  },
+  youOutline: {
+    borderRadius: 10,
+    borderWidth: 2
   }
 })
