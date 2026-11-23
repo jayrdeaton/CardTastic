@@ -3,6 +3,7 @@ import type { ComponentType } from 'react'
 
 import { GamePreview, type PreviewCardPlacement } from '@/components/GamePreview'
 import type { PreviewGame } from '@/components/previewFaceBitmaps'
+import { usePreviewFelt } from '@/components/previewFelt'
 import { RulesDialog } from '@/components/RulesDialog'
 import { useTableColors } from '@/components/theme'
 
@@ -17,7 +18,8 @@ export function gamePreview(game: PreviewGame, build: () => PreviewCardPlacement
   const placements = build()
   return function Preview({ width, height }: GamePreviewProps) {
     const colors = useTableColors()
-    return <GamePreview game={game} placements={placements} colors={colors} style={{ width, height, backgroundColor: colors.tableFelt }} />
+    const felt = usePreviewFelt()
+    return <GamePreview game={game} placements={placements} colors={colors} style={{ width, height, backgroundColor: felt ? colors.tableFelt : undefined }} />
   }
 }
 

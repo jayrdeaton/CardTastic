@@ -12,15 +12,21 @@ jest.mock('@tastic/shell', () => {
   const { View: MockView } = jest.requireActual('react-native')
   return {
     PREVIEW_ASPECT: 1.8,
-    usePackGame: (id: string) => ({ id, title: 'Klondike', Preview: ({ width, height }: { width: number; height: number }) => <MockView testID='preview' style={{ width, height }} /> }),
+    usePackGame: (id: string) => ({
+      id,
+      title: 'Klondike',
+      // A preview paints its felt unless told not to (components/previewFelt.ts)
+      Preview: ({ width, height }: { width: number; height: number }) => {
+        const felt = jest.requireActual('@/components/previewFelt').usePreviewFelt()
+        return <MockView testID='preview' nativeID={felt ? 'felt' : 'bare'} style={{ width, height }} />
+      }
+    }),
     useSeatColors: () => ({ p1Color: '#e91e63', p2Color: '#2196f3' })
   }
 })
 
-const heroHeight = () => {
-  const style = [screen.getByTestId('klondike-hero').props.style].flat(Infinity) as { height?: number }[]
-  return Object.assign({}, ...style).height as number
-}
+const styleOf = (testID: string) => Object.assign({}, ...([screen.getByTestId(testID).props.style].flat(Infinity) as object[])) as { width?: number; height?: number; backgroundColor?: string }
+const heroHeight = () => styleOf('klondike-hero').height as number
 
 // The content as laid out: the test hands it a height
 async function show(contentHeight: number, props: { enabled?: boolean; below?: number } = {}) {
@@ -43,7 +49,14 @@ describe('the setup screen hero', () => {
     await show(400)
     // 343 wide at 1.8: 191 tall
     expect(heroHeight()).toBe(191)
-    expect(screen.getByTestId('preview')).toBeTruthy()
+    expect(styleOf('preview')).toMatchObject({ width: 344, height: 191 })
+  })
+
+  // Jay, 2026-11-23: a card colored like the felt looked bad, and a well asked why it needed one
+  it("lays the preview's cards straight on the screen's felt: no card round it and no felt of its own", async () => {
+    await show(400)
+    expect(styleOf('klondike-hero').backgroundColor).toBeUndefined()
+    expect(screen.getByTestId('preview').props.nativeID).toBe('bare')
   })
 
   it('gives way to the content, down to the height its cards can still be read at', async () => {

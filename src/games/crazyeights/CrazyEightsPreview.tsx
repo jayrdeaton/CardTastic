@@ -3,6 +3,7 @@ import type { GamePreviewProps } from '@tastic/shell'
 import { StyleSheet, View, type ViewStyle } from 'react-native'
 
 import { PlayingCard } from '@/components/PlayingCard'
+import { usePreviewFelt } from '@/components/previewFelt'
 import { useTableColors } from '@/components/theme'
 
 const card = (rank: Rank, suit: Suit, faceUp = true): AnyCard => ({ id: `preview-${suit}-${rank}`, suit, rank, faceUp })
@@ -22,6 +23,7 @@ const STEP = 0.52
 /** Crazy Eights' Home tile: the pile, and a hand under it with the cards that fit raised. */
 export function CrazyEightsPreview({ width, height }: GamePreviewProps) {
   const colors = useTableColors()
+  const felt = usePreviewFelt()
   const units = 1 + (HAND.length - 1) * STEP
   const cardWidth = Math.min((width * 0.8) / units, ((height * 0.92) / 2.15) * CARD_ASPECT)
   const cardHeight = cardWidth / CARD_ASPECT
@@ -36,7 +38,7 @@ export function CrazyEightsPreview({ width, height }: GamePreviewProps) {
     x += cardWidth * STEP
   }
   return (
-    <View style={[styles.box, { backgroundColor: colors.tableFelt, height, width }]}>
+    <View style={[styles.box, { backgroundColor: felt ? colors.tableFelt : undefined, height, width }]}>
       <CardSizeProvider width={cardWidth}>
         {placed.map(({ card: c, style }) => (
           <PlayingCard key={c.id} card={c} disabled style={style} />

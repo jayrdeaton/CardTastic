@@ -3,6 +3,7 @@ import type { GamePreviewProps } from '@tastic/shell'
 import { StyleSheet, View, type ViewStyle } from 'react-native'
 
 import { PlayingCard } from '@/components/PlayingCard'
+import { usePreviewFelt } from '@/components/previewFelt'
 import { useTableColors } from '@/components/theme'
 
 const SEVEN_OF_HEARTS: AnyCard = { id: 'preview-hearts-7', suit: 'hearts', rank: 7, faceUp: true }
@@ -18,11 +19,12 @@ export function RatSlapPreview(props: GamePreviewProps) {
 /** A slap game's tile: a deck at each end of the table, and two cards on the pile between them. */
 export function SlapPreview({ width, height, under, top }: GamePreviewProps & { under: AnyCard; top: AnyCard }) {
   const colors = useTableColors()
+  const felt = usePreviewFelt()
   const cardHeight = height * 0.6
   const cardWidth = cardHeight * CARD_ASPECT
   const at = (cx: number, rotate = 0, nudge = 0): ViewStyle => ({ left: cx - cardWidth / 2 + nudge, position: 'absolute', top: (height - cardHeight) / 2 + nudge, transform: [{ rotate: `${rotate}deg` }] })
   return (
-    <View style={[styles.box, { backgroundColor: colors.tableFelt, height, width }]}>
+    <View style={[styles.box, { backgroundColor: felt ? colors.tableFelt : undefined, height, width }]}>
       <CardSizeProvider width={cardWidth}>
         <PlayingCard card={BACK} disabled style={at(width * 0.17, 0, 3)} />
         <PlayingCard card={BACK} disabled style={at(width * 0.17)} />

@@ -2,15 +2,17 @@
 // over everything else. It takes what height the screen has left over the content under it, up to the card's width at the
 // preview's shape, and goes when that's too little to read (a short phone with the rules open, a phone held sideways). With one
 // person only: two people's setup screen has their halves to fill. The preview art is drawn at 3x for it (assets/previewFaces).
+// It has no card of its own (2026-11-23, Jay: a card colored like the felt looked bad, and a well like a Home tile asked why it
+// needed one): the cards lie straight on the screen's felt, like Home's hero fan, with the preview's own felt left off.
 
 import { useAutoPaperTheme } from '@rific/auto-paper'
-import { WELL_SHADOW } from '@tastic/hud/chrome'
 import { PREVIEW_ASPECT, usePackGame, useSeatColors } from '@tastic/shell'
 import { type ReactNode, useEffect, useState } from 'react'
 import { type LayoutChangeEvent, StyleSheet, useWindowDimensions, View } from 'react-native'
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
+import { PreviewFeltContext } from '@/components/previewFelt'
 import { isMotionReduced } from '@/components/reducedMotionFlag'
 
 /** The shell's header over a setup screen: its Back, title and Settings row (8pt from the top and 52pt tall). */
@@ -74,7 +76,7 @@ export function WithSetupHero({ game, enabled, width, below = 0, children }: { g
   )
 }
 
-/** The game's Home preview at `height`, at its shape, on a card like the setup screen's wells. */
+/** The game's Home preview at `height`, at its shape, with no felt of its own: its cards lie on the screen's felt. */
 function SetupHero({ game, height }: { game: string; height: number }) {
   const definition = usePackGame(game)
   const { p1Color, p2Color } = useSeatColors(false)
@@ -82,19 +84,14 @@ function SetupHero({ game, height }: { game: string; height: number }) {
   const Preview = definition?.Preview
   if (!Preview) return null
   const width = Math.round(height * PREVIEW_ASPECT)
-  // The shadow outside, the clip to the corners inside (a view that clips may clip its own shadow on iOS)
   return (
-    <View style={[styles.hero, { width, height }]} testID={`${game}-hero`} accessibilityRole='image' accessibilityLabel={`${definition.title} preview`}>
-      <View style={[styles.heroClip, { backgroundColor: dark ? HERO_DARK_BG : HERO_LIGHT_BG }]}>
+    <View style={{ width, height }} testID={`${game}-hero`} accessibilityRole='image' accessibilityLabel={`${definition.title} preview`}>
+      <PreviewFeltContext.Provider value={false}>
         <Preview width={width} height={height} p1Color={p1Color} p2Color={p2Color} dark={dark} />
-      </View>
+      </PreviewFeltContext.Provider>
     </View>
   )
 }
-
-// Home's preview box behind a preview that draws no felt of its own (the shell's HomeScreen)
-const HERO_LIGHT_BG = '#FAFAFA'
-const HERO_DARK_BG = '#050505'
 
 const styles = StyleSheet.create({
   column: {
@@ -103,22 +100,12 @@ const styles = StyleSheet.create({
   content: {
     alignItems: 'center'
   },
-  // The wells' corners and shadow
-  hero: {
-    borderRadius: 12,
-    boxShadow: WELL_SHADOW
-  },
   heroAnchor: {
     alignItems: 'center',
     bottom: HERO_GAP,
     left: 0,
     position: 'absolute',
     right: 0
-  },
-  heroClip: {
-    borderRadius: 12,
-    flex: 1,
-    overflow: 'hidden'
   },
   // The hero and its gap, growing as it opens: the column's full width, so it is never a zero frame
   heroSlot: {

@@ -4,6 +4,7 @@ import { StyleSheet, View, type ViewStyle } from 'react-native'
 import { Icon } from 'react-native-paper'
 
 import { PlayingCard } from '@/components/PlayingCard'
+import { usePreviewFelt } from '@/components/previewFelt'
 import { useTableColors } from '@/components/theme'
 
 const card = (rank: Rank, suit: Suit, deck = 0): AnyCard => ({ id: `preview-${suit}-${rank}-${deck}`, suit, rank, faceUp: true })
@@ -19,6 +20,7 @@ const GROUP_GAP = 0.12
 /** Four Crowns' Home tile: a hand fanned in its melds, each with the hint ring's line under it, its wild crowned. */
 export function FourCrownsPreview({ width, height }: GamePreviewProps) {
   const colors = useTableColors()
+  const felt = usePreviewFelt()
   const count = GROUPS.flat().length
   const units = 1 + (count - 1) * STEP + (GROUPS.length - 1) * GROUP_GAP
   const cardWidth = Math.min((width * 0.92) / units, height * 0.7 * CARD_ASPECT)
@@ -41,7 +43,7 @@ export function FourCrownsPreview({ width, height }: GamePreviewProps) {
     x += cardWidth * (STEP + GROUP_GAP)
   })
   return (
-    <View style={[styles.box, { backgroundColor: colors.tableFelt, height, width }]}>
+    <View style={[styles.box, { backgroundColor: felt ? colors.tableFelt : undefined, height, width }]}>
       <CardSizeProvider width={cardWidth}>
         {placed.map(({ card: c, style }) => (
           <PlayingCard key={c.id} card={c} disabled style={style} />

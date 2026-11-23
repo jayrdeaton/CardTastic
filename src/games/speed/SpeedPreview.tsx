@@ -3,6 +3,7 @@ import type { GamePreviewProps } from '@tastic/shell'
 import { StyleSheet, View, type ViewStyle } from 'react-native'
 
 import { PlayingCard } from '@/components/PlayingCard'
+import { usePreviewFelt } from '@/components/previewFelt'
 import { useTableColors } from '@/components/theme'
 
 const card = (rank: Rank, suit: Suit, faceUp = true): AnyCard => ({ id: `preview-${suit}-${rank}-${faceUp ? 'up' : 'down'}`, suit, rank, faceUp })
@@ -14,12 +15,13 @@ const HAND: AnyCard[] = [card(12, 'clubs'), card(9, 'spades'), card(5, 'hearts')
 /** Speed's Home tile: the middle of the table and a hand of five below it. */
 export function SpeedPreview({ width, height }: GamePreviewProps) {
   const colors = useTableColors()
+  const felt = usePreviewFelt()
   const gap = height * 0.04
   const cardHeight = (height - gap * 3) / 2
   const cardWidth = Math.min(cardHeight * CARD_ASPECT, (width - gap * 6) / 5)
   const at = (count: number, i: number, row: number): ViewStyle => ({ left: (width - count * cardWidth - (count - 1) * gap) / 2 + i * (cardWidth + gap), position: 'absolute', top: gap + row * (cardHeight + gap) })
   return (
-    <View style={[styles.box, { backgroundColor: colors.tableFelt, height, width }]}>
+    <View style={[styles.box, { backgroundColor: felt ? colors.tableFelt : undefined, height, width }]}>
       <CardSizeProvider width={cardWidth}>
         {MIDDLE.map((c, i) => (
           <PlayingCard key={c.id} card={c} disabled style={at(MIDDLE.length, i, 0)} />
