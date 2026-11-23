@@ -19,7 +19,7 @@ const ROOT = path.join(HERE, '../..')
 const ENTRY = `
 import { findHint } from '@/engine/hint'
 import { gameOfVariant } from '@/engine/variants'
-import { applyDealWon, applyDealAbandoned, applyHintUsed } from '@/stores/statsEngine'
+import { applyDealWon, applyDealAbandoned, applyHintUsed, getProfileStatsView } from '@/stores/statsEngine'
 import { DEFAULT_STATS } from '@/stores/statsValidation'
 import { RECENT_WINS_KEPT } from '@/engine/par'
 import { ACHIEVEMENT_CATALOG } from '@/stores/achievementCatalog'
@@ -85,6 +85,10 @@ function play(variant, seed) {
   return { won: false }
 }
 
+// Whose deals they are: Guest's, recorded like the app records them since 2026-10-22 (the phone's totals and Guest's own
+// record), so the win card and the Stats screen read the same three weeks whether or not the simulator has profiles from
+// other Tastic games' screenshots in its App Group (src/constants/player.ts' GUEST_PLAYER_ID).
+const PLAYER = 'guest'
 // How many deals of each variant the player dealt over three weeks.
 const PLAN = { klondike: 16, freecell: 11, spider: 8, pyramid: 6, tripeaks: 7, golf: 5, yukon: 4, 'klondike-draw3': 4, canfield: 3, scorpion: 3, acesup: 3, fortythieves: 2, 'spider-2suit': 2 }
 
@@ -109,17 +113,23 @@ export function run(nowMs) {
     let r = play(variant, (seed += 7919))
     for (let n = 0; wantWin && !r.won && n < 80; n++) r = play(variant, (seed += 7919))
     const usedHint = rand() < 0.3
-    if (usedHint) stats = applyHintUsed(stats, variant, null)
+    if (usedHint) stats = applyHintUsed(stats, variant, PLAYER)
     if (r.won) {
       // A player who gets quicker over the three weeks: about 4.6 seconds per decision at first, 2.4 by the end.
       const seconds = Math.round(r.decisions * (4.2 - (2.2 * i) / deals.length + rand() * 0.8))
-      stats = applyDealWon(stats, variant, { seconds, moves: r.moves, score: r.moves + seconds, usedHint }, null, when)
+      stats = applyDealWon(stats, variant, { seconds, moves: r.moves, score: r.moves + seconds, usedHint }, PLAYER, when)
       // The same win in the player's recent wins, which their personal par is made from (recentWinsSlice.ts).
       ;(recent[variant] ??= []).push({ score: r.moves + seconds, moves: r.moves, seconds })
     } else {
-      stats = applyDealAbandoned(stats, variant, null, when)
+      stats = applyDealAbandoned(stats, variant, PLAYER, when)
     }
-    for (const a of ACHIEVEMENT_CATALOG) if (!unlocked[a.id] && a.isUnlocked(stats)) unlocked[a.id] = when.getTime()
+    // Unlocked on the phone and for Guest (a player's unlocks are keyed <player>:<id>, @tastic/achievements' unlockedKey).
+    const own = getProfileStatsView(stats.profiles[PLAYER])
+    for (const a of ACHIEVEMENT_CATALOG) {
+      if (!unlocked[a.id] && a.isUnlocked(stats)) unlocked[a.id] = when.getTime()
+      const key = PLAYER + ':' + a.id
+      if (!unlocked[key] && a.isUnlocked(own)) unlocked[key] = when.getTime()
+    }
   })
 
   // A FreeCell deal played until every column is sorted: one foundation play from the finish.
@@ -191,7 +201,7 @@ export function run(nowMs) {
     }
   }
   boards.yukon = hintBest
-  const recentWins = { guest: Object.fromEntries(Object.entries(recent).map(([v, wins]) => [v, wins.slice(-RECENT_WINS_KEPT)])) }
+  const recentWins = { [PLAYER]: Object.fromEntries(Object.entries(recent).map(([v, wins]) => [v, wins.slice(-RECENT_WINS_KEPT)])) }
   return { stats, unlocked, recentWins, finish, boards }
 }
 `

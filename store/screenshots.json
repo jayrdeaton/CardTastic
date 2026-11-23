@@ -5,11 +5,12 @@
   "shots": [
     { "name": "01-klondike", "title": "Classic Solitaire, No Ads", "sub": "Klondike, FreeCell, Spider, and more" },
     { "name": "02-home", "title": "20 Card Games in One App", "sub": "11 solitaire, 9 to play together" },
-    { "name": "03-win", "title": "Beat Par in Every Game", "sub": "Score is moves plus seconds" },
-    { "name": "04-ratslap", "title": "Play Together on One Phone", "sub": "RatSlap, Speed, War, and more" },
-    { "name": "05-ginrummy", "title": "Gin Rummy and Crazy Eights", "sub": "Against friends or the computer" },
-    { "name": "06-hint", "title": "A Hint When You Need One", "sub": "See a move you can make" },
-    { "name": "07-stats", "title": "Stats and Achievements", "sub": "For every game and rule set" },
-    { "name": "08-style", "title": "Your Cards, Your Colors", "sub": "Four faces, four backs, any color" }
+    { "name": "03-daily", "title": "A Daily Deal for Everyone", "sub": "Win it and see where you rank" },
+    { "name": "04-win", "title": "Beat Par in Every Game", "sub": "Score is moves plus seconds" },
+    { "name": "05-ratslap", "title": "Play Together on One Phone", "sub": "RatSlap, Speed, War, and more" },
+    { "name": "06-ginrummy", "title": "Gin Rummy and Crazy Eights", "sub": "Against friends or the computer" },
+    { "name": "07-hint", "title": "A Hint When You Need One", "sub": "See a move you can make" },
+    { "name": "08-stats", "title": "Stats and Achievements", "sub": "For every game and rule set" },
+    { "name": "09-style", "title": "Your Cards, Your Colors", "sub": "Four faces, four backs, any color" }
   ]
 }

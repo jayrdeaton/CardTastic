@@ -224,7 +224,7 @@ html, body { margin: 0; width: ${width}px; height: ${height}px; overflow: hidden
   // on the app's own felt: Klondike, Gin Rummy against the CPU, a FreeCell win and Pyramid on the red felt. Phones from
   // the app-store-prep skill's phone.mjs.
   const { fan } = await import(pathToFileURL(path.join(path.dirname(CREATIVE), 'phone.mjs')).href)
-  const SHOTS = ['01-klondike', '05-ginrummy', '03-win', '08-style'].map((name) => path.join(SCREENSHOTS, 'raw', 'iphone', `${name}.png`))
+  const SHOTS = ['01-klondike', '06-ginrummy', '04-win', '09-style'].map((name) => path.join(SCREENSHOTS, 'raw', 'iphone', `${name}.png`))
   const searchOverlay = `
 <div class="overlay" style="inset:0;background:linear-gradient(to bottom, rgba(0,0,0,0.35) 0%, rgba(0,0,0,0.12) 25%, rgba(0,0,0,0) 40%)"></div>
 <div class="overlay" style="left:0;right:0;top:170px;display:flex;flex-direction:column;align-items:center;gap:40px;text-align:center">
