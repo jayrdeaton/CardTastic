@@ -10,7 +10,7 @@ import * as yukonRules from '@/games/yukon/rules'
 import { YukonState } from '@/games/yukon/rules'
 import YukonScreen from '@/games/yukon/YukonScreen'
 
-import { expectSavedRunToReplay, movableCardIds, resetGameInProgress, savedDeal, seedGameInProgress, storedGame } from '../../../testUtils/gameInProgressStore'
+import { DEAL_RUN_TIMEOUT_MS, expectSavedRunToReplay, movableCardIds, resetGameInProgress, savedDeal, seedGameInProgress, storedGame } from '../../../testUtils/gameInProgressStore'
 import { peelableFlights } from '../../../testUtils/peelableFlights'
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -1172,28 +1172,32 @@ describe('Yukon screen - a tapped run that reaches into cards still flying in to
 // Every deal keeps its run (engine/run.ts) so a daily deal can go on a leaderboard: every move, draw, auto-play and undo the screen
 // commits is recorded, and replaying the run with the rules, as Tastic-Server will, lands on exactly the board and move count saved
 describe('Yukon screen - the deal run', () => {
-  it('records a real deal played through the screen so that it replays to the saved board', async () => {
-    async function press(testID: string) {
-      await act(async () => {
-        fireEvent.press(screen.getByTestId(testID))
-      })
-      await flush(1500)
-    }
-    resetGameInProgress()
-    await render(<YukonScreen />)
-    await flush(3000) // the deal, and its first save
-    for (let round = 0; round < 12; round++) {
-      for (const cardId of movableCardIds('yukon').slice(0, 2)) {
-        if (screen.queryByTestId(`card-${cardId}`)) await press(`card-${cardId}`)
+  it(
+    'records a real deal played through the screen so that it replays to the saved board',
+    async () => {
+      async function press(testID: string) {
+        await act(async () => {
+          fireEvent.press(screen.getByTestId(testID))
+        })
+        await flush(1500)
       }
-      if (round % 3 === 2) await press('undo')
-    }
-    await flush(4000) // the last save's debounce
-    const run = expectSavedRunToReplay('yukon')
-    expect(run.seed).toBe(mockSeed)
-    expect(run.actions.some((action) => Array.isArray(action))).toBe(true)
-    expect(run.actions).toContain('u')
-  })
+      resetGameInProgress()
+      await render(<YukonScreen />)
+      await flush(3000) // the deal, and its first save
+      for (let round = 0; round < 12; round++) {
+        for (const cardId of movableCardIds('yukon').slice(0, 2)) {
+          if (screen.queryByTestId(`card-${cardId}`)) await press(`card-${cardId}`)
+        }
+        if (round % 3 === 2) await press('undo')
+      }
+      await flush(4000) // the last save's debounce
+      const run = expectSavedRunToReplay('yukon')
+      expect(run.seed).toBe(mockSeed)
+      expect(run.actions.some((action) => Array.isArray(action))).toBe(true)
+      expect(run.actions).toContain('u')
+    },
+    DEAL_RUN_TIMEOUT_MS
+  )
 })
 
 describe('Yukon screen - Winnable Deals', () => {

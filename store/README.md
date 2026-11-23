@@ -18,7 +18,7 @@ eas metadata:push
 
 Limits: title 30, subtitle 30, promotional text 170 (editable any time without review), description 4000, keywords 100 in total with the commas. Keywords don't repeat words already in the title or subtitle ("solitaire" is indexed from the title, "ad", "free", "card" and "games" from the subtitle; "CardTastic" is one word, so it does NOT match a search for "card" or "cards" on its own).
 
-`releaseNotes` (What's New) is left out while no version has gone live (nothing has as of 2026-11-08, so the CardTastic version is still the first). Add it to `info.en-US` for every version after the first one released.
+`releaseNotes` (What's New) is left out while no version has gone live (none had on 2026-11-23: the iTunes lookup for `com.infinitetoken.solitaire` still found nothing, so 1.3.0 is still the first). Add it to `info.en-US` for every version after the first one released.
 
 ## Screenshots (uploaded by hand)
 
@@ -56,16 +56,22 @@ Upload in the version's Product Page Information > Header and Search Results (He
 
 ## Set by hand in App Store Connect
 
-**App Privacy:** "Yes, we collect data from this app", two types, matching Google Play's Data safety form (`store/google-play.md`) and following Expo's store privacy guide (https://docs.expo.dev/eas-update/store-privacy-declarations/), as DuelTastic and PuckTastic do (Jay, 2026-11-11; it was Data Not Collected through 1.2.5). The only thing that leaves the device is Expo's update check at launch: it carries a random installation ID the app makes on its first launch (`EAS-Client-ID`, not the advertising identifier or anything tied to the person) and, only after an update failed to start, that update's ID and the first 1,024 characters of its error. Expo keeps the ID to count installs per update and roll updates out, which is longer than serving the request needs, so Apple counts it as collected. In App Store Connect, App Privacy:
-  - **Identifiers > Device ID:** App Functionality and Analytics (Expo counts installs per update); not linked to the user; not used for tracking.
-  - **Diagnostics > Crash Data:** App Functionality; not linked to the user; not used for tracking.
-  - Nothing else: no contact info, location, user content, usage data, purchases or other data. No tracking, so no App Tracking Transparency prompt. The label then reads "Data Not Linked to You: Identifiers, Diagnostics".
+**App Privacy** (rewritten 2026-11-23 for the Daily Deals, which 1.3.0 is the first build to have): "Yes, we collect data from this app". Playing on the device sends nothing but Expo's update check. The Daily Deals are optional and send the rest, from the moment a profile starts its first one. No tracking, so no App Tracking Transparency prompt. This is the same inventory as Google Play's Data safety (`store/google-play.md`) and the privacy policy's "Daily Leaderboards in CardTastic" section (https://games.infinitetoken.com/privacy), which App Review compares with these answers.
 
-  The privacy policy's Game Updates section (https://games.infinitetoken.com/privacy) describes the same check. Revisit both forms if analytics, crash reporting, ads or accounts are ever added. DuelTastic and PuckTastic give the same answers (their `store/README.md` and `store/google-play.md`).
+| Apple's data type | What it is | Purposes | Linked to the user | Tracking |
+| --- | --- | --- | --- | --- |
+| Identifiers, User ID | The random player ID the server makes for each profile that plays a Daily Deal; and, only once the player says yes to the public boards, the profile's tag (one emoji or up to three characters, checked against a list of offensive words) and color, shown on the boards | App Functionality | Yes | No |
+| User Content, Gameplay Content | Each Daily Deal a profile starts: when it started and, for a win, when it finished, every move (the server replays them to check the win), the time and the score | App Functionality | Yes | No |
+| Identifiers, Device ID | The random installation ID (`EAS-Client-ID`) Expo's update check sends at launch: not the advertising identifier, and not tied to a player | App Functionality, Analytics (Expo counts installs per update) | No | No |
+| Diagnostics, Crash Data | Only after an update failed to start: that update's ID and the first 1,024 characters of its error, sent with the next update check | App Functionality | No | No |
 
-**Age rating:** every content question None (Simulated Gambling None: no game has bets, chips or money, and Gin Rummy and Four Crowns keep points only), and Messaging and Chat, User-Generated Content, Social Media, Unrestricted Web Access, Advertising, Gambling, Loot Boxes, Parental Controls, Age Assurance and Health or Wellness all No, so 4+. Set by hand in App Information > Age Rating until eas-cli can send the Social Media answer; 1.2.5's answers carry over, but Apple may ask the newer questions before the next submission. Check the rating App Store Connect works out.
+Not collected: the profile's name (every player is named "CardTastic" on the server, `src/stores/online.ts`), contact info, location, purchases, usage data, or anything else. Profiles, stats, records, achievements, settings and saved games stay on the device. Where it goes: the game server `play.infinitetoken.com` (Tastic-Server on AWS Elastic Beanstalk, its database on Supabase, both in the US) and Expo's update service. Client addresses are used in memory for rate limiting and not stored. The label then reads "Data Linked to You: Identifiers, User Content" and "Data Not Linked to You: Identifiers, Diagnostics". Through 1.2.8 it was Device ID and Crash Data only (Jay, 2026-11-11), and Data Not Collected through 1.2.5. Revisit it with the policy if analytics, crash reporting, ads, chat or online play are added.
 
-**App Review Information:** sign-in not required. Contact: name, email and phone (the phone stays out of `store.config.json`, which is public). Notes:
+**Account deletion (guideline 5.1.1(v)):** there is no sign-in, but each profile that plays a Daily Deal gets an anonymous player on the server, so the app deletes it: each profile's Edit Profile screen (Settings, then the Profile row; or Profiles and the profile), under Online, Delete Online Data, shown once that profile has played a Daily. It deletes that profile's player and every Daily result it posted, and the profile stays. Deleting the profile deletes its player too. The review notes say where it is.
+
+**Age rating:** every content question None (Simulated Gambling None: no game has bets, chips or money, and Gin Rummy and Four Crowns keep points only; Contests None: the Daily boards rank wins, with no prize, entry or sign-up), and Messaging and Chat, User-Generated Content, Social Media, Unrestricted Web Access, Advertising, Gambling, Loot Boxes, Parental Controls, Age Assurance and Health or Wellness all No, so 4+. User-Generated Content is No because the only thing a player puts in front of others is a tag of up to three characters or one emoji, filtered by the server, and a color, on the Daily boards and only after saying yes: no names, free text, images or chat. Guideline 1.2 asks apps with user content for a filter, a way to report, a way to block and published contact details; CardTastic has the filter and the contact details. If App Review counts the tags as user content, the fix is a way to report a tag on a board and the server hiding it. Set by hand in App Information > Age Rating until eas-cli can send the Social Media answer; 1.2.5's answers carry over, but Apple may ask the newer questions before the next submission. Check the rating App Store Connect works out.
+
+**App Review Information:** sign-in not required. Contact: name, email and phone (the phone stays out of `store.config.json`, which is public). Notes (rewritten 2026-11-23 for the Daily Deals):
 
 > No account or sign-in is needed, and there are no in-app purchases or ads.
 >
@@ -73,9 +79,13 @@ Upload in the version's Product Page Information > Header and Search Results (He
 >
 > Home has two tabs. Solitaire holds eleven one-player games. Two Player holds nine games played against the computer or with other people on the same device: RatSlap, Slapjack, Speed, War, Six-Card Golf and Trash with two people face to face across the screen, and Gin Rummy, Crazy Eights and Four Crowns passing the device between turns (Crazy Eights and Four Crowns take up to four players). Tap a two-player game, leave the opponent as the computer, and tap Ready to play alone.
 >
+> New in this version: Daily Deals. Each solitaire game opens on a setup screen with Today's Deal: one deal a day, the same for everyone, timed and checked by our game server (play.infinitetoken.com), which replays each win's moves and ranks it on Today's Board. Tap Today's Deal to play it. As Guest, it first asks for a name, which makes a player profile on the device; the name never leaves the device. Hint is off in a Daily Deal. After a profile's first Daily win, the app asks whether to show its wins on the public boards (Keep Private or Show My Wins). The boards show only a profile's tag (one emoji or up to three characters, checked against a list of offensive words) and color, never a name. Random Deal, under it, plays an ordinary game on the device.
+>
+> Each profile that plays a Daily Deal gets an anonymous player on our server. To delete it: Settings, then the Profile row, opens the profile's Edit Profile screen, and under Online, Delete Online Data deletes that player and every result it posted. Deleting the profile deletes it too.
+>
 > The solitaire games turn with the device. The two-player games stay in portrait on iPhone, since two people sit at either end of the phone.
 >
-> Player profiles are shared through an App Group with other Tastic games by the same developer, if any are installed. No profile, progress or other game data leaves the device.
+> Player profiles are shared through an App Group with other Tastic games by the same developer, if any are installed. Apart from the Daily Deals, nothing leaves the device but the update check.
 >
 > On first launch a three-card How to Play guide appears, and each two-player game has its own the first time it's opened. Tap Skip to go straight to the game.
 
@@ -93,10 +103,14 @@ Upload in the version's Product Page Information > Header and Search Results (He
 
 ## Shipping a version
 
+1.3.0, the Daily Deals (2026-11-23, Jay: submitted fresh as 1.3.0). The 1.2.8 review (build 24, submitted 2026-11-12) sat in the queue for 11 days and Jay cancelled it, so that version is editable again and `eas metadata:push` renumbers it to 1.3.0. `app.json` is already 1.3.0 (`jrd ship release minor`, 2026-11-17), so no release bump comes first. The `v1.3.0` tag, and the web deploy it set off on 2026-11-17, predate the Daily Deals: the 1.3.0 store builds come from main, ahead of the tag.
+
 1. `npm run verify`
-2. Keep `store.config.json`'s `apple.version` equal to `app.json`'s `expo.version` (a `jrd ship release` bumps app.json; bump store.config.json with it)
-3. `jrd ship build production` (the CardTastic name, the OS rotation and the native package bumps all need a new native build; a local build needs `npx expo prebuild --clean` first, since `ios/` is still `Solitaire.xcodeproj`)
-4. `eas submit -p ios --profile production` (uploads the build to TestFlight)
-5. `eas metadata:push`
-6. Upload the screenshots, and the header and search art, if they changed
-7. In App Store Connect: pick the build, answer the age rating, fill in anything new above, and Add for Review
+2. Commit
+3. `jrd ship build production` (iOS and Android together; the Daily Deals need a new native build, for `expo-secure-store` and `@tastic/profile`; a local build needs `npx expo prebuild --clean` first, since `ios/` is still `Solitaire.xcodeproj`)
+4. `eas submit -p ios --profile production` (uploads the build to TestFlight). Play a Daily Deal on the TestFlight build before sending it: start one, win it, answer the first-win question, open Today's Board, and Delete Online Data from Edit Profile.
+5. `eas metadata:push` (renumbers the cancelled 1.2.8 version to 1.3.0)
+6. Upload the screenshots, and the header and search art, if they changed (not for 1.3.0: Jay kept the 2026-11-11 set)
+7. In App Store Connect: App Privacy (the new answers above: add User ID and Gameplay Content, both linked, App Functionality), the age rating (Contests None, User-Generated Content No), the review notes above, pick the new build in place of build 24, and Add for Review
+
+Every later release: `jrd ship release` bumps `package.json` and `app.json` but not `store.config.json`, so set `apple.version` to match by hand.

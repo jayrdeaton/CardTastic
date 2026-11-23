@@ -71,6 +71,13 @@ export function expectSavedRunToReplay(gameId: SolitaireGameId): DealRun {
   return saved.run
 }
 
+/** The timeout of each screen suite's deal-run test (`the deal run`), the heaviest tests here: each plays some 25 moves, draws
+ * and undos through the whole screen over about 49 s of fake time in 10 ms act() steps, 0.2 to 0.8 s on its own and up to
+ * 1.7 s in a full run. Nothing in them waits on real time, so they're only ever slow when the worker is starved: with other
+ * sessions busy (a load average near 18), FreeCell's ran past Jest's 5 s default in a release build's verify (2026-11-23),
+ * and on the efficiency cores (`taskpolicy -b`) FreeCell's took 4.4 to 6.7 s and Spider's 5.1 s. */
+export const DEAL_RUN_TIMEOUT_MS = 20_000
+
 // Piles a game keeps as one pile per zone (each move's from index is 0) rather than a list of piles
 const SINGLE_PILES = ['stock', 'waste', 'reserve', 'discard']
 

@@ -9,7 +9,7 @@ Checked 2026-11-11 against Play Console Help and the Developer Program Policies 
 - **No closed test:** the 12-tester, 14-day closed test only binds personal accounts made after November 13, 2023, so the organization account publishes to production straight away.
 - **Target API level:** new apps must target API 36 (Android 16) since 2026-08-31. Expo SDK 58 targets 36 by default, so nothing is set here.
 - **Selling:** nothing is sold anywhere. No in-app purchases, no ads, no prices in the listing.
-- **Account deletion:** there are no accounts, so the Data safety form answers no and needs no deletion page.
+- **Account deletion:** there's no sign-in, but since 1.3.0 each profile that plays a Daily Deal gets an anonymous player on Tastic-Server, deleted in the app (a profile's Edit Profile screen, Online, Delete Online Data) or with the profile. Play wants a web page for deleting it without the app, as HexFleet's https://games.infinitetoken.com/delete-data/hexfleet: CardTastic needs `/delete-data/cardtastic` on Games-Web before 1.3.0 goes to Play (not made yet, 2026-11-23).
 - **Families policy:** not applicable. The target audience is 13 and over (Jay, 2026-11-11), so the app is outside it. It would pass today (no ads, no ad SDKs, nothing collected but the update check), but it would bind every later update.
 - **Permissions:** `app.json`'s `android.blockedPermissions` takes out what Expo's template adds and nothing here uses (`SYSTEM_ALERT_WINDOW`, `READ_EXTERNAL_STORAGE`, `WRITE_EXTERNAL_STORAGE`). What's left (read from the release APK with `aapt2 dump permissions`, 2026-11-11) is `INTERNET` and `ACCESS_NETWORK_STATE` (the update check), `VIBRATE` (haptics), expo-audio's `MODIFY_AUDIO_SETTINGS`, and `WAKE_LOCK`, which a library adds. No `AD_ID`, so the Advertising ID answer is no. None needs a declaration form.
 - **Package name:** Play registers it with the account by itself (Android developer verification). The iOS bundle ID stays `com.infinitetoken.solitaire`; the two don't have to match.
@@ -33,10 +33,10 @@ Every later version: `jrd ship build production`, `eas submit -p android --profi
 
 > Twenty card games, no ads: classic solitaire plus games for two to four players.
 
-**Full description** (4000 at most, 1,941 used; the App Store text from `store.config.json` with Android's lines: "one phone or tablet" for "one iPhone or iPad", "on phones and tablets" for "on iPhone and iPad", and no line about profiles coming with you from other Tastic games, since profiles are only shared on iOS and the web; `@tastic/profile`'s shared store isn't available on Android):
+**Full description** (4000 at most, 2,363 used, 1.3.0's with the Daily Deals; the App Store text from `store.config.json` with Android's lines: "one phone or tablet" for "one iPhone or iPad", "on phones and tablets" for "on iPhone and iPad", and no line about profiles coming with you from other Tastic games, since profiles are only shared on iOS and the web; `@tastic/profile`'s shared store isn't available on Android):
 
 ```
-Twenty card games in one app, with no ads, no accounts, and no tracking: eleven classic solitaire games, and nine games for two to four players on one phone or tablet.
+Twenty card games in one app, with no ads, no sign-in, and no tracking: eleven classic solitaire games, and nine games for two to four players on one phone or tablet.
 
 SOLITAIRE
 Klondike, FreeCell, Spider, Pyramid, Yukon, Golf, TriPeaks, Canfield, Scorpion, Forty Thieves, and Aces Up, each with its rules one tap away.
@@ -45,6 +45,13 @@ Klondike, FreeCell, Spider, Pyramid, Yukon, Golf, TriPeaks, Canfield, Scorpion, 
 • Stuck? A hint shows you a move, or turn on Auto Hint
 • Auto-Move to the foundations, and a solved board finishes itself
 • Rule variants: Draw 1 or Draw 3, Spider with 1, 2, or 4 suits, and more
+• Every new deal can be won, except in Spider with 2 or 4 suits
+
+DAILY DEALS
+• A Daily Deal in every solitaire game, the same shuffle for everyone, and every one can be won
+• Each win is checked by replaying its moves, then ranked on the day's board by score
+• Boards show your profile's tag and color, never your name, and only once you say yes
+• No sign-in: pick a profile, or name one, and play
 
 BEAT PAR
 • Score is moves plus seconds, and lower is better
@@ -69,7 +76,7 @@ MAKE IT YOURS
 
 ALWAYS READY
 • Solitaire picks up right where you left off
-• Plays offline
+• Plays offline, all but the Daily Deals
 
 Open source on GitHub: https://github.com/jayrdeaton/CardTastic
 ```
@@ -98,9 +105,9 @@ CardTastic's first release on Android: eleven solitaire games and nine games for
 ## App content
 
 - **Privacy policy:** https://games.infinitetoken.com/privacy (it covers Android, and its Game Updates section describes the update check below).
-- **App access:** All functionality is available without special access. No account or sign-in exists.
+- **App access:** All functionality is available without special access. No account or sign-in exists (the Daily Deals' player is made by the app, with nothing to sign in to).
 - **Ads:** No, the app doesn't contain ads.
-- **Content rating** (IARC questionnaire): email jay@infinitetoken.com; category **Game**. Violence, fear, sexuality, language, controlled substances and crude humor: none. Gambling: no real or simulated gambling (no game has bets, chips or money; Gin Rummy and Four Crowns keep points only). Users interact or exchange content: no (the two-player games are on one device, with no online play). Shares the user's location: no. Digital purchases: no. Unrestricted internet access: no. Expected result: Everyone, PEGI 3. Matches the App Store's answers (`store/README.md`, Age rating, 4+).
+- **Content rating** (IARC questionnaire): email jay@infinitetoken.com; category **Game**. Violence, fear, sexuality, language, controlled substances and crude humor: none. Gambling: no real or simulated gambling (no game has bets, chips or money; Gin Rummy and Four Crowns keep points only). Users interact or exchange content: no (the two-player games are on one device, with no online play; the Daily boards show a filtered three-character tag and a color, with no chat, names or images). Shares the user's location: no. Digital purchases: no. Unrestricted internet access: no. Expected result: Everyone, PEGI 3. Matches the App Store's answers (`store/README.md`, Age rating, 4+).
 - **Target audience and content:** 13-15, 16-17 and 18 and over (Jay, 2026-11-11). Could the store listing unintentionally appeal to children: no (a plain card game, no cartoon characters). Outside the Families policy.
 - **News app:** no. **Government app:** no. **Financial features:** none. **Health:** none.
 - **Advertising ID:** the app doesn't use one (no `AD_ID` permission, no ads or analytics SDK).
@@ -108,23 +115,25 @@ CardTastic's first release on Android: eleven solitaire games and nine games for
 
 ## Data safety
 
-The only thing that leaves the phone is Expo's update check (expo-updates, at launch). It carries a random installation ID the app makes on its first launch (`EAS-Client-ID`, a UUID in the app's own storage: not the Android ID or the advertising ID), the platform and runtime version, and, only after an update failed to start, that update's ID and the first 1,024 characters of its error (`Expo-Fatal-Error`). Expo serves the update as a service provider, so this is collected, not shared. Google's form counts anything sent off the device, and names an app-instance ID like a Firebase installation ID as a Device or other ID, so it's declared (Jay, 2026-11-11), with the purposes from Expo's store privacy guide (https://docs.expo.dev/eas-update/store-privacy-declarations/), the same answers as DuelTastic and PuckTastic. The privacy policy's Game Updates section says the same.
+Rewritten 2026-11-23 for 1.3.0's Daily Deals. The same inventory as the App Store's App Privacy (`store/README.md`) and the privacy policy. Playing on the phone sends nothing but Expo's update check (expo-updates, at launch: a random installation ID the app makes on its first launch, `EAS-Client-ID`, not the Android ID or the advertising ID, the platform and runtime version, and only after an update failed to start, that update's ID and the first 1,024 characters of its error). The Daily Deals are optional and send the rest, to Tastic-Server (`play.infinitetoken.com`). Expo, AWS and Supabase process it for us as service providers, so nothing counts as shared.
 
 **Does your app collect or share any of the required user data types?** Yes.
-**Is all of the user data collected by your app encrypted in transit?** Yes (HTTPS to u.expo.dev).
-**Which account creation methods does your app support?** None (the app has no accounts).
+**Is all of the user data collected by your app encrypted in transit?** Yes (HTTPS).
+**Which account creation methods does your app support?** None that a player sees: no sign-in. The app makes an anonymous player for each profile that plays a Daily Deal.
 
-| Data type | Collected / shared | Processed ephemerally | Required or optional | Purposes |
-|---|---|---|---|---|
-| Device or other IDs | Collected, not shared | No (Expo keeps it to count installs per update and roll updates out) | Required | App functionality, Analytics |
-| App info and performance, Crash logs | Collected, not shared | No | Required | Analytics (the error from an update that failed to start, so a broken update can be fixed) |
+| Data type | Collected / shared | Processed ephemerally | Required or optional | Purposes | What it is |
+|---|---|---|---|---|---|
+| Personal info, User IDs | Collected, not shared | No | Optional | App functionality, Account management | The random player ID the server makes for each profile that plays a Daily Deal, and, once the player says yes to the public boards, the profile's tag (filtered) and color |
+| App activity, Other actions | Collected, not shared | No | Optional | App functionality | Each Daily Deal started: when, and for a win when it finished, every move (replayed to check it), the time and the score |
+| Device or other IDs | Collected, not shared | No (Expo keeps it to count installs per update and roll updates out) | Required | App functionality, Analytics | The update check's installation ID |
+| App info and performance, Crash logs | Collected, not shared | No | Required | Analytics | The error from an update that failed to start, so a broken update can be fixed |
 
-Not collected: location, personal info, financial info, health and fitness, messages, photos and videos, audio, files and docs, calendar, contacts, app activity, web browsing, other app info and performance. Game progress, profiles, stats and settings stay on the device.
+Not collected: the profile's name (every player is named "CardTastic" on the server), location, other personal info, financial info, health and fitness, messages, photos and videos, audio, files and docs, calendar, contacts, web browsing, other app info. Profiles, stats, settings and saved games stay on the phone.
 
-- **Can users request deletion?** No: the ID isn't linked to anyone, so there is nothing to find and delete by person. Uninstalling the app removes it from the phone.
-- **Delete account URL:** none (no accounts).
+- **Can users request deletion?** Yes: in the app (a profile's Edit Profile screen, from Settings' Profile row, under Online, Delete Online Data; deleting the profile does it too) and through the web page under "What Google asks" above, once it exists. The update check's installation ID isn't tied to a person, so uninstalling the app is what removes it.
+- **Delete account URL:** https://games.infinitetoken.com/delete-data/cardtastic (to make on Games-Web before the 1.3.0 submission).
 
-**The App Store's App Privacy answer matches** (Jay, 2026-11-11): Identifiers > Device ID (App Functionality, Analytics) and Diagnostics > Crash Data (App Functionality), not linked to the user, not tracking (`store/README.md`, App Privacy). It was Data Not Collected through 1.2.5, and changes in App Store Connect by hand.
+**The App Store's App Privacy answer matches** (`store/README.md`, App Privacy): User ID and Gameplay Content linked to the user, Device ID and Crash Data not, no tracking.
 
 ## Screenshots
 

@@ -6,7 +6,7 @@ import { winnableSeeds } from '@/engine/winnable'
 import AcesUpScreen from '@/games/acesup/AcesUpScreen'
 import { AcesUpState } from '@/games/acesup/rules'
 
-import { expectSavedRunToReplay, movableCardIds, resetGameInProgress, savedDeal, seedGameInProgress } from '../../../testUtils/gameInProgressStore'
+import { DEAL_RUN_TIMEOUT_MS, expectSavedRunToReplay, movableCardIds, resetGameInProgress, savedDeal, seedGameInProgress } from '../../../testUtils/gameInProgressStore'
 import { peelableFlights } from '../../../testUtils/peelableFlights'
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -483,38 +483,42 @@ describe('Aces Up screen - an undo that needs a card still flying back', () => {
 // Every deal keeps its run (engine/run.ts) so a daily deal can go on a leaderboard: every move, draw, auto-play and undo the screen
 // commits is recorded, and replaying the run with the rules, as Tastic-Server will, lands on exactly the board and move count saved
 describe('Aces Up screen - the deal run', () => {
-  it('records a real deal played through the screen so that it replays to the saved board', async () => {
-    async function press(testID: string) {
-      await act(async () => {
-        fireEvent.press(screen.getByTestId(testID))
-      })
-      await flush(1500)
-    }
-    // Rounds land here: until a deal's cards land, nothing else on the board can be played
-    const dealing = jest.spyOn(mockDeal, 'start').mockImplementation((entries, _cardWidth, onLanded, onDone) => {
-      setTimeout(() => {
-        entries.forEach((entry) => onLanded(entry.cardId))
-        onDone?.()
-      }, 300)
-    })
-    resetGameInProgress()
-    await render(<AcesUpScreen />)
-    await flush(3000) // the deal, and its first save
-    for (let round = 0; round < 12; round++) {
-      for (const cardId of movableCardIds('acesup').slice(0, 2)) {
-        if (screen.queryByTestId(`card-${cardId}`)) await press(`card-${cardId}`)
+  it(
+    'records a real deal played through the screen so that it replays to the saved board',
+    async () => {
+      async function press(testID: string) {
+        await act(async () => {
+          fireEvent.press(screen.getByTestId(testID))
+        })
+        await flush(1500)
       }
-      if (screen.queryByTestId('stock')) await press('stock')
-      if (round % 3 === 2) await press('undo')
-    }
-    await flush(4000) // the last save's debounce
-    const run = expectSavedRunToReplay('acesup')
-    expect(run.seed).toBe(mockSeed)
-    expect(run.actions.some((action) => Array.isArray(action))).toBe(true)
-    expect(run.actions).toContain('u')
-    expect(run.actions).toContain('d')
-    dealing.mockRestore()
-  })
+      // Rounds land here: until a deal's cards land, nothing else on the board can be played
+      const dealing = jest.spyOn(mockDeal, 'start').mockImplementation((entries, _cardWidth, onLanded, onDone) => {
+        setTimeout(() => {
+          entries.forEach((entry) => onLanded(entry.cardId))
+          onDone?.()
+        }, 300)
+      })
+      resetGameInProgress()
+      await render(<AcesUpScreen />)
+      await flush(3000) // the deal, and its first save
+      for (let round = 0; round < 12; round++) {
+        for (const cardId of movableCardIds('acesup').slice(0, 2)) {
+          if (screen.queryByTestId(`card-${cardId}`)) await press(`card-${cardId}`)
+        }
+        if (screen.queryByTestId('stock')) await press('stock')
+        if (round % 3 === 2) await press('undo')
+      }
+      await flush(4000) // the last save's debounce
+      const run = expectSavedRunToReplay('acesup')
+      expect(run.seed).toBe(mockSeed)
+      expect(run.actions.some((action) => Array.isArray(action))).toBe(true)
+      expect(run.actions).toContain('u')
+      expect(run.actions).toContain('d')
+      dealing.mockRestore()
+    },
+    DEAL_RUN_TIMEOUT_MS
+  )
 })
 
 describe('Aces Up screen - Winnable Deals', () => {

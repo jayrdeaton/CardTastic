@@ -6,7 +6,7 @@ import { winnableSeeds } from '@/engine/winnable'
 import GolfScreen from '@/games/golf/GolfScreen'
 import { GolfState } from '@/games/golf/rules'
 
-import { expectSavedRunToReplay, movableCardIds, resetGameInProgress, savedDeal, seedGameInProgress } from '../../../testUtils/gameInProgressStore'
+import { DEAL_RUN_TIMEOUT_MS, expectSavedRunToReplay, movableCardIds, resetGameInProgress, savedDeal, seedGameInProgress } from '../../../testUtils/gameInProgressStore'
 
 // ---------------------------------------------------------------------------------------------------------------------
 // A screen-level test for Golf's win: the REAL GolfScreen, real rules, real useFlightConcurrency / useDerivedWinCheck /
@@ -744,30 +744,34 @@ describe('Golf screen - a win with cards still in the stock', () => {
 // Every deal keeps its run (engine/run.ts) so a daily deal can go on a leaderboard: every move, draw, auto-play and undo the screen
 // commits is recorded, and replaying the run with the rules, as Tastic-Server will, lands on exactly the board and move count saved
 describe('Golf screen - the deal run', () => {
-  it('records a real deal played through the screen so that it replays to the saved board', async () => {
-    async function press(testID: string) {
-      await act(async () => {
-        fireEvent.press(screen.getByTestId(testID))
-      })
-      await flush(1500)
-    }
-    resetGameInProgress()
-    await render(<GolfScreen />)
-    await flush(3000) // the deal, and its first save
-    for (let round = 0; round < 12; round++) {
-      for (const cardId of movableCardIds('golf').slice(0, 2)) {
-        if (screen.queryByTestId(`card-${cardId}`)) await press(`card-${cardId}`)
+  it(
+    'records a real deal played through the screen so that it replays to the saved board',
+    async () => {
+      async function press(testID: string) {
+        await act(async () => {
+          fireEvent.press(screen.getByTestId(testID))
+        })
+        await flush(1500)
       }
-      if (screen.queryByTestId('stock')) await press('stock')
-      if (round % 3 === 2) await press('undo')
-    }
-    await flush(4000) // the last save's debounce
-    const run = expectSavedRunToReplay('golf')
-    expect(run.seed).toBe(mockSeed)
-    expect(run.actions.some((action) => Array.isArray(action))).toBe(true)
-    expect(run.actions).toContain('u')
-    expect(run.actions).toContain('d')
-  })
+      resetGameInProgress()
+      await render(<GolfScreen />)
+      await flush(3000) // the deal, and its first save
+      for (let round = 0; round < 12; round++) {
+        for (const cardId of movableCardIds('golf').slice(0, 2)) {
+          if (screen.queryByTestId(`card-${cardId}`)) await press(`card-${cardId}`)
+        }
+        if (screen.queryByTestId('stock')) await press('stock')
+        if (round % 3 === 2) await press('undo')
+      }
+      await flush(4000) // the last save's debounce
+      const run = expectSavedRunToReplay('golf')
+      expect(run.seed).toBe(mockSeed)
+      expect(run.actions.some((action) => Array.isArray(action))).toBe(true)
+      expect(run.actions).toContain('u')
+      expect(run.actions).toContain('d')
+    },
+    DEAL_RUN_TIMEOUT_MS
+  )
 })
 
 describe('Golf screen - Winnable Deals', () => {

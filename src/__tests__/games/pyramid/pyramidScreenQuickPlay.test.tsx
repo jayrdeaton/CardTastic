@@ -7,7 +7,7 @@ import PyramidScreen, { DEFER_MAX_WAIT_MS, topLandedCard } from '@/games/pyramid
 import { PyramidController, PyramidState } from '@/games/pyramid/rules'
 import { WIN_REVEAL_HOLD_MS } from '@/games/shared/useWinReveal'
 
-import { expectSavedRunToReplay, resetGameInProgress, savedDeal, seedGameInProgress, storedGame } from '../../../testUtils/gameInProgressStore'
+import { DEAL_RUN_TIMEOUT_MS, expectSavedRunToReplay, resetGameInProgress, savedDeal, seedGameInProgress, storedGame } from '../../../testUtils/gameInProgressStore'
 
 // ---------------------------------------------------------------------------------------------------------------------
 // RAPID-INPUT tests for the REAL PyramidScreen (same harness approach as pyramidScreenWin.test.tsx: real rules, flight
@@ -1641,33 +1641,37 @@ describe('topLandedCard', () => {
 // Every deal keeps its run (engine/run.ts) so a daily deal can go on a leaderboard: every removal, draw and undo the screen commits
 // is recorded, and replaying the run with the rules, as Tastic-Server will, lands on exactly the board and move count saved
 describe('Pyramid screen - the deal run', () => {
-  it('records a real deal played through the screen so that it replays to the saved board', async () => {
-    mockSeed = 4242
-    mockDealLands = true
-    resetGameInProgress()
-    await render(<PyramidScreen />)
-    await flush(3000) // the deal, and its first save
-    for (let round = 0; round < 14; round++) {
-      const board = storedGame('pyramid')?.state as PyramidState
-      const move = PyramidController.legalMoves(board)[0]
-      if (move) {
-        const target = (ref: { zone: string; index: number }) => (ref.zone === 'pyramid' ? `pyramid-${board.pyramid[ref.index]?.id}` : 'waste-top')
-        await press(target(move.from))
-        if (move.to.zone !== move.from.zone || move.to.index !== move.from.index) await press(target(move.to))
+  it(
+    'records a real deal played through the screen so that it replays to the saved board',
+    async () => {
+      mockSeed = 4242
+      mockDealLands = true
+      resetGameInProgress()
+      await render(<PyramidScreen />)
+      await flush(3000) // the deal, and its first save
+      for (let round = 0; round < 14; round++) {
+        const board = storedGame('pyramid')?.state as PyramidState
+        const move = PyramidController.legalMoves(board)[0]
+        if (move) {
+          const target = (ref: { zone: string; index: number }) => (ref.zone === 'pyramid' ? `pyramid-${board.pyramid[ref.index]?.id}` : 'waste-top')
+          await press(target(move.from))
+          if (move.to.zone !== move.from.zone || move.to.index !== move.from.index) await press(target(move.to))
+          await flush(1500)
+        }
+        await press('stock-top')
+        await flush(1500)
+        if (round % 3 === 2) await undo()
         await flush(1500)
       }
-      await press('stock-top')
-      await flush(1500)
-      if (round % 3 === 2) await undo()
-      await flush(1500)
-    }
-    await flush(4000) // the last save's debounce
-    const run = expectSavedRunToReplay('pyramid')
-    expect(run.seed).toBe(mockSeed)
-    expect(run.actions.some((action) => Array.isArray(action))).toBe(true)
-    expect(run.actions).toContain('u')
-    expect(run.actions).toContain('d')
-  })
+      await flush(4000) // the last save's debounce
+      const run = expectSavedRunToReplay('pyramid')
+      expect(run.seed).toBe(mockSeed)
+      expect(run.actions.some((action) => Array.isArray(action))).toBe(true)
+      expect(run.actions).toContain('u')
+      expect(run.actions).toContain('d')
+    },
+    DEAL_RUN_TIMEOUT_MS
+  )
 })
 
 describe('Pyramid screen - Winnable Deals', () => {
