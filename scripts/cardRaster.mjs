@@ -1,4 +1,4 @@
-// The rendering both card-art generators share (generate-card-face-bitmaps.mjs, generate-card-art-bitmaps.mjs): an
+// The rendering both card-art generators share (generate-card-face-bitmaps.mjs, generate-card-back-bitmaps.mjs): an
 // esbuild bundle of the app's own components with react-native aliased to react-native-web, pages of them rendered to
 // static HTML by react-dom/server (react-native-svg has a real DOM implementation on web), and headless Chrome
 // screenshots of those pages. Pixel-derived from the REAL components, never a lookalike.

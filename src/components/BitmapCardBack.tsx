@@ -2,14 +2,16 @@ import type { TableColors } from '@tastic/cards'
 import React from 'react'
 import { Image, type ImageSourcePropType, StyleSheet, View } from 'react-native'
 
-import { type BitmapBackStyle, CARD_BACK_BITMAPS } from './cardArtBitmaps'
+import { type BitmapBackStyle, CARD_BACK_BITMAPS } from './cardBackBitmaps'
 import { NO_IMAGE_FADE } from './imageFade'
 
-// A card back drawn from the pre-rasterized layers in cardArtBitmaps.ts (scripts/generate-card-art-bitmaps.mjs) instead
-// of live react-native-svg (where that is: cardArtPlatform.ts). A back is recolored to each player's color, so it is
+// A card back drawn from the pre-rasterized layers in cardBackBitmaps.ts (scripts/generate-card-back-bitmaps.mjs) instead
+// of live react-native-svg (where that is: cardBackPlatform.ts). A back is recolored to each player's color, so it is
 // layers stacked like the SVG draws them: the frame in full color, then the body and the pattern, each a white mask
 // tinted to the player's card back and pattern colors, then (Ornate only) the art's own black. Measured against a direct
-// render, the stack is within a fraction of a color level.
+// render, the stack is within a fraction of a color level. Every layer is `resizeMethod='scale'`: an OTA update hands its
+// images over as file:// paths, which React Native's Android Image otherwise decodes at each view's own size (and only after
+// layout), so each card size would load its own copy and CardBackWarmup's would never be the one drawn.
 
 /** The widest card a bitmap back is drawn for: a little past the widest bake (CARD_WIDTH_MAX), so nothing is blown up far
  * enough to go soft. A wider card keeps the SVG. */
@@ -60,10 +62,10 @@ export const BitmapCardBack = React.memo(function BitmapCardBack({ sources, colo
   return (
     // Sized, so the layers (only absolute children) never lay out as a zero frame: see CLAUDE.md's Fabric view-recycling note.
     <View style={{ height, width }}>
-      <Image source={sources.frame} style={styles.layer} resizeMode='stretch' fadeDuration={NO_IMAGE_FADE} />
-      <Image source={sources.body} style={[styles.layer, { tintColor: colors.cardBack }]} resizeMode='stretch' fadeDuration={NO_IMAGE_FADE} />
-      <Image source={sources.pattern} style={[styles.layer, { tintColor: patternColor }]} resizeMode='stretch' fadeDuration={NO_IMAGE_FADE} />
-      {sources.ink ? <Image source={sources.ink} style={[styles.layer, styles.ink]} resizeMode='stretch' fadeDuration={NO_IMAGE_FADE} /> : null}
+      <Image source={sources.frame} style={styles.layer} resizeMode='stretch' resizeMethod='scale' fadeDuration={NO_IMAGE_FADE} />
+      <Image source={sources.body} style={[styles.layer, { tintColor: colors.cardBack }]} resizeMode='stretch' resizeMethod='scale' fadeDuration={NO_IMAGE_FADE} />
+      <Image source={sources.pattern} style={[styles.layer, { tintColor: patternColor }]} resizeMode='stretch' resizeMethod='scale' fadeDuration={NO_IMAGE_FADE} />
+      {sources.ink ? <Image source={sources.ink} style={[styles.layer, styles.ink]} resizeMode='stretch' resizeMethod='scale' fadeDuration={NO_IMAGE_FADE} /> : null}
     </View>
   )
 })

@@ -3,8 +3,8 @@ import { Image, StyleSheet, View } from 'react-native'
 import { useSettings } from '@/hooks/useSettings'
 
 import { bitmapBackSources } from './BitmapCardBack'
-import { CARD_BACK_BITMAPS } from './cardArtBitmaps'
-import { BITMAP_CARD_ART } from './cardArtPlatform'
+import { CARD_BACK_BITMAPS } from './cardBackBitmaps'
+import { BITMAP_CARD_BACKS } from './cardBackPlatform'
 import { NO_IMAGE_FADE } from './imageFade'
 import { useTableColors } from './theme'
 
@@ -16,7 +16,7 @@ import { useTableColors } from './theme'
 export function CardBackWarmup() {
   const { settings } = useSettings()
   const colors = useTableColors()
-  if (!BITMAP_CARD_ART) return null
+  if (!BITMAP_CARD_BACKS) return null
   const style = settings.cardBackStyle === 'monogram' ? 'plain' : settings.cardBackStyle
   const sources = CARD_BACK_BITMAPS[style].flatMap((bake) => {
     const layers = bitmapBackSources(style, colors, settings.invertDarkModeColors, bake.width)
@@ -25,7 +25,7 @@ export function CardBackWarmup() {
   return (
     <View pointerEvents='none' style={styles.warmup}>
       {sources.map((source, i) => (
-        <Image key={i} source={source} style={styles.image} fadeDuration={NO_IMAGE_FADE} />
+        <Image key={i} source={source} style={styles.image} resizeMethod='scale' fadeDuration={NO_IMAGE_FADE} />
       ))}
     </View>
   )

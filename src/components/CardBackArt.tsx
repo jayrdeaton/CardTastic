@@ -3,7 +3,7 @@ import { CardBack, DecoratedCardBack, type TableColors } from '@tastic/cards'
 import type { Settings } from '@/types'
 
 import { bitmapBackSources, BitmapCardBack } from './BitmapCardBack'
-import { BITMAP_CARD_ART } from './cardArtPlatform'
+import { BITMAP_CARD_BACKS } from './cardBackPlatform'
 import { MonogramCardBack } from './MonogramCardBack'
 
 /** What the Monogram back shows until the player has a tag of their own: S for Solitaire. */
@@ -26,10 +26,10 @@ interface CardBackArtProps {
 }
 
 /** One card back in the chosen style: the one place a style picks its art, for the board, Home's fan and the Settings previews.
- * Where cardArtPlatform.ts says so (Android), from the pre-rasterized layers (BitmapCardBack), else the live SVG. */
+ * Where cardBackPlatform.ts says so (Android), from the pre-rasterized layers (BitmapCardBack), else the live SVG. */
 export function CardBackArt({ backStyle, colors, width, height, tag, invertDarkModeColors }: CardBackArtProps) {
   if (backStyle === 'monogram') return <MonogramCardBack colors={colors} width={width} height={height} monogram={monogramFor(tag)} invertDarkModeColors={invertDarkModeColors} />
-  const bitmap = BITMAP_CARD_ART ? bitmapBackSources(backStyle, colors, invertDarkModeColors, width) : null
+  const bitmap = BITMAP_CARD_BACKS ? bitmapBackSources(backStyle, colors, invertDarkModeColors, width) : null
   if (bitmap) return <BitmapCardBack sources={bitmap} colors={colors} width={width} height={height} invertDarkModeColors={invertDarkModeColors} />
   // The geometric back never carries the tag any more: that is the Monogram back's job.
   if (backStyle === 'geometric') return <CardBack colors={colors} width={width} height={height} invertDarkModeColors={invertDarkModeColors} />

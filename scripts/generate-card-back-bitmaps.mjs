@@ -1,7 +1,7 @@
-// Regenerates assets/cardBacks/*.png, assets/pips/*.png and src/components/cardArtBitmaps.ts: the card backs and the
-// win's firework pips, pre-rasterized for Android (cardArtPlatform.ts says where they're drawn).
+// Regenerates assets/cardBacks/*.png and src/components/cardBackBitmaps.ts: the card backs, pre-rasterized for Android
+// (cardBackPlatform.ts says where they're drawn).
 //
-//   node scripts/generate-card-art-bitmaps.mjs
+//   node scripts/generate-card-back-bitmaps.mjs
 //
 // Why: react-native-svg draws every SVG on Android in software, on the main thread, into a bitmap of its own, the first
 // time each one is shown, and every element is a native view to mount (a Geometric back ~10, an Ornate back over 1,200).
@@ -22,8 +22,8 @@
 // allow). Each style is drawn at several card widths, picked by the nearest at runtime, so the Geometric back's 1pt
 // lines stay 1pt and no bitmap is shrunk far enough to shimmer.
 //
-// The pips' colors never change with the player (each suit's card ink, ringed in the card's face color), so each is one
-// full-color picture, keyed by those colors.
+// The win's firework pips were baked too and measured on the Stylo: no difference (react-native-svg cost the whole win
+// ~30 ms of main thread), so they stay SVG.
 import crypto from 'node:crypto'
 import fs from 'node:fs'
 import { createRequire } from 'node:module'
@@ -33,23 +33,19 @@ import UPNG from 'upng-js'
 
 import { bundle, capture, makeWorkDir, ROOT, writeFormatted, writePage } from './cardRaster.mjs'
 
-const WORK_DIR = makeWorkDir('.card-art-')
+const WORK_DIR = makeWorkDir('.card-backs-')
 const BACK_DIR = path.join(ROOT, 'assets', 'cardBacks')
-const PIP_DIR = path.join(ROOT, 'assets', 'pips')
-const INDEX_FILE = path.join(ROOT, 'src', 'components', 'cardArtBitmaps.ts')
+const INDEX_FILE = path.join(ROOT, 'src', 'components', 'cardBackBitmaps.ts')
 
 const BACK_STYLES = ['geometric', 'ornate', 'plain']
 // Card widths in points, each ~1.2x the last: drawn at the nearest, a Geometric back's 1pt lines are within ~10% of
 // 1pt, and a bitmap is never shrunk more than ~1.3x on a 2.6x phone (bilinear filtering shimmers past ~2x). 96 is
-// CARD_WIDTH_MAX; a card drawn much wider keeps its SVG (cardArtBitmaps' users check MAX_BITMAP_BACK_WIDTH).
+// CARD_WIDTH_MAX; a card drawn much wider keeps its SVG (cardBackBitmaps' users check MAX_BITMAP_BACK_WIDTH).
 const BACK_WIDTHS = [32, 38, 46, 55, 66, 80, 96]
 const BACK_SCALE = 3
 const CARD_ASPECT_H = 93 / 64
-const PIP_SCALE = 4
 // The frame palettes a back is drawn with: PlayingCard passes Invert Dark Mode Colors to the back in either mode.
 const FRAMES = { normal: { palette: 'lightColors', invert: false }, lightInvert: { palette: 'lightColors', invert: true }, darkInvert: { palette: 'darkColors', invert: true } }
-const PIP_LOOKS = { normal: { palette: 'lightColors', invert: false }, invert: { palette: 'darkColors', invert: true } }
-const PIP_DECKS = ['standard', 'tarot']
 // Two players' colors (light and dark mode), to check the stacked layers against a direct render.
 const CHECK_COLORS = [
   { cardBack: '#9D2D53', cardBackPattern: '#D58AA4' },
@@ -59,11 +55,10 @@ const CHECK_COLORS = [
 const React = createRequire(import.meta.url)('react')
 const mod = bundle(
   WORK_DIR,
-  `import { CardBack, cardFaceColor, DecoratedCardBack, SuitPip, SUITS, suitInk } from '@tastic/cards'
-import { AppRegistry, View } from 'react-native'
+  `import { CardBack, DecoratedCardBack } from '@tastic/cards'
+import { AppRegistry } from 'react-native'
 import { darkColors, lightColors } from '${path.join(ROOT, 'src', 'components', 'palettes')}'
-export * from '${path.join(ROOT, 'src', 'components', 'winning', 'pipGeometry')}'
-export { AppRegistry, CardBack, cardFaceColor, darkColors, DecoratedCardBack, lightColors, SuitPip, SUITS, suitInk, View }
+export { AppRegistry, CardBack, darkColors, DecoratedCardBack, lightColors }
 `
 )
 
@@ -105,28 +100,6 @@ function buildPages() {
     pages.push({ ...page, scale: BACK_SCALE, shots: cells.map(({ style, pass, x, y }) => ({ kind: 'back', style, width: w, pass, clip: { x, y, width: w, height: captureH } })) })
   }
 
-  const pipCells = []
-  PIP_DECKS.forEach((deck) =>
-    Object.values(PIP_LOOKS).forEach(({ palette, invert }) =>
-      mod.SUITS.forEach((suit) => {
-        const colors = mod[palette]
-        const ink = mod.suitInk(suit, colors, { cardStyle: deck === 'tarot' ? 'tarot' : 'compact', invertDarkModeColors: invert })
-        const outline = mod.cardFaceColor(colors, invert)
-        pipCells.push({ deck, suit, ink, outline })
-      })
-    )
-  )
-  const pipStride = mod.PIP_BOX + 4
-  const pipElement = React.createElement(
-    'div',
-    null,
-    pipCells.map(({ deck, suit, ink, outline }, i) =>
-      // The pip's own box as PipFireworks lays it out (styles.pip: the glyph centred in PIP_BOX), so the picture fills the same box.
-      React.createElement(mod.View, { key: i, style: { position: 'absolute', left: i * pipStride, top: 0, width: mod.PIP_BOX, height: mod.PIP_BOX, alignItems: 'center', justifyContent: 'center' } }, React.createElement(mod.SuitPip, { suit, color: ink, size: mod.PIP_SIZE, theme: deck, outline: { color: outline, width: mod.PIP_OUTLINE_WIDTH } }))
-    )
-  )
-  const pipPage = writePage(mod, WORK_DIR, 'pips', pipElement, pipCells.length * pipStride, pipStride)
-  pages.push({ ...pipPage, scale: PIP_SCALE, shots: pipCells.map((cell, i) => ({ kind: 'pip', ...cell, clip: { x: i * pipStride, y: 0, width: mod.PIP_BOX, height: mod.PIP_BOX } })) })
   return pages
 }
 
@@ -188,7 +161,7 @@ function layerError(reference, frame, body, pattern, ink, colors) {
 }
 
 /** Writes each picture once (deduplicated on its pixels) as a palette PNG: a mask has at most 256 alphas, so it is
- * exact; the frames and pips are within a fraction of a level. Returns each picture's file name. */
+ * exact; the frames are within a fraction of a level. Returns each picture's file name. */
 function writePngs(dir, pictures, nameFor) {
   fs.rmSync(dir, { recursive: true, force: true })
   fs.mkdirSync(dir, { recursive: true })
@@ -249,23 +222,10 @@ function write(shots) {
   const backs = writePngs(BACK_DIR, backPictures, (pic) => pic.name)
   const backRef = (i) => `require('../../assets/cardBacks/${backs.names[i]}')`
 
-  const pipShots = shots.filter((s) => s.kind === 'pip')
-  const pips = writePngs(
-    PIP_DIR,
-    pipShots.map((s) => ({ ...decode(s.png), s })),
-    ({ s }) => `${s.deck}-${s.suit}-${s.ink.slice(1)}-${s.outline.slice(1)}.png`.toLowerCase()
-  )
-  const pipRefs = {}
-  pipShots.forEach((s, i) => {
-    ;((pipRefs[s.deck] ??= {})[s.suit] ??= {})[`${s.ink}|${s.outline}`] = pips.names[i]
-  })
-
   const backLines = BACK_STYLES.map((style) => `  ${style}: [\n${layers[style].map((e) => `    { width: ${e.width}, body: ${backRef(e.body)}, pattern: ${backRef(e.pattern)}, ${e.ink === null ? '' : `ink: ${backRef(e.ink)}, `}frames: { ${Object.entries(e.frames).map(([key, i]) => `'${key}': ${backRef(i)}`).join(', ')} } }`).join(',\n')}\n  ]`)
-  const pipLines = PIP_DECKS.map((deck) => `  ${deck}: { ${mod.SUITS.map((suit) => `${suit}: { ${Object.entries(pipRefs[deck][suit]).map(([key, name]) => `'${key}': require('../../assets/pips/${name}')`).join(', ')} }`).join(', ')} }`)
   writeFormatted(
     INDEX_FILE,
-    `// GENERATED by scripts/generate-card-art-bitmaps.mjs - do not edit by hand.
-import type { Suit } from '@tastic/cards'
+    `// GENERATED by scripts/generate-card-back-bitmaps.mjs - do not edit by hand.
 import type { ImageSourcePropType } from 'react-native'
 
 export type BitmapBackStyle = ${BACK_STYLES.map((s) => `'${s}'`).join(' | ')}
@@ -287,22 +247,16 @@ export interface CardBackLayers {
 export const CARD_BACK_BITMAPS: Record<BitmapBackStyle, CardBackLayers[]> = {
 ${backLines.join(',\n')}
 }
-
-/** Each firework pip in full color at ${PIP_SCALE}x, filling its PIP_BOX: [deck][suit][\`\${ink}|\${outline}\`]. */
-export const PIP_BITMAPS: Record<'standard' | 'tarot', Record<Suit, Record<string, ImageSourcePropType>>> = {
-${pipLines.join(',\n')}
-}
 `
   )
-  return { backs, pips, worst }
+  return { backs, worst }
 }
 
 try {
   const shots = await capture(WORK_DIR, buildPages())
-  const { backs, pips, worst } = write(shots)
+  const { backs, worst } = write(shots)
   const kb = (bytes) => `${Math.round(bytes / 1024)}KB`
   console.log(`wrote ${backs.files} back layers (${kb(backs.bytes)}) to ${path.relative(ROOT, BACK_DIR)}; stacked vs direct, worst mean ${worst.mean.toFixed(3)}/255 with ${(worst.offShare * 100).toFixed(2)}% of pixels off by more than 16 (${worst.style} at ${worst.w}pt)`)
-  console.log(`wrote ${pips.files} pips (${kb(pips.bytes)}) to ${path.relative(ROOT, PIP_DIR)}`)
 } finally {
   fs.rmSync(WORK_DIR, { recursive: true, force: true })
 }

@@ -5,7 +5,7 @@ import { StyleSheet, Text, View, ViewStyle } from 'react-native'
 import Svg, { Text as SvgText } from 'react-native-svg'
 
 import { bitmapBackSources, BitmapCardBack } from './BitmapCardBack'
-import { BITMAP_CARD_ART } from './cardArtPlatform'
+import { BITMAP_CARD_BACKS } from './cardBackPlatform'
 
 // The Monogram back (Jay, 2026-10-16): the selected player's tag, or S, as big as it fits, on the Plain
 // back (its double-line border, Jay's pick). The Plain back is @tastic/cards' own DecoratedCardBack,
@@ -92,9 +92,9 @@ export const MonogramCardBack = React.memo(function MonogramCardBack({ colors, w
   // A letter's capitals are centred on the card (its cap height straddles the middle); an emoji's whole glyph is.
   const baseline = height / 2 + fontSize * (isEmoji ? EMOJI_BASELINE_FRACTION : CAP_HEIGHT_EM / 2)
 
-  // Where the backs are bitmaps (cardArtPlatform.ts), the Plain back's layers and the monogram as native text in the card
+  // Where the backs are bitmaps (cardBackPlatform.ts), the Plain back's layers and the monogram as native text in the card
   // font, on the same baseline: no SVG left on the back.
-  const bitmap = BITMAP_CARD_ART ? bitmapBackSources('plain', colors, invertDarkModeColors, width) : null
+  const bitmap = BITMAP_CARD_BACKS ? bitmapBackSources('plain', colors, invertDarkModeColors, width) : null
   if (bitmap) {
     return (
       <View style={{ height, width }}>

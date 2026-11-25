@@ -1,23 +1,21 @@
-import { cardFaceColor, suitInk, SUITS, type TableColors } from '@tastic/cards'
-import { act, fireEvent, render, screen } from '@testing-library/react-native'
+import type { TableColors } from '@tastic/cards'
+import { render, screen } from '@testing-library/react-native'
 import { StyleSheet } from 'react-native'
 
 import { bitmapBackSources, BitmapCardBack, MAX_BITMAP_BACK_WIDTH } from '@/components/BitmapCardBack'
-import { CARD_BACK_BITMAPS, PIP_BITMAPS } from '@/components/cardArtBitmaps'
 import { CardBackArt } from '@/components/CardBackArt'
+import { CARD_BACK_BITMAPS } from '@/components/cardBackBitmaps'
 import { CardBackWarmup } from '@/components/CardBackWarmup'
 import { MonogramCardBack } from '@/components/MonogramCardBack'
 import { darkColors, lightColors } from '@/components/palettes'
-import { PipFireworks, pipImagesFor } from '@/components/winning/PipFireworks'
 
-// On Android the card backs and the win's firework pips are drawn from pre-rasterized bitmaps (cardArtBitmaps.ts,
-// scripts/generate-card-art-bitmaps.mjs) instead of live react-native-svg, which draws in software on the main thread
-// there. A back keeps the player's colors (white masks tinted at draw time), and anything the bake doesn't cover keeps
-// the SVG.
+// On Android the card backs are drawn from pre-rasterized layers (cardBackBitmaps.ts, scripts/generate-card-back-bitmaps.mjs)
+// instead of live react-native-svg, which draws in software on the main thread there. A back keeps the player's colors
+// (white masks tinted at draw time), and anything the bake doesn't cover keeps the SVG.
 
 let mockBitmap = true
-jest.mock('@/components/cardArtPlatform', () => ({
-  get BITMAP_CARD_ART() {
+jest.mock('@/components/cardBackPlatform', () => ({
+  get BITMAP_CARD_BACKS() {
     return mockBitmap
   }
 }))
@@ -26,14 +24,12 @@ jest.mock('@tastic/cards', () => {
   return {
     ...jest.requireActual('@tastic/cards'),
     CardBack: () => <MockView testID='svg-geometric' />,
-    DecoratedCardBack: ({ style }: { style: string }) => <MockView testID={`svg-${style}`} />,
-    SuitPip: () => <MockView testID='svg-pip' />
+    DecoratedCardBack: ({ style }: { style: string }) => <MockView testID={`svg-${style}`} />
   }
 })
 
-let mockDark = false
-let mockSettings: { cardStyle: string; invertDarkModeColors: boolean } = { cardStyle: 'compact', invertDarkModeColors: false }
-jest.mock('react-native-paper', () => ({ ...jest.requireActual('react-native-paper'), useTheme: () => ({ dark: mockDark }) }))
+let mockSettings: { cardBackStyle?: string } = {}
+jest.mock('react-native-paper', () => ({ ...jest.requireActual('react-native-paper'), useTheme: () => ({ dark: false }) }))
 jest.mock('@/stores/profiles', () => ({ usePlayer: () => ({ color: '#e91e63' }) }))
 jest.mock('@/hooks/useSettings', () => {
   const actual = jest.requireActual('@/redux/settingsSlice')
@@ -150,7 +146,7 @@ describe('CardBackArt', () => {
 describe('CardBackWarmup', () => {
   // An Android Image whose bitmap nothing has decoded yet draws a frame or two late: a game's stock opened plain on the phone.
   beforeEach(() => {
-    mockSettings = { cardStyle: 'compact', invertDarkModeColors: false }
+    mockSettings = {}
   })
 
   it("keeps every baked width of the player's back style mounted, invisibly", async () => {
@@ -160,12 +156,12 @@ describe('CardBackWarmup', () => {
   })
 
   it('warms the Plain back for the Monogram, with the Ornate black when that is the style', async () => {
-    mockSettings = { cardStyle: 'compact', invertDarkModeColors: false, cardBackStyle: 'monogram' } as typeof mockSettings
+    mockSettings = { cardBackStyle: 'monogram' }
     await render(<CardBackWarmup />)
     expect(hosts('Image').map((image) => image.props.source)).toContain(CARD_BACK_BITMAPS.plain[3].pattern)
     await screen.unmount()
 
-    mockSettings = { cardStyle: 'compact', invertDarkModeColors: false, cardBackStyle: 'ornate' } as typeof mockSettings
+    mockSettings = { cardBackStyle: 'ornate' }
     await render(<CardBackWarmup />)
     expect(hosts('Image')).toHaveLength(CARD_BACK_BITMAPS.ornate.length * 4)
   })
@@ -197,46 +193,5 @@ describe('MonogramCardBack from bitmaps', () => {
     expect(screen.getByText('🦊')).toBeTruthy()
     expect(textStyle().opacity).toBe(0.6)
     expect(textStyle().color).toBeUndefined()
-  })
-})
-
-describe('the firework pips', () => {
-  it('has a picture of every suit in every look the show draws', () => {
-    const looks = [
-      { cardStyle: 'compact', colors: lightColors, invert: false },
-      { cardStyle: 'compact', colors: darkColors, invert: false },
-      { cardStyle: 'compact', colors: darkColors, invert: true },
-      { cardStyle: 'tarot', colors: lightColors, invert: false },
-      { cardStyle: 'tarot', colors: darkColors, invert: true }
-    ]
-    for (const { cardStyle, colors, invert } of looks) {
-      const deck = cardStyle === 'tarot' ? 'tarot' : 'standard'
-      const inks = Object.fromEntries(SUITS.map((suit) => [suit, suitInk(suit, colors, { cardStyle: cardStyle as 'compact', invertDarkModeColors: invert })])) as Record<(typeof SUITS)[number], string>
-      const images = pipImagesFor(deck, inks, cardFaceColor(colors, invert))
-      expect(images).toBeDefined()
-      SUITS.forEach((suit) => expect(images![suit]).toBe(PIP_BITMAPS[deck][suit][`${inks[suit]}|${cardFaceColor(colors, invert)}`]))
-    }
-  })
-
-  it('has none for an ink the bake lacks', () => {
-    const inks = { clubs: '#123456', diamonds: '#C41E3A', hearts: '#C41E3A', spades: '#1A1A1A' }
-    expect(pipImagesFor('standard', inks, '#FFFFFF')).toBeUndefined()
-  })
-
-  it('throws pictures, not SVG pips, where card art is bitmaps', async () => {
-    jest.useFakeTimers()
-    try {
-      mockDark = true
-      mockSettings = { cardStyle: 'compact', invertDarkModeColors: true }
-      await render(<PipFireworks />)
-      await fireEvent(screen.getByTestId('pip-fireworks'), 'layout', { nativeEvent: { layout: { width: 400, height: 800 } } })
-      await act(async () => {
-        jest.advanceTimersByTime(100)
-      })
-      expect(hosts('Image').length).toBeGreaterThan(0)
-      expect(screen.queryAllByTestId('svg-pip')).toHaveLength(0)
-    } finally {
-      jest.useRealTimers()
-    }
   })
 })

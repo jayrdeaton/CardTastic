@@ -352,7 +352,7 @@ Jay: his kids want sounds and hints, he doesn't; and EVERY setting follows the p
 
 ## Card back tag: the Monogram back (2026-10-16)
 
-The selected player's tag is its own back style, **Monogram** (`Settings.cardBackStyle` `'monogram'`, last in the Settings row; NOT the default, Geometric still is; Jay, 2026-10-16), instead of a medallion on the geometric back. `components/MonogramCardBack.tsx` draws it on the **Plain** back (Jay liked its double-line border): `@tastic/cards`' `DecoratedCardBack style='plain'` as is, with a second Svg laid over it for the monogram (the package takes no children and doesn't export the art), the wrapper View sized so the overlay never lays out as a zero frame. The monogram is as big as fits inside the inner line (which encloses 0.647W x 1.104W; `monogramFontSize`: `MAX_INK_WIDTH` 0.52W, `MAX_CAP_HEIGHT` 0.6W, from DejaVu Serif Bold advance widths measured off the bundled TTF with fontTools, so a lone S is set at ~0.72W and MMM still fits; an emoji at 0.52W). Letters are the card font in the back's ink (capitals); an emoji keeps its own colors at 60% opacity (Jay, 2026-10-15: not a sticker). With no tag (a guest, or a profile whose tag is empty) it shows **S** (`CardBackArt.tsx`'s `monogramFor`/`DEFAULT_MONOGRAM`). `components/CardBackArt.tsx` is the one place a style picks its art (board cards, Home's fan, the Settings previews; the Monogram preview shows the player's own tag). The geometric back no longer gets the tag, so `@tastic/cards`' `CardBack` `tag` prop is unused here. Nobody was switched to it (Jay's call): a player who had a tag on the geometric back loses it until they pick Monogram. Recoloring an emoji into the ink does not work on iOS (react-native-svg masks and filters on text, and `mixBlendMode`, all fail there while working in a browser): see `@tastic/cards`' CLAUDE.md before trying again. Seen on the web build (phone size, dark): the fan with a unicorn tag (on the Plain back) and with S (on the earlier frame), the Settings row, a Klondike stock. Not seen on a device. Pinned by `cardBackArt.test.tsx`.
+The selected player's tag is its own back style, **Monogram** (`Settings.cardBackStyle` `'monogram'`, last in the Settings row; NOT the default, Geometric still is; Jay, 2026-10-16), instead of a medallion on the geometric back. `components/MonogramCardBack.tsx` draws it on the **Plain** back (Jay liked its double-line border): `@tastic/cards`' `DecoratedCardBack style='plain'` as is, with a second Svg laid over it for the monogram (the package takes no children and doesn't export the art), the wrapper View sized so the overlay never lays out as a zero frame. The monogram is as big as fits inside the inner line (which encloses 0.647W x 1.104W; `monogramFontSize`: `MAX_INK_WIDTH` 0.52W, `MAX_CAP_HEIGHT` 0.6W, from DejaVu Serif Bold advance widths measured off the bundled TTF with fontTools, so a lone S is set at ~0.72W and MMM still fits; an emoji at 0.52W). Letters are the card font in the back's ink (capitals); an emoji keeps its own colors at 60% opacity (Jay, 2026-10-15: not a sticker). With no tag (a guest, or a profile whose tag is empty) it shows **S** (`CardBackArt.tsx`'s `monogramFor`/`DEFAULT_MONOGRAM`). `components/CardBackArt.tsx` is the one place a style picks its art (board cards, Home's fan, the Settings previews; the Monogram preview shows the player's own tag). The geometric back no longer gets the tag, so `@tastic/cards`' `CardBack` `tag` prop is unused here. Nobody was switched to it (Jay's call): a player who had a tag on the geometric back loses it until they pick Monogram. Recoloring an emoji into the ink does not work on iOS (react-native-svg masks and filters on text, and `mixBlendMode`, all fail there while working in a browser): see `@tastic/cards`' CLAUDE.md before trying again. Seen on the web build (phone size, dark): the fan with a unicorn tag (on the Plain back) and with S (on the earlier frame), the Settings row, a Klondike stock. Not seen on a device. Pinned by `cardBackArt.test.tsx`. On Android (since 2026-11-25) it's the Plain back's bitmap layers with the tag as a native Text in the card font, on the same baseline: see "Bitmap card backs on Android".
 
 **The back's detail keeps its accent with Invert Dark Mode Colors on** (Jay, 2026-10-16): `theme.ts`'s `cardBackPatternInverted` used to be `cardBackPattern` pushed 30% toward black in dark mode, which left the weave and frame barely showing; it is now the same color.
 
@@ -1026,8 +1026,8 @@ is still installed on the phone for a later A/B (`adb uninstall com.infinitetoke
    fireworks from saturated to about 70%, the worst frame 1,072 to 604 ms and the worst UI frame 948 to 559 ms; the worst UI
    frame of a Klondike deal 423 to 571 ms down to 264 to 330. Frame rates barely moved (Klondike deals 14 to 19 fps before,
    14 to 21 after; FreeCell deals 23 to 26 both; finish and win 43 and 39): what's left there is the JS thread (finding 5),
-   mounting views (0.73 s of a Klondike deal) and the backs' software drawing (0.26 s). Still open: drawing backs and pips as
-   bitmaps on Android.
+   mounting views (0.73 s of a Klondike deal) and the backs' software drawing (0.26 s). The backs are bitmaps on Android since
+   the same day (see "Bitmap card backs on Android"); the pips stay SVG (no measurable gain).
 3. **Blank white faces at hand-off** (deals, the finish, a resumed board): a face-up card drawn as a plain white card for
    ~0.1 to 0.3 s (once, the bottom J of a resumed FreeCell board for over a second). Counted with a detector over half-size
    recordings (frames with a card-sized patch of pure white on the board, dialogs skipped), the same three recordings per
@@ -1076,6 +1076,84 @@ is still installed on the phone for a later A/B (`adb uninstall com.infinitetoke
 **What's fine:** RatSlap (56 fps), Home scrolling (53), the held stock and held Undo (continuous, 36 to 47 fps), and
 nothing was throttled (thermal status 0, the big cores at 2.3 GHz throughout).
 
+**All of it together** (the same day, on the perf app with fixes 1, 2, 3 and 5 and the bitmap backs, whose deal numbers
+are in "Bitmap card backs on Android"):
+- **The FreeCell finish and win:** 40 fps, longest gap 148 ms, no blank card.
+- **Klondike deals:** 5 blank frames in two deals, as before (the smaller cause in finding 3).
+- **FreeCell deals:** one frame of 66 to 87 ms in 3 of 4 deals, right at the deal's end, where rows 4 down (about 16 cards)
+  are blank white and then painted in the next frame. It was 58 frames with the shortcut, and 0 in the two deals measured
+  without it before fix 5 and the backs.
+- **Likely cause, not checked:** the landed deal ghosts let go at `DEAL_LANDED_MAX_MS` (150) before the faces' onLoad
+  reaches JS, which is busy at the deal's end. A longer hold on Android is the thing to try.
+
 The recordings and the gfxinfo summary are outside the repo, in
 `~/Library/Application Support/Claude/side-session-notes/local_b35a5df5-a6df-4c25-a41e-ae7ec49dfb51/stylo6-recordings/`. The React commit counter is the skill's `react-commit-prelude.js` (prepended to the bundle; installing the hook from
 the entry is too late, Expo's setup modules load the renderer first).
+
+## Bitmap card backs on Android (2026-11-25)
+
+The Stylo's finding 2, followed up (Jay asked why @tastic/cards couldn't be fixed itself, and picked baked stencils over
+drawing each player's backs once at runtime or a picture per palette color). On Android every card back is drawn from
+pre-rasterized layers instead of react-native-svg, which draws each SVG in software on the main thread the first time it
+shows, and makes every element a native view to mount (a Geometric back ~10, an Ornate back over 1,200). iOS and the web keep
+the SVG: `components/cardBackPlatform.ts`' `BITMAP_CARD_BACKS`. iOS is the same one line, but a new Image there fills in a
+frame late (cardFacePaint.ts), so it needs its own check first (Jay, the same day: later, on the same code). Not released.
+
+- **The layers** (`components/BitmapCardBack.tsx`): a back takes the player's colors, so it can't be one picture. It is
+  stacked the way the SVG draws it:
+  - the frame (the white edge and outline) in full color, keyed by the colors CardBack/DecoratedCardBack would draw it in
+    (normal, and Invert Dark Mode Colors in light and in dark mode);
+  - the body, a white mask tinted `colors.cardBack`;
+  - the pattern, a white mask tinted the pattern color;
+  - on the Ornate back only, its border scrollwork, which the art draws in its own black (paths with no fill), as a black
+    layer on top.
+
+  Each style is baked at 32, 38, 46, 55, 66, 80 and 96pt at 3x and drawn from the nearest (`bitmapBackSources`). That keeps
+  the Geometric back's 1pt lines (absolute in its SVG) within ~10% of 1pt, and no bitmap is shrunk far enough to shimmer. A
+  card wider than 110pt (`MAX_BITMAP_BACK_WIDTH`), or a frame color the bake lacks, keeps the SVG. The result is 105 PNGs,
+  324 KB, in `assets/cardBacks/`. Every layer is `resizeMethod='scale'`: an OTA update hands its images over as file:// paths,
+  which React Native's Android Image otherwise decodes per view size, and only after layout.
+- **The Monogram** is the Plain back's layers with the tag as a native `Text` in the card font, on the SVG text's baseline
+  (its top is the baseline less the font's hhea ascent, 1923/2048; `allowFontScaling={false}`, no font padding). On the
+  Stylo the S came out the same size as the SVG's and 2 px (under 1pt) to the right, each within a pixel of center. An emoji
+  tag wasn't checked on a device.
+- **The generator** (`scripts/generate-card-back-bitmaps.mjs`) renders the real CardBack/DecoratedCardBack with colors picked
+  to separate each layer:
+  - the frame: both back colors transparent;
+  - the body: both colors white, the frame transparent;
+  - the pattern: a pass with the body black and the pattern white. Each body pixel is a mix of the two colors, and the white
+    share is the pattern's, read under whatever black is drawn over it.
+
+  It then stacks the layers in two players' colors, compares them with a direct render, and fails past a mean of 0.5/255 or
+  0.1% of pixels off by more than 16. Today the worst is 0.27/255 (Ornate at 32pt). Rerun it whenever @tastic/cards' back art
+  or a palette's frame colors change; `bitmapCardBacks.test.tsx` fails if a palette's frame colors aren't baked. The
+  rendering (esbuild, react-native-web, headless Chrome) is `scripts/cardRaster.mjs`, now shared with the face generator,
+  whose output it reproduces byte for byte. A face rerun today did change 71 faces by a few antialiased pixels (Chrome
+  updated since they were baked; the committed ones were kept).
+- **Warm from launch** (`components/CardBackWarmup.tsx`, in the pack's Provider): the player's back style at every baked
+  width, mounted 1pt and invisible. A probe build that painted each bitmap back's wrapper magenta showed why. In deals, stock
+  draws and the turn-over every back drew in the frame it mounted: once a bitmap is decoded and in use, a new view shows it
+  at once. But opening Klondike or Spider showed the stock without its frame and pattern for one or two frames, the first use
+  of that width's bitmaps. With the warmup there were 0 magenta frames in a Klondike deal, a Spider deal and 28 stock taps
+  through the turn-over. It costs ~4 to 6 MB of decoded bitmaps. This file's "a back is SVG, drawn in the frame it mounts"
+  (the stock's overlay, face-down ghosts) holds on Android through it.
+- **Measured on the Stylo**, from the same tree and base APK with two bundles differing only in `BITMAP_CARD_BACKS`: run.sh
+  for three Klondike deals, two Spider deals and two FreeCell wins, then one simpleperf profile of each.
+
+  | Scenario | fps, SVG / bitmap | p90 frame | worst UI frame | Main thread | react-native-svg on it |
+  | --- | --- | --- | --- | --- | --- |
+  | Klondike deal | 20 / 27 | 116-200 / 96-111 ms | 258-356 / 259-307 ms | 2,870 / 2,388 ms | 650 / 70 ms |
+  | Spider deal | 17.5 / 20 | 293-299 / 193-199 ms | 417-423 / 268-305 ms | 4,010 / 3,186 ms | 1,008 / 4 ms |
+  | FreeCell win | 42 / 40 | 77-79 / 77-85 ms | 402-469 / 396-495 ms | 5,164 / 5,370 ms | 100 / 70 ms |
+
+  The Klondike deal's motion also ended in 2.8 s against 3.4 to 4.0 s. The JS thread went 3,490 to 3,264 ms (Klondike) and
+  5,620 to 4,702 ms (Spider); the worst JS stalls 345-498 to 291-323 ms and 659-774 to 473-507 ms. RenderThread rose 4 to 8%
+  (it draws the bitmaps).
+- **The firework pips stay SVG.** They were baked and measured the same way and made no difference: react-native-svg is
+  ~30 ms of main thread over the whole win, and fps was within noise. So they were taken back out. The win's cost is
+  mounting (~1.9 s of the main thread either way) and the JS thread.
+- **Still SVG on Android:** Home's game previews (GamePreview, one Svg of paths per tile), the empty foundations' muted
+  vector CardFace, the hand rows' suit marks (HandRow's SuitPip) and JokerFace.
+- **Tests:** `bitmapCardBacks.test.tsx` covers the bake (every width, every frame the palettes draw, the black only on
+  Ornate), the nearest width, the SVG fallbacks, the stacked tints, CardBackArt and the Monogram on bitmaps, and the warmup.
+  Not seen on any other Android phone, or in dark mode or with Invert on the Stylo.
