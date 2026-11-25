@@ -93,7 +93,7 @@ CardTastic's first release on Android: eleven solitaire games and nine games for
 
 - **App icon:** `icon-512.png`, 512 x 512, 32-bit PNG with alpha (opaque), the iOS icon (`assets/images/icon-dark.png`, the four aces on Rose's felt) scaled down: `ffmpeg -i assets/images/icon-dark.png -vf scale=512:512:flags=lanczos -pix_fmt rgba store/screenshots/google-play/icon-512.png`. Google rounds its corners and adds the shadow itself.
 - **Feature graphic:** `feature-graphic.png`, 1024 x 500, 24-bit PNG with no alpha: the App Store header's layout at the size Jay approved (2026-11-11), drawn by `node store/creative/build.mjs --only feature` with the app's own components: the four Aces fanned in the middle like the icon, each suit's run from 2 to King arcing out to the edges, every card of the deck once, and pip fireworks of all four suits in the top corners, rendered at 3840 x 1646 and cropped to Play's shape and scaled (`crop=3371:1646:234:0,scale=1024:500:flags=lanczos`, 24-bit). The crop keeps the Aces and the runs leaving them in the middle, and the outer diamond and club Kings run off the edges. No words, no device frame, the Aces in the middle. The App Store header itself is the same layout at 0.76 since 2026-11-12, so no device cuts it (`store/README.md`); Play shows all of its graphic, so this one keeps the full size.
-- **Phone screenshots:** `store/screenshots/android/`, seven at 1440 x 2560, no alpha, in upload order, with the alt text in Screenshots below.
+- **Phone screenshots:** `store/screenshots/android/`, eight at 1440 x 2560, no alpha, in upload order, with the alt text in Screenshots below.
 - **Tablet screenshots:** none for now (optional).
 
 ## Store settings
@@ -137,26 +137,30 @@ Not collected: the profile's name (every player is named "CardTastic" on the ser
 
 ## Screenshots
 
-Seven phone shots, captioned in DejaVu Serif Bold (the app's font) above the capture in a Pixel bezel, on the felt sampled from each capture. The captions and alt text are in `store/google-play-screenshots.json`; paste each shot's `alt` into Play Console (140 at most, all 80 to 111 used). The PNGs and raw captures are gitignored.
+Eight phone shots (Play's most), retaken 2026-11-25 for 1.3.0: the App Store's nine less RatSlap, with the same captions. Captioned in DejaVu Serif Bold (the app's font) above the capture in a Pixel bezel, on the felt sampled from each capture. The captions and alt text are in `store/google-play-screenshots.json`; paste each shot's `alt` into Play Console (140 at most, all 80 to 130 used). The PNGs and raw captures are gitignored. The 2026-11-11 set was seven shots from before the Daily Deals and the setup screens.
 
 | Shot | Caption | What it shows |
 |---|---|---|
 | 01-klondike | Classic Solitaire, No Ads / Klondike, FreeCell, Spider, and more | The saved Klondike board after one draw, so Undo is lit |
-| 02-home | 20 Card Games in One App / Solitaire and games for two to four | Home as it opens, on the Solitaire tab |
-| 03-together | Games for Two to Four / Or take on the computer | Gin Rummy's first turn against a Medium CPU (the two-player tables hide the status bar) |
-| 04-win | Beat Par in Every Game / Score is moves plus seconds | The FreeCell finish: a frame 12.5 s into the recording, silver medal, chains bouncing, heart fireworks |
-| 05-hint | A Hint When You Need One / See a move you can make | Yukon's hint: the 6♣ 5♥ 4♣ copy halfway to the 7♥, a frame 2.56 s in |
-| 06-stats | Stats and Achievements / For every game and rule set | The Achievements tab scrolled one screen: bronze, silver, gold and locked rows |
-| 07-style | Your Cards, Your Colors / Four faces, four backs, any color | Pyramid's fresh deal after one draw, with Decorated faces, the Ornate back and Guest's color #009688 (a red felt) |
+| 02-home | 20 Card Games in One App / 11 solitaire, 9 to play together | Home as it opens, on the Solitaire tab |
+| 03-daily | A Daily Deal for Everyone / Win it and see where you rank | Klondike's setup screen as it opens: the preview, GUEST, DAILY DEAL with today's date, and RANDOM DEAL with Continue, Draw and New Deal |
+| 04-win | Beat Par in Every Game / Score is moves plus seconds | The FreeCell finish: a frame 22 s into the recording, silver medal, "3rd best score ever", a chain bouncing and a pip burst |
+| 05-ginrummy | Gin Rummy and Crazy Eights / Against friends or the computer | Gin Rummy against a Medium CPU on its second turn: two sets underlined, the 7♦ picked with Throw showing, the CPU's "Took the J♦, threw the Q♣" (the two-player tables hide the status bar) |
+| 06-hint | A Hint When You Need One / See a move you can make | Yukon's hint: the see-through 6♣ 5♥ 4♣ between its column and the 7♥, a frame 2.41 s in |
+| 07-stats | Stats and Achievements / For every game and rule set | The trophy on Home: the Stats tab with the calendar and Overall (it opens on Everyone, since the emulator has no profiles; the iOS simulators had sibling games' profiles, so iOS opened on Guest with the same numbers) |
+| 08-style | Your Cards, Your Colors / Four faces, four backs, any color | Pyramid's fresh deal after one draw, with Decorated faces, the Ornate back and Guest's color #009688 (a red felt) |
 
-How they were made (2026-11-11), so a reshoot can follow it:
+The wells and tiles are solid on Android and frosted on iOS while Blur is on (`@tastic/hud`'s `useFrostedWells` never frosts on Android, where auto-paper's `BlurView` needs a blur target the wells don't have), so the same screen's cards read darker grey here than in the App Store set. That frosting is also why a well on iOS takes the felt's hue (a light-mode well over a blue felt measured `#666E9B`, not the opaque `#FFFBFE` surface).
+
+How they were made (2026-11-25), so a reshoot can follow it:
 
 1. `node store/seed/generate.mjs` (writes `store/seed/seed.json`: three weeks of a Hint-following player on the real rules and stats engine, a Klondike board, a Yukon board whose hint moves a clean run, and a FreeCell board one play from its finish).
-2. A release APK for the emulator only: `CI=1 npx expo prebuild -p android --clean --no-install`, then in `android/`, `./gradlew app:assembleRelease -PreactNativeArchitectures=arm64-v8a` (6 minutes under load). To seed it, add `debuggable true` at the top of `android/app/build.gradle`'s `release` block and build again (2 minutes): AsyncStorage on Android is reachable only through `adb shell run-as`, which needs a debuggable app. `react-native`'s own release build config stays non-debug, so it still runs the bundled JavaScript, not Metro. **Take the line out afterwards** (`android/` is gitignored, but a local `eas build --local` would use it, and Play refuses a debuggable bundle).
-3. The shared `Pixel_9` emulator (`emulator -avd Pixel_9 -no-audio -no-boot-anim -no-snapshot-save`), dark mode (`adb shell cmd uimode night yes`), `adb shell settings put global hide_error_dialogs 1`, `adb install -r` the APK, and launch it once so its database exists.
-4. `python3 store/seed/write-store.py --android` (stops the app, writes the seed into `databases/RKStorage`; `--style '#009688'` for 07). The debuggable build's first launch after seeding takes about 40 s on a loaded Mac (the plain release build starts in under a second).
-5. Demo mode for the status bar. On this image `-e fully true` is needed or Wi-Fi shows "!", and the mobile slot shows "3G" unless its `datatype` is empty:
+2. A release APK for the emulator only: `CI=1 npx expo prebuild -p android --clean --no-install`, add `debuggable true` at the top of `android/app/build.gradle`'s `release` block, then in `android/`, `./gradlew app:assembleRelease -PreactNativeArchitectures=arm64-v8a` (3.5 minutes on 2026-11-25). AsyncStorage on Android is reachable only through `adb shell run-as`, which needs a debuggable app. `react-native`'s own release build config stays non-debug, so it still runs the bundled JavaScript, not Metro. **Take the line out afterwards** (`android/` is gitignored, but a local `eas build --local` would use it, and Play refuses a debuggable bundle).
+3. The shared `Pixel_9` emulator (`emulator -avd Pixel_9 -no-audio -no-boot-anim -no-snapshot-save`), dark mode (`adb shell cmd uimode night yes`), `adb shell settings put global hide_error_dialogs 1`, the Mac's time zone (`adb shell service call alarm 3 s16 America/Indiana/Indianapolis`, or the seed's days and the emulator's disagree), `adb install -r` the APK, and launch it once so its database exists. **If the emulator is gone** (a disk cleanup deleted both `~/.android/avd` and the SDK's `system-images` on 2026-11-21): the image is `arm64-v8a-36.1_r04.zip` (1.96 GB, sha1 `193d86bad80d9ff79fe4272304f3193e7c097e1e`) from `https://dl.google.com/android/repository/sys-img/google_apis_playstore/`, unzipped into `~/Library/Android/sdk/system-images/android-36.1/google_apis_playstore/` (2.3 GB); the AVD is two hand-written files, `~/.android/avd/Pixel_9.ini` and `Pixel_9.avd/config.ini` (the app-store-prep skill's Play reference has the settings).
+4. `python3 store/seed/write-store.py --android` (stops the app, writes the seed into `databases/RKStorage`; `--style '#009688'` for 08). The debuggable build's first launch after seeding takes 20 to 40 s.
+5. Demo mode for the status bar (rerun before each capture, another session may reset it). On this image `-e fully true` is needed or Wi-Fi shows "!", and with an empty `datatype` the mobile slot draws nothing, so the bar is the clock, one Wi-Fi icon and the battery, with nothing to paint out:
    ```bash
+   adb shell settings put global sysui_demo_allowed 1
    adb shell am broadcast -a com.android.systemui.demo -e command enter
    adb shell am broadcast -a com.android.systemui.demo -e command clock -e hhmm 0941
    adb shell am broadcast -a com.android.systemui.demo -e command battery -e level 100 -e plugged false -e powersave false
@@ -164,8 +168,16 @@ How they were made (2026-11-11), so a reshoot can follow it:
    adb shell am broadcast -a com.android.systemui.demo -e command network -e mobile show -e level 4 -e datatype '' -e fully true
    adb shell am broadcast -a com.android.systemui.demo -e command notifications -e visible false
    ```
-   The shield left of the clock is a Safety Center notification (no screen lock), which demo mode doesn't hide: `adb shell "cmd notification snooze --for 86400000 '<key>'"` with the keys from `adb shell dumpsys notification` (pkg=android, id=2345). Another session using the emulator may reset demo mode, so rerun it before each capture.
-6. Captures with `adb exec-out screencap -p > store/screenshots/raw/android/<name>.png`, taps with `adb shell input tap <x> <y>` in the 1080x2424 screen's pixels. The win and hint are frames from `adb shell screenrecord`, pulled and picked with the app-store-prep skill's `frames.mjs` (`sheet`, then `grab`). For 04, open FreeCell and tap the J♥ (it goes up and the solved board finishes itself); for 05, open Yukon and press Hint.
+   Snooze the system notifications a fresh image posts (Safety Center's shield, Play Store's account prompt, the physical keyboard one, the silent group): `adb shell "cmd notification snooze --for 86400000 '<key>'"` with each `key=` from `adb shell dumpsys notification --noredact`.
+6. Captures with `adb exec-out screencap -p > store/screenshots/raw/android/<name>.png`, taps with `adb shell input tap <x> <y>` in the 1080x2424 screen's pixels. The win and hint are frames from `adb shell screenrecord --bit-rate 20000000`, pulled and picked with the app-store-prep skill's `frames.mjs` (`sheet`, then `grab`). Every solitaire tile opens its setup screen; Continue opens the saved game.
+   - **01-klondike:** Klondike, Continue, tap the stock once.
+   - **02-home:** Home as it opens.
+   - **03-daily:** Klondike's setup screen as it opens.
+   - **04-win:** FreeCell, Continue, record 30 s, tap the J♥ in the second column (the finish plays the rest); pick a frame with a chain and a pip burst in view.
+   - **05-ginrummy:** the Two Player tab, Gin Rummy (opponent CPU, Medium), Ready. Back and Ready deal a fresh hand while no card has moved; deal until the hand shows two meld lines, take the upcard, throw a deadwood card, let the CPU play, draw from the stock and tap a deadwood card so it rises with Throw showing (the discard then has the CPU's card on it, not an empty slot).
+   - **06-hint:** Yukon, Continue, record 8 s, press Hint.
+   - **07-stats:** the trophy on Home.
+   - **08-style:** reseed with `--style '#009688'`, Pyramid, New Deal, tap the stock once.
 7. `~/.claude/skills/app-store-prep/scripts/compose.mjs store/google-play-screenshots.json` writes `store/screenshots/android/`.
 
 ## First run on Android (2026-11-11)
@@ -173,7 +185,7 @@ How they were made (2026-11-11), so a reshoot can follow it:
 The first time CardTastic ran on Android: a local release APK (`com.infinitetoken.cardtastic`, arm64) on the Pixel_9 emulator (Android 16), in dark mode with sound off. Not a device, not the EAS production build.
 
 - **Worked:** a cold start in 0.84 s to How to Play over Home, with no JavaScript errors in the log; the adaptive icon on the launcher; Home on both tabs; a saved Klondike, FreeCell and Yukon board resuming; a stock draw; FreeCell's solved-board finish into the win card, the bouncing cascade and pip fireworks; the silver medal's masked gradient on the trophy and title (never seen natively before: it renders); Yukon's hint glow and glide; the stats screen with its calendar, and the Achievements tab; Gin Rummy's setup screen and its table against the CPU (melds marked, suit marks under the ranks); Pyramid with another player color, card faces and back.
-- **The Achievements tab's label is cut to "Achievem…"** on the Pixel 9 (411dp wide): the three tabs are equal-width segments and "Achievements" doesn't fit a third of the row. Not checked whether iOS cuts it too. The tabs are `@tastic/shell`'s stats screen (Paper `SegmentedButtons`), so the fix goes there. The screenshot is scrolled past them.
+- **The Achievements tab's label was cut to "Achievem…"** on the Pixel 9 (411dp wide): the three tabs were equal-width segments. Fixed in `@tastic/shell` 0.8.2 (label-wide segments on iOS and Android); the 2026-11-25 Stats shot shows it whole.
 - **expo-audio keeps an active media session per sound player** (`dumpsys media_session`: several `ExpoAudioBasicMediaSession` entries for the app, `active=true`). With sound off nothing showed in the notification shade, but with sound on a card click may put CardTastic in Android's media controls or take the media buttons. The emulator has no audio, so this needs a device with sound on.
 - **Not checked:** the hardware and gesture back on every screen (the skill's warning: back from a screen pushed with `router.replace` quits the app), landscape, the two-player games' portrait hold, a tablet, haptics, a device.
 - **The screenshot seed was scrambling every saved game's foundations** (iOS too): `store/seed/write-store.py` didn't stamp `foundationLayout`, so the app took each seeded save for one from before 2026-10-20 and moved its foundations, hearts landing in the spades slot (and a tap played into a column instead of up). Fixed 2026-11-11; the App Store set was taken before the layout changed, so it wasn't affected, but its retake would have been.

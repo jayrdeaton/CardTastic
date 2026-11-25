@@ -5,11 +5,12 @@
   "devices": ["android"],
   "shots": [
     { "name": "01-klondike", "title": "Classic Solitaire, No Ads", "sub": "Klondike, FreeCell, Spider, and more", "alt": "Klondike solitaire mid-game: tableau columns, four foundations, the stock and waste, and moves, score and time." },
-    { "name": "02-home", "title": "20 Card Games in One App", "sub": "Solitaire and games for two to four", "alt": "CardTastic's home screen: a fan of card backs, the player button, Solitaire and Two Player tabs, and the games." },
-    { "name": "03-together", "title": "Games for Two to Four", "sub": "Or take on the computer", "alt": "Gin Rummy against the computer: your hand sorted into melds, the stock and the upcard, and a Pass button." },
+    { "name": "02-home", "title": "20 Card Games in One App", "sub": "11 solitaire, 9 to play together", "alt": "CardTastic's home screen: a fan of card backs, Solitaire and Two Player tabs, and a tile for each game." },
+    { "name": "03-daily", "title": "A Daily Deal for Everyone", "sub": "Win it and see where you rank", "alt": "Klondike's setup screen: a preview of the game, today's Daily Deal and its board, and the random deal's rules." },
     { "name": "04-win", "title": "Beat Par in Every Game", "sub": "Score is moves plus seconds", "alt": "A FreeCell win: moves, score and time against par, Kings bouncing down the screen and fireworks of card suits." },
-    { "name": "05-hint", "title": "A Hint When You Need One", "sub": "See a move you can make", "alt": "A Yukon hint: a see-through copy of the 6, 5 and 4 glides onto the 7 of hearts while the run glows." },
-    { "name": "06-stats", "title": "Stats and Achievements", "sub": "For every game and rule set", "alt": "The achievements list: bronze, silver and gold unlocks with their dates, progress bars and locked achievements." },
-    { "name": "07-style", "title": "Your Cards, Your Colors", "sub": "Four faces, four backs, any color", "alt": "Pyramid with decorated card faces, an ornate teal card back and a deep red felt." }
+    { "name": "05-ginrummy", "title": "Gin Rummy and Crazy Eights", "sub": "Against friends or the computer", "alt": "Gin Rummy against the computer: two sets underlined in your hand, the 7 of diamonds picked to throw, and the computer's last move." },
+    { "name": "06-hint", "title": "A Hint When You Need One", "sub": "See a move you can make", "alt": "A Yukon hint: a see-through copy of the 6, 5 and 4 glides onto the 7 of hearts while the run glows." },
+    { "name": "07-stats", "title": "Stats and Achievements", "sub": "For every game and rule set", "alt": "The Stats screen: a calendar of the days played, then games played, wins, win rate, streaks and time played." },
+    { "name": "08-style", "title": "Your Cards, Your Colors", "sub": "Four faces, four backs, any color", "alt": "Pyramid with decorated card faces, an ornate teal card back and a deep red felt." }
   ]
 }
