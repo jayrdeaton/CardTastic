@@ -1,23 +1,37 @@
 import { cardFaceColor, type Suit, suitInk, SuitPip, SUITS } from '@tastic/cards'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { type LayoutChangeEvent, StyleSheet, View } from 'react-native'
+import { Image, type ImageSourcePropType, type LayoutChangeEvent, StyleSheet, View } from 'react-native'
 import { useTheme } from 'react-native-paper'
 import Animated, { Easing, type SharedValue, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated'
 
+import { PIP_BITMAPS } from '@/components/cardArtBitmaps'
+import { BITMAP_CARD_ART } from '@/components/cardArtPlatform'
+import { NO_IMAGE_FADE } from '@/components/imageFade'
 import { useMotionReduced } from '@/components/reducedMotion'
 import { useTableColors } from '@/components/theme'
 import { useSettings } from '@/hooks/useSettings'
 
+import { PIP_BOX, PIP_OUTLINE_WIDTH, PIP_SIZE } from './pipGeometry'
+
 /** Which pips a show throws: the standard four suits, or the tarot deck's cups, coins, wands and swords (the same art the cards use). */
 export type PipDeck = 'standard' | 'tarot'
 
-/** How a show draws its pips: each suit's ink, and the ring round every pip. */
-export type PipLook = { deck: PipDeck; inks: Record<Suit, string>; outline: string }
+/** How a show draws its pips: each suit's ink, and the ring round every pip. With `images`, each suit is that picture
+ * (filling the pip's PIP_BOX) instead of a live SuitPip. */
+export type PipLook = { deck: PipDeck; inks: Record<Suit, string>; outline: string; images?: Record<Suit, ImageSourcePropType> }
+
+/** Each suit's pre-rasterized pip (cardArtBitmaps.ts) in exactly these inks and ring, or undefined if one isn't baked. */
+export function pipImagesFor(deck: PipDeck, inks: Record<Suit, string>, outline: string): Record<Suit, ImageSourcePropType> | undefined {
+  const images: Partial<Record<Suit, ImageSourcePropType>> = {}
+  for (const suit of SUITS) {
+    const image = PIP_BITMAPS[deck][suit][`${inks[suit]}|${outline}`]
+    if (!image) return undefined
+    images[suit] = image
+  }
+  return images as Record<Suit, ImageSourcePropType>
+}
 
 const PIPS_PER_BURST = 10
-const PIP_SIZE = 14
-/** The pip's box: room for the spades' width compensation and a quarter turn of the diagonal tarot art. */
-const PIP_BOX = Math.ceil(PIP_SIZE * 1.6)
 const BURST_LIFETIME_MS = 1100
 const EXPAND_MS = 650
 const FADE_IN_MS = 100
@@ -30,10 +44,6 @@ const EASE_EXPAND = Easing.out(Easing.cubic)
 const EASE_FADE = Easing.in(Easing.quad)
 const EASE_POP = Easing.out(Easing.back(2))
 const POP_MS = 180
-
-/** The ring round each pip, in points. A pip is the card's own ink, ringed in the card's own face color, so a black spade reads on the dark felt the
- * way it does on a card (Jay, 2026-10-17). */
-const PIP_OUTLINE_WIDTH = 1.25
 
 /** Wands and swords are drawn on a diagonal with the tip up and to the right. Turned by the flight angle plus this, the tip leads, so a burst of them
  * radiates like blades or sparks instead of landing like a pile of dropped sticks. */
@@ -76,11 +86,8 @@ function Pip({ spec, elapsed, burst, look }: { spec: PipSpec; elapsed: SharedVal
       transform: [{ translateX: Math.cos(angle) * distance * expand }, { translateY: Math.sin(angle) * distance * expand + DROOP_PX * life * life }, { rotate: `${rotateFrom + (rotateTo - rotateFrom) * life}deg` }, { scale: pop * (1 - 0.2 * life) }]
     }
   })
-  return (
-    <Animated.View style={[styles.pip, { left: burst.originX - PIP_BOX / 2, top: burst.originY - PIP_BOX / 2 }, style]}>
-      <SuitPip suit={burst.suit} color={look.inks[burst.suit]} size={PIP_SIZE} theme={look.deck} outline={{ color: look.outline, width: PIP_OUTLINE_WIDTH }} />
-    </Animated.View>
-  )
+  const art = look.images ? <Image source={look.images[burst.suit]} style={styles.pipImage} fadeDuration={NO_IMAGE_FADE} /> : <SuitPip suit={burst.suit} color={look.inks[burst.suit]} size={PIP_SIZE} theme={look.deck} outline={{ color: look.outline, width: PIP_OUTLINE_WIDTH }} />
+  return <Animated.View style={[styles.pip, { left: burst.originX - PIP_BOX / 2, top: burst.originY - PIP_BOX / 2 }, style]}>{art}</Animated.View>
 }
 
 function Burst({ burst, look }: { burst: BurstSpec; look: PipLook }) {
@@ -173,7 +180,10 @@ export function PipFireworks() {
   const look = useMemo<PipLook>(() => {
     const options = { cardStyle, invertDarkModeColors }
     const inks = Object.fromEntries(SUITS.map((suit) => [suit, suitInk(suit, colors, options)])) as Record<Suit, string>
-    return { deck: cardStyle === 'tarot' ? 'tarot' : 'standard', inks, outline: cardFaceColor(colors, invertDarkModeColors) }
+    const deck: PipDeck = cardStyle === 'tarot' ? 'tarot' : 'standard'
+    const outline = cardFaceColor(colors, invertDarkModeColors)
+    // Where card art is drawn from bitmaps (cardArtPlatform.ts), each pip is one picture: every burst mounts ten pips.
+    return { deck, images: BITMAP_CARD_ART ? pipImagesFor(deck, inks, outline) : undefined, inks, outline }
   }, [cardStyle, colors, invertDarkModeColors])
   if (reduced) return null
   return <PipBursts look={look} />
@@ -182,5 +192,6 @@ export function PipFireworks() {
 const styles = StyleSheet.create({
   inert: { pointerEvents: 'none' },
   // Sized, never a zero frame: see CLAUDE.md on Fabric recycling a zero-frame view at its previous life's position.
-  pip: { alignItems: 'center', height: PIP_BOX, justifyContent: 'center', position: 'absolute', width: PIP_BOX }
+  pip: { alignItems: 'center', height: PIP_BOX, justifyContent: 'center', position: 'absolute', width: PIP_BOX },
+  pipImage: { height: PIP_BOX, width: PIP_BOX }
 })

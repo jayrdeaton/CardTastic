@@ -1,5 +1,4 @@
 import { createContext, useCallback, useEffect, useLayoutEffect, useState, useSyncExternalStore } from 'react'
-import { Platform } from 'react-native'
 
 /**
  * Which cards have a face mounted on the board whose bitmap has not been delivered yet - so a ghost can stay over a card
@@ -110,50 +109,11 @@ export function whenCardsSettled(cardIds: readonly string[], maxWaitMs: number, 
 /** False inside a ghost (DragGhostLayer's flights): its faces are not the board's, so they never hold a landing back. */
 export const FaceLoadTrackingContext = createContext(true)
 
-/**
- * Android only: the face bitmaps already decoded on this run, so a new Image of one counts as painted in the commit that
- * mounts it (PlayingCard's CardFaceImage) instead of at its onLoad.
- *
- * Android draws images with Fresco, which gives a view a bitmap already in its memory cache the moment the view attaches,
- * in the frame it is mounted (AbstractDraweeController.submitRequest looks in the cache before it fetches anything). The
- * onLoad still comes later: Android hands the event to JS on the next frame, and what JS changes for it is mounted a frame
- * after that. So every ghost waiting for its faces (useGhostPaintGate) stood invisible over a card that was already drawn,
- * and the flight left two or three frames late, more while the JS thread was busy: the lag between a card's buzz at
- * touch-down and its flight (Jay's Android phone, 2026-11-17). iOS fills every new image off the main thread, even a cached
- * one, so it keeps the wait (the account at the top of this file).
- *
- * Keyed by the source and the size it is drawn at: an image from an OTA update is a file:// path, which React Native decodes
- * at the view's size, so its cache entry is per size. A bitmap on screen is never dropped from the cache. One that isn't
- * can be, under memory pressure (the cache is a quarter of the app's heap; one card style's 52 faces are about 25MB), which
- * happens to a style's faces once another style replaces them, so the set starts over whenever the face set changes
- * (another card style, or Invert Dark Mode Colors). A face counted that has been dropped after all would be blank for a
- * frame or two, the thing the wait is for.
- */
-let decodedFaceSet: string | null = null
-const decodedFaces = new Map<unknown, Set<string>>()
-
-/** Records that the face `source` has loaded at `size` (its Image's onLoad), under the card style and ink `faceSet`. */
-export function noteFaceDecoded(faceSet: string, source: unknown, size: string): void {
-  if (Platform.OS !== 'android') return
-  if (faceSet !== decodedFaceSet) {
-    decodedFaces.clear()
-    decodedFaceSet = faceSet
-  }
-  const sizes = decodedFaces.get(source)
-  if (sizes) sizes.add(size)
-  else decodedFaces.set(source, new Set([size]))
-}
-
-/** Whether a new Image of `source` at `size` is drawn in the frame it mounts (Android, a bitmap already decoded). */
-export function isFaceDecoded(faceSet: string, source: unknown, size: string): boolean {
-  return Platform.OS === 'android' && faceSet === decodedFaceSet && !!decodedFaces.get(source)?.has(size)
-}
-
-/** Starts the decoded set over (tests). */
-export function forgetDecodedFaces(): void {
-  decodedFaces.clear()
-  decodedFaceSet = null
-}
+// Android has no shortcut here any more. From 2026-11-17 to 2026-11-25 a face whose bitmap had loaded once on the run
+// counted as painted in the commit that mounted a new Image of it, on the premise that Fresco draws a cached bitmap in the
+// frame a view attaches, so flights could leave without waiting for the onLoad. On an LG Stylo 6 it often didn't: dealt
+// and flying cards showed as blank white cards (FreeCell's deals in 58 frames of two deals, its finish in 45; none with the
+// shortcut off), and limiting it to faces on screen didn't help. Jay chose to drop it; every platform waits for the onLoad.
 
 /**
  * Cards whose flight has STARTED but whose ghost is not on screen yet - the take-off side of the same problem.

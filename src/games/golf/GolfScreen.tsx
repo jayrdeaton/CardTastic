@@ -20,7 +20,7 @@ import { GAME_CONTENT_PADDING, GameChrome } from '@/components/GameChrome'
 import { useFittedCardWidth, useFittedGap, useGameLayout } from '@/components/gameLayout'
 import { GameLoading } from '@/components/GameLoading'
 import { hintStacking } from '@/components/hintGlow'
-import { PileDragConfig, PileView } from '@/components/PileView'
+import { PileView } from '@/components/PileView'
 import { StockWaste } from '@/components/StockWaste'
 import type { UndoRequestOptions } from '@/components/undoHold'
 import { useCardSoundEffects } from '@/components/useCardSounds'
@@ -36,6 +36,7 @@ import { golfVariant, type VariantId } from '@/engine/variants'
 import { showNoHintToast } from '@/games/shared/gameToasts'
 import { LossBanner } from '@/games/shared/LossBanner'
 import { MoveInfo, UndoEntry } from '@/games/shared/undoTypes'
+import { useColumnHandlers } from '@/games/shared/useColumnHandlers'
 import { useDailyDeal, useDealSettings } from '@/games/shared/useDailyDeal'
 import { useDeferredDeal } from '@/games/shared/useDeferredDeal'
 import { useDerivedWinCheck } from '@/games/shared/useDerivedWinCheck'
@@ -614,6 +615,22 @@ function GolfScreenInner() {
     }
   }
 
+  // Each column's drag config and tap handler, built once so PileView's memo holds: a column re-renders only when it changes.
+  const columns = useColumnHandlers(state?.tableau.length ?? 0, dropZones, COLUMN_RUNS, {
+    // Claims a flight slot so undo sees the drop as in flight for its whole duration (activeFlightCountRef); refused while an
+    // undo runs (see attemptDrop on why undo holds full mutual exclusion).
+    onDrop: (colIndex, to, _count, anchorCardId, flight) => {
+      if (undoBusyRef.current) return false
+      startFlights(1)
+      if (!completeMove({ zone: 'tableau', index: colIndex }, to, anchorCardId, flight)) {
+        settleFlight()
+        return false
+      }
+      return true
+    },
+    onPressCard: (colIndex, card, _indexFromTop, measure) => handleCardTap({ zone: 'tableau', index: colIndex }, card.id, measure)
+  })
+
   if (!state) return <GameLoading />
 
   // Hidden only once the win is REVEALED, not the moment it is won - the winning card is still flying
@@ -674,27 +691,6 @@ function GolfScreenInner() {
 
         <View style={[styles.tableauRow, { gap }]}>
           {state.tableau.map((col, colIndex) => {
-            const dragConfig: PileDragConfig = {
-              registry: dropZones,
-              // Golf never drags a run - only a column's true top card (indexFromTop === 0) can ever
-              // move, one card at a time. Deliberately not engine/pile.ts's runCountFrom, which is
-              // for multi-card-run games (Klondike/FreeCell/Spider) - Golf needs none of that.
-              getRunCount: (indexFromTop) => (indexFromTop === 0 ? 1 : 0),
-              // PileView's own handleDragEnd already resolves the drop target via dropZones.hitTest
-              // before calling this, so - unlike StockWaste's loose DraggableCard onDrop above - no
-              // separate hitTest wrapper is needed here. Rejects outright if undo is running (see
-              // handleCardTap's identical comment on why undo holds full mutual exclusion, not just
-              // a one-way wait).
-              onDrop: (to, _count, anchorCardId, flight) => {
-                if (undoBusyRef.current) return false
-                startFlights(1)
-                if (!completeMove({ zone: 'tableau', index: colIndex }, to, anchorCardId, flight)) {
-                  settleFlight()
-                  return false
-                }
-                return true
-              }
-            }
             // Only ever true during an undo flying a card back into this column - a forward Golf
             // move's destination is always the waste pile, never a tableau column.
             const hiddenCount = flying.filter((f) => f.to.zone === 'tableau' && f.to.index === colIndex).reduce((sum, f) => sum + f.count, 0)
@@ -705,7 +701,7 @@ function GolfScreenInner() {
                 card in a column is permanently unplayable, not just sometimes-stuck like
                 FreeCell/Spider's suit/color-broken runs. Still the same "face-up but not a legal
                 move source" cue those need. */}
-                <PileView cards={col} onPressCard={(card, _indexFromTop, measure) => handleCardTap({ zone: 'tableau', index: colIndex }, card.id, measure)} maxHeight={tableauMaxHeight} drag={dragConfig} hiddenCount={hiddenCount} hiddenCardIds={dealHiddenIds} dimUnplayable={settings.dimUnplayable && !dimAfterDeal.held} shakeCardId={shake?.cardId} shakeToken={shake?.token} hintCount={hintCountFor(activeHint, { zone: 'tableau', index: colIndex })} />
+                <PileView cards={col} onPressCard={columns.onPressCard[colIndex]} maxHeight={tableauMaxHeight} drag={columns.drag[colIndex]} hiddenCount={hiddenCount} hiddenCardIds={dealHiddenIds} dimUnplayable={settings.dimUnplayable && !dimAfterDeal.held} shakeCardId={shake?.cardId} shakeToken={shake?.token} hintCount={hintCountFor(activeHint, { zone: 'tableau', index: colIndex })} />
               </DropZone>
             )
           })}
@@ -722,6 +718,9 @@ function GolfScreenInner() {
     </CardSizeProvider>
   )
 }
+
+// Only a column's top card can be played (useColumnHandlers' getRunCount).
+const COLUMN_RUNS = { getRunCount: (indexFromTop: number) => (indexFromTop === 0 ? 1 : 0) }
 
 function makeStyles() {
   return StyleSheet.create({

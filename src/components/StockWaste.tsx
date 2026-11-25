@@ -1,6 +1,6 @@
 import { Pressable } from '@rific/feedback-press'
 import { type TableColors, useCardSize } from '@tastic/cards'
-import React, { RefObject } from 'react'
+import React, { RefObject, useMemo } from 'react'
 import { StyleProp, StyleSheet, Text, View, ViewStyle } from 'react-native'
 
 import { Card } from '@/engine/types'
@@ -16,6 +16,7 @@ import { EmptySlot, PlayingCard } from './PlayingCard'
 import { STOCK_LONG_PRESS_MS, StockHandler, useStockHold } from './stockHold'
 import { useTableColors } from './theme'
 import { useFrozenWhileHidden } from './useFrozenWhileHidden'
+import { useLatestCallback } from './useLatestCallback'
 import { useTakeOffHold } from './useTakeOffHold'
 import { wasteFanStepFor } from './wasteFan'
 
@@ -120,6 +121,9 @@ interface StockWasteProps {
  * a stock pile. Waste sits first so the card players are about to act on lands next to the tableau,
  * with the draw pile as the secondary action beside it. When the stock runs out but the waste still
  * has cards, an empty stock slot shows a recycle hint - unless the game never recycles (`canRecycle`). */
+// The waste's empty slot under a lifted card: one element, so the waste DraggableCard's memo holds.
+const WASTE_EMPTY = <EmptySlot />
+
 export function StockWaste({ dropZones, stockTopCard, wasteTop, wasteBehind = EMPTY_WASTE_BEHIND, wasteUnder, onDrawStock, onWastePress, onWasteDrop, wasteSelected, wasteHinted, stockHinted, wasteHiddenCount = 0, settledWasteTop, wasteShakeToken, cardWidth, gap, style, stockRef, wasteRef, stockHidden = false, widenFan = true, canRecycle = true }: StockWasteProps) {
   const colors = useTableColors()
   const styles = React.useMemo(() => makeStyles(colors), [colors])
@@ -173,6 +177,10 @@ export function StockWaste({ dropZones, stockTopCard, wasteTop, wasteBehind = EM
   // The stock's one touch target (see the stock below). A held stock deals card after card (useStockHold) - only where it turns over:
   // in Golf, TriPeaks and Forty Thieves one hold would deal the whole stock, which never comes back.
   const stockHold = useStockHold(onDrawStock)
+  // Stable props for the memoized waste DraggableCard: every caller hands these in as fresh closures each render.
+  const stableWastePress = useLatestCallback(onWastePress)
+  const stableWasteDrop = useLatestCallback(onWasteDrop)
+  const stockBack = useMemo(() => (stockShown ? { ...stockShown, faceUp: false } : null), [stockShown])
   const stockPressable = !!stockShown || canRecycle
   const stockLabel = stockShown ? 'Draw' : 'Turn over'
   // Starts from faceUpFanOffset's fraction, tuned to clear PileView's VERTICAL corner-row strip, and
@@ -217,7 +225,7 @@ export function StockWaste({ dropZones, stockTopCard, wasteTop, wasteBehind = EM
           card, then the card under both once that one's ghost shows), and not as its own ghost until that ghost painted. The
           tap is lost instead, for the frame or two until the held card's ghost shows. The stock below does pass a tap on:
           its cards are backs, all alike. */}
-          {wasteShown ? <DraggableCard card={wasteShown} selected={wasteSelected && !wasteHolding} hidden={wasteOverlayVisible} disabled={wasteHolding} registryId={wasteHolding ? (wasteTop?.id ?? null) : undefined} shakeToken={wasteHolding ? undefined : wasteShakeToken} underCard={fanShowsUnder ? null : wasteHolding ? wasteTop : wasteUnder} emptyFallback={fanShowsUnder ? null : <EmptySlot />} onPress={wasteHolding ? undefined : onWastePress} onDrop={wasteHolding ? undefined : onWasteDrop} testID='waste-top' /> : <EmptySlot hinted={wasteHinted} />}
+          {wasteShown ? <DraggableCard card={wasteShown} selected={wasteSelected && !wasteHolding} hidden={wasteOverlayVisible} disabled={wasteHolding} registryId={wasteHolding ? (wasteTop?.id ?? null) : undefined} shakeToken={wasteHolding ? undefined : wasteShakeToken} underCard={fanShowsUnder ? null : wasteHolding ? wasteTop : wasteUnder} emptyFallback={fanShowsUnder ? null : WASTE_EMPTY} onPress={wasteHolding ? undefined : stableWastePress} onDrop={wasteHolding ? undefined : stableWasteDrop} testID='waste-top' /> : <EmptySlot hinted={wasteHinted} />}
           {/* Mounted (invisible) whenever there is a waste card, not just during a flight here - see PileOverlay. */}
           {(topHidden || wasteTop) && <PileOverlay visible={wasteOverlayVisible}>{wasteUnderlay ? <PlayingCard card={wasteUnderlay} disabled /> : <EmptySlot />}</PileOverlay>}
         </DropZone>
@@ -232,7 +240,7 @@ export function StockWaste({ dropZones, stockTopCard, wasteTop, wasteBehind = EM
         pressable and only ever hidden, and this stays mounted, fully opaque, and decides nothing: a tap goes to the screen, which
         draws, turns the waste over, or waits for a flight in its way (KlondikeScreen's handleDrawStock). */}
         <Pressable testID='stock-pile' accessibilityRole='button' accessibilityLabel={stockLabel} disabled={!stockPressable} soundDisabled onPress={() => void onDrawStock()} onLongPress={canRecycle ? stockHold.onLongPress : undefined} onPressOut={canRecycle ? stockHold.onPressOut : undefined} delayLongPress={STOCK_LONG_PRESS_MS}>
-          <View style={stockHidden ? HIDDEN_STOCK_STYLE : undefined}>{stockShown ? <PlayingCard card={{ ...stockShown, faceUp: false }} hinted={stockHinted && !stockHolding} /> : <EmptySlot hinted={stockHinted}>{showRecycle ? <Text style={styles.recycleIcon}>↺</Text> : null}</EmptySlot>}</View>
+          <View style={stockHidden ? HIDDEN_STOCK_STYLE : undefined}>{stockBack ? <PlayingCard card={stockBack} hinted={stockHinted && !stockHolding} /> : <EmptySlot hinted={stockHinted}>{showRecycle ? <Text style={styles.recycleIcon}>↺</Text> : null}</EmptySlot>}</View>
           {stockHidden && (
             <View style={StyleSheet.absoluteFill} pointerEvents='none'>
               {frozenStockTopCard ? <PlayingCard card={{ ...frozenStockTopCard, faceUp: false }} /> : <EmptySlot>{showRecycle ? <Text style={styles.recycleIcon}>↺</Text> : null}</EmptySlot>}

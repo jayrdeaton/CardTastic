@@ -441,8 +441,33 @@ describe('useAutoFinish', () => {
     const t0 = Date.now()
 
     await playerMove(result.current, rerender)
-    await advance(STAGGER_MS * 5)
-    expect(startedAt.map((t) => t - t0)).toEqual([STAGGER_MS, STAGGER_MS * 3, STAGGER_MS * 5])
+    await advance(STAGGER_MS * 5 + 2)
+    // Each late card goes one zero-delay timer after the card before it finished (Jest's fake timers run that 1ms on; React
+    // Native runs it at once), not one more gap later.
+    expect(startedAt.map((t) => t - t0)).toEqual([STAGGER_MS, STAGGER_MS * 3 + 1, STAGGER_MS * 5 + 2])
+    await unmount()
+  })
+
+  it('a card with no gap left still leaves the JS task first, so each card commits to the screen on its own (a phone always behind its clock)', async () => {
+    // On a slow phone every card's measurement and commit take longer than the gap, and the measurement resolves as a
+    // microtask (Fabric's measureInWindow calls back at once). Without a timer between cards the whole finish ran as one task,
+    // and React Native only mounts a task's commits when it ends (the Stylo 6 drew nothing for 3.9 s). A gap of 0 is a card
+    // that is always due; the marker task each card queues must run before the next card starts.
+    const { board } = setup()
+    board.remaining = 4
+    const events: string[] = []
+    const firePlay = jest.fn(async () => {
+      events.push(`card ${4 - board.remaining}`)
+      setTimeout(() => events.push('task'), 0)
+      board.remaining -= 1
+      board.current = `board-${4 - board.remaining}`
+      return true
+    })
+    const { result, rerender, unmount } = await renderHook(({ state }: Props) => useAutoFinish<string>({ state, enabled: () => true, isBusy: () => false, getState: () => board.current, canFinish: () => board.remaining > 0, nextMove: () => moveFor(board.remaining), isLanding: () => false, firePlay, gapMs: () => 0 }), { initialProps: { state: 'board-0' } as Props })
+
+    await playerMove(result.current, rerender)
+    await advance(10)
+    expect(events).toEqual(['card 0', 'task', 'card 1', 'task', 'card 2', 'task', 'card 3', 'task'])
     await unmount()
   })
 

@@ -3,6 +3,7 @@ import { useOnlinePlayersSync } from '@tastic/profile/online'
 import { type FeedbackSounds, type PackGuide, type StackScreenOptions, useProfiles } from '@tastic/shell'
 import { type ReactNode, useEffect } from 'react'
 
+import { CardBackWarmup } from '@/components/CardBackWarmup'
 import { ReducedMotionBridge, useMotionReduced } from '@/components/reducedMotion'
 import { playerTheme } from '@/components/theme'
 import { useCardSoundPlayers } from '@/components/useCardSounds'
@@ -72,6 +73,7 @@ export function SolitaireProvider({ children }: { children: ReactNode }) {
       <ProfileThemeSync />
       <ReducedMotionBridge />
       <OnlinePlayersSync />
+      <CardBackWarmup />
       {children}
     </GameStatsProvider>
   )

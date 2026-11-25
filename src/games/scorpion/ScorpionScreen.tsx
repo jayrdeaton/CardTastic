@@ -26,7 +26,7 @@ import { GAME_CONTENT_PADDING, GameChrome } from '@/components/GameChrome'
 import { useGameLayout } from '@/components/gameLayout'
 import { GameLoading } from '@/components/GameLoading'
 import { hintStacking } from '@/components/hintGlow'
-import { PileDragConfig, PileView } from '@/components/PileView'
+import { PileView } from '@/components/PileView'
 import { EmptySlot, PlayingCard } from '@/components/PlayingCard'
 import { hiddenUntilDealt } from '@/components/reducedMotionFlag'
 import type { UndoRequestOptions } from '@/components/undoHold'
@@ -45,6 +45,7 @@ import { showNoHintToast } from '@/games/shared/gameToasts'
 import { liftTappedRun, peelInAir } from '@/games/shared/inAirRun'
 import { LossBanner } from '@/games/shared/LossBanner'
 import { MoveInfo, UndoEntry } from '@/games/shared/undoTypes'
+import { useColumnHandlers } from '@/games/shared/useColumnHandlers'
 import { useDailyDeal, useDealSettings } from '@/games/shared/useDailyDeal'
 import { useDeferredDeal } from '@/games/shared/useDeferredDeal'
 import { useDerivedWinCheck } from '@/games/shared/useDerivedWinCheck'
@@ -800,6 +801,24 @@ function ScorpionScreenInner() {
     }
   }
 
+  // Each column's drag config and tap handler, built once so PileView's memo holds: a column re-renders only when it changes.
+  const columns = useColumnHandlers(state?.tableau.length ?? 0, dropZones, COLUMN_RUNS, {
+    // Claims a flight slot so undo sees the drop as in flight for its whole duration (activeFlightCountRef); refused while an
+    // undo runs (see attemptDrop on why undo holds full mutual exclusion).
+    // Also refused once the deal is won: the completed runs stay on the board until the win is revealed, and a drop then would
+    // register a move, fly a ghost that delays the reveal, and could split a run so the win flips back.
+    onDrop: (colIndex, to, count, anchorCardId, flight) => {
+      if (won || undoBusyRef.current) return false
+      startFlights(1)
+      if (!completeMove({ zone: 'tableau', index: colIndex }, to, count, anchorCardId, flight)) {
+        settleFlight()
+        return false
+      }
+      return true
+    },
+    onPressCard: (colIndex, card, indexFromTop, measure) => handleCardTap(colIndex, card, indexFromTop, measure)
+  })
+
   if (!state) return <GameLoading />
 
   // The classic deal has no stock at all, so nothing to show; the assisted one keeps its slot after the deal.
@@ -821,28 +840,6 @@ function ScorpionScreenInner() {
           {isWide && stockSlot && <View style={[styles.widePacket, { marginLeft: (cardWidth * TABLEAU_COLUMNS + gap * (TABLEAU_COLUMNS - 1)) / 2 + gap + WIDE_PACKET_SEPARATION }]}>{stockSlot}</View>}
           <View style={[styles.tableauRow, { gap }, isWide && styles.tableauRowWide]}>
             {state.tableau.map((col, colIndex) => {
-              const dragConfig: PileDragConfig = {
-                registry: dropZones,
-                getRunCount: (indexFromTop) => tableauRunCount(colIndex, indexFromTop),
-                // Claims a flight slot (see activeFlightCountRef's doc comment) purely so undo sees
-                // this drop as in-flight for its whole duration, not just once completeMove lands one
-                // - PileView.tsx (shared, not ours to edit) already ran its own hitTest await before
-                // invoking this callback, so this is the earliest point ScorpionScreen gets a look-in.
-                // Rejects outright if undo is currently running (undo holds full mutual exclusion, not
-                // just a one-way wait - see undoBusyRef's own doc comment) - and once the game is won, like
-                // handleCardTap/handleDrawStock/handleHint: the completed runs stay on the board (and
-                // draggable) until the win is revealed, and a drop in that hold would register a move, fly a
-                // ghost that delays the reveal, and could split a run so the win flips back.
-                onDrop: (to, count, anchorCardId, flight) => {
-                  if (won || undoBusyRef.current) return false
-                  startFlights(1)
-                  if (!completeMove({ zone: 'tableau', index: colIndex }, to, count, anchorCardId, flight)) {
-                    settleFlight()
-                    return false
-                  }
-                  return true
-                }
-              }
               const hiddenCount = flying.filter((f) => f.to.zone === 'tableau' && f.to.index === colIndex).reduce((sum, f) => sum + f.count, 0)
               // Hidden entirely once the win cascade takes over - at that point every column is either
               // already empty or a complete run (see rules.ts's isWon), and the win cascade owns displaying
@@ -861,7 +858,7 @@ function ScorpionScreenInner() {
                     }}
                     collapsable={false}
                   >
-                    <PileView cards={cards} onPressCard={(card, indexFromTop, measure) => handleCardTap(colIndex, card, indexFromTop, measure)} maxHeight={tableauMaxHeight} drag={dragConfig} hiddenCount={hiddenCount} hiddenCardIds={dealHiddenIds} shakeCardId={shake?.cardId} shakeCount={shake?.count} shakeToken={shake?.token} hintCount={hintCountFor(activeHint, { zone: 'tableau', index: colIndex })} />
+                    <PileView cards={cards} onPressCard={columns.onPressCard[colIndex]} maxHeight={tableauMaxHeight} drag={columns.drag[colIndex]} hiddenCount={hiddenCount} hiddenCardIds={dealHiddenIds} shakeCardId={shake?.cardId} shakeCount={shake?.count} shakeToken={shake?.token} hintCount={hintCountFor(activeHint, { zone: 'tableau', index: colIndex })} />
                   </View>
                 </DropZone>
               )
@@ -876,6 +873,9 @@ function ScorpionScreenInner() {
     </CardSizeProvider>
   )
 }
+
+// A column card moves with every card on top of it (useColumnHandlers' getRunCount).
+const COLUMN_RUNS = { getRunCount: (indexFromTop: number, cards: Card[]) => runCountFrom(cards, indexFromTop, alwaysValidRun) }
 
 function makeStyles() {
   return StyleSheet.create({

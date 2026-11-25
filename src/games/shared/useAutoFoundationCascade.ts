@@ -127,7 +127,9 @@ export function useAutoFoundationCascade<TState>(config: {
       let gap = true
       while (armedRef.current) {
         const wait = gap ? lastLeftAt + AUTO_PLAY_STAGGER_MS - Date.now() : 0
-        if (wait > 0) await sleep(wait) // a card already late (its predecessor was slow to measure) goes at once
+        // A card already late (its predecessor was slow to measure) goes at once, but after a zero-delay timer, so each card's
+        // commit reaches the screen: see useAutoFinish's loop for why a late card must still leave the task.
+        await sleep(Math.max(wait, 0))
         gap = true
         if (!armedRef.current) return
         const c = latestRef.current

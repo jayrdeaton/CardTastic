@@ -1,0 +1,307 @@
+diff --git a/node_modules/react-native-svg/android/src/main/java/com/horcrux/svg/RenderableViewManager.java b/node_modules/react-native-svg/android/src/main/java/com/horcrux/svg/RenderableViewManager.java
+index 06095e4..4a3586b 100644
+--- a/node_modules/react-native-svg/android/src/main/java/com/horcrux/svg/RenderableViewManager.java
++++ b/node_modules/react-native-svg/android/src/main/java/com/horcrux/svg/RenderableViewManager.java
+@@ -369,6 +369,11 @@ class VirtualViewManager<V extends VirtualView> extends ViewGroupManager<Virtual
+     node.setResponsible(responsible);
+   }
+ 
++  @ReactProp(name = "hasOnLayout")
++  public void setHasOnLayout(V node, boolean hasOnLayout) {
++    node.setHasOnLayout(hasOnLayout);
++  }
++
+   @ReactProp(name = ViewProps.POINTER_EVENTS)
+   public void setPointerEvents(V view, @Nullable String pointerEventsStr) {
+     if (pointerEventsStr == null) {
+diff --git a/node_modules/react-native-svg/android/src/main/java/com/horcrux/svg/VirtualView.java b/node_modules/react-native-svg/android/src/main/java/com/horcrux/svg/VirtualView.java
+index 4d71806..f0b8c5a 100644
+--- a/node_modules/react-native-svg/android/src/main/java/com/horcrux/svg/VirtualView.java
++++ b/node_modules/react-native-svg/android/src/main/java/com/horcrux/svg/VirtualView.java
+@@ -583,6 +583,12 @@ public abstract class VirtualView extends ReactViewGroup {
+     setMeasuredDimension(width, height);
+   }
+ 
++  private boolean mHasOnLayout;
++
++  void setHasOnLayout(boolean hasOnLayout) {
++    mHasOnLayout = hasOnLayout;
++  }
++
+   void setClientRect(RectF rect) {
+     if (mClientRect != null && mClientRect.equals(rect)) {
+       return;
+@@ -608,6 +614,9 @@ public abstract class VirtualView extends ReactViewGroup {
+         setBottom(Math.min(bottom, root.getHeight()));
+       }
+     }
++    if (!mHasOnLayout) {
++      return;
++    }
+     EventDispatcher eventDispatcher =
+         UIManagerHelper.getEventDispatcherForReactTag(mContext, getId());
+     if (eventDispatcher != null) {
+diff --git a/node_modules/react-native-svg/src/fabric/CircleNativeComponent.ts b/node_modules/react-native-svg/src/fabric/CircleNativeComponent.ts
+index 59ffb5c..a2641e0 100644
+--- a/node_modules/react-native-svg/src/fabric/CircleNativeComponent.ts
++++ b/node_modules/react-native-svg/src/fabric/CircleNativeComponent.ts
+@@ -16,6 +16,7 @@ interface SvgNodeCommonProps {
+   clipPath?: string;
+   clipRule?: CodegenTypes.WithDefault<CodegenTypes.Int32, 0>;
+   responsible?: boolean;
++  hasOnLayout?: boolean;
+   display?: string;
+   pointerEvents?: string;
+ }
+diff --git a/node_modules/react-native-svg/src/fabric/ClipPathNativeComponent.ts b/node_modules/react-native-svg/src/fabric/ClipPathNativeComponent.ts
+index d19062e..fd44f30 100644
+--- a/node_modules/react-native-svg/src/fabric/ClipPathNativeComponent.ts
++++ b/node_modules/react-native-svg/src/fabric/ClipPathNativeComponent.ts
+@@ -16,6 +16,7 @@ interface SvgNodeCommonProps {
+   clipPath?: string;
+   clipRule?: CodegenTypes.WithDefault<CodegenTypes.Int32, 0>;
+   responsible?: boolean;
++  hasOnLayout?: boolean;
+   display?: string;
+   pointerEvents?: string;
+ }
+diff --git a/node_modules/react-native-svg/src/fabric/DefsNativeComponent.ts b/node_modules/react-native-svg/src/fabric/DefsNativeComponent.ts
+index 56e1aa5..c4070f6 100644
+--- a/node_modules/react-native-svg/src/fabric/DefsNativeComponent.ts
++++ b/node_modules/react-native-svg/src/fabric/DefsNativeComponent.ts
+@@ -13,6 +13,7 @@ interface SvgNodeCommonProps {
+   clipPath?: string;
+   clipRule?: CodegenTypes.WithDefault<CodegenTypes.Int32, 0>;
+   responsible?: boolean;
++  hasOnLayout?: boolean;
+   display?: string;
+   pointerEvents?: string;
+ }
+diff --git a/node_modules/react-native-svg/src/fabric/EllipseNativeComponent.ts b/node_modules/react-native-svg/src/fabric/EllipseNativeComponent.ts
+index 8506ad3..ab4c7b9 100644
+--- a/node_modules/react-native-svg/src/fabric/EllipseNativeComponent.ts
++++ b/node_modules/react-native-svg/src/fabric/EllipseNativeComponent.ts
+@@ -16,6 +16,7 @@ interface SvgNodeCommonProps {
+   clipPath?: string;
+   clipRule?: CodegenTypes.WithDefault<CodegenTypes.Int32, 0>;
+   responsible?: boolean;
++  hasOnLayout?: boolean;
+   display?: string;
+   pointerEvents?: string;
+ }
+diff --git a/node_modules/react-native-svg/src/fabric/ForeignObjectNativeComponent.ts b/node_modules/react-native-svg/src/fabric/ForeignObjectNativeComponent.ts
+index 2e4151d..8b96de3 100644
+--- a/node_modules/react-native-svg/src/fabric/ForeignObjectNativeComponent.ts
++++ b/node_modules/react-native-svg/src/fabric/ForeignObjectNativeComponent.ts
+@@ -16,6 +16,7 @@ interface SvgNodeCommonProps {
+   clipPath?: string;
+   clipRule?: CodegenTypes.WithDefault<CodegenTypes.Int32, 0>;
+   responsible?: boolean;
++  hasOnLayout?: boolean;
+   display?: string;
+   pointerEvents?: string;
+ }
+diff --git a/node_modules/react-native-svg/src/fabric/GroupNativeComponent.ts b/node_modules/react-native-svg/src/fabric/GroupNativeComponent.ts
+index 9a84cd5..0cd20ee 100644
+--- a/node_modules/react-native-svg/src/fabric/GroupNativeComponent.ts
++++ b/node_modules/react-native-svg/src/fabric/GroupNativeComponent.ts
+@@ -16,6 +16,7 @@ interface SvgNodeCommonProps {
+   clipPath?: string;
+   clipRule?: CodegenTypes.WithDefault<CodegenTypes.Int32, 0>;
+   responsible?: boolean;
++  hasOnLayout?: boolean;
+   display?: string;
+   pointerEvents?: string;
+ }
+diff --git a/node_modules/react-native-svg/src/fabric/ImageNativeComponent.ts b/node_modules/react-native-svg/src/fabric/ImageNativeComponent.ts
+index d840490..f0b2fc5 100644
+--- a/node_modules/react-native-svg/src/fabric/ImageNativeComponent.ts
++++ b/node_modules/react-native-svg/src/fabric/ImageNativeComponent.ts
+@@ -29,6 +29,7 @@ interface SvgNodeCommonProps {
+   clipPath?: string;
+   clipRule?: CodegenTypes.WithDefault<CodegenTypes.Int32, 0>;
+   responsible?: boolean;
++  hasOnLayout?: boolean;
+   display?: string;
+   pointerEvents?: string;
+ }
+diff --git a/node_modules/react-native-svg/src/fabric/LineNativeComponent.ts b/node_modules/react-native-svg/src/fabric/LineNativeComponent.ts
+index 0c35d97..3f962e6 100644
+--- a/node_modules/react-native-svg/src/fabric/LineNativeComponent.ts
++++ b/node_modules/react-native-svg/src/fabric/LineNativeComponent.ts
+@@ -16,6 +16,7 @@ interface SvgNodeCommonProps {
+   clipPath?: string;
+   clipRule?: CodegenTypes.WithDefault<CodegenTypes.Int32, 0>;
+   responsible?: boolean;
++  hasOnLayout?: boolean;
+   display?: string;
+   pointerEvents?: string;
+ }
+diff --git a/node_modules/react-native-svg/src/fabric/LinearGradientNativeComponent.ts b/node_modules/react-native-svg/src/fabric/LinearGradientNativeComponent.ts
+index 3b0ff73..21fcd36 100644
+--- a/node_modules/react-native-svg/src/fabric/LinearGradientNativeComponent.ts
++++ b/node_modules/react-native-svg/src/fabric/LinearGradientNativeComponent.ts
+@@ -16,6 +16,7 @@ interface SvgNodeCommonProps {
+   clipPath?: string;
+   clipRule?: CodegenTypes.WithDefault<CodegenTypes.Int32, 0>;
+   responsible?: boolean;
++  hasOnLayout?: boolean;
+   display?: string;
+   pointerEvents?: string;
+ }
+diff --git a/node_modules/react-native-svg/src/fabric/MarkerNativeComponent.ts b/node_modules/react-native-svg/src/fabric/MarkerNativeComponent.ts
+index 71b8351..cb3edfa 100644
+--- a/node_modules/react-native-svg/src/fabric/MarkerNativeComponent.ts
++++ b/node_modules/react-native-svg/src/fabric/MarkerNativeComponent.ts
+@@ -16,6 +16,7 @@ interface SvgNodeCommonProps {
+   clipPath?: string;
+   clipRule?: CodegenTypes.WithDefault<CodegenTypes.Int32, 0>;
+   responsible?: boolean;
++  hasOnLayout?: boolean;
+   display?: string;
+   pointerEvents?: string;
+ }
+diff --git a/node_modules/react-native-svg/src/fabric/MaskNativeComponent.ts b/node_modules/react-native-svg/src/fabric/MaskNativeComponent.ts
+index 26a16e6..63e9755 100644
+--- a/node_modules/react-native-svg/src/fabric/MaskNativeComponent.ts
++++ b/node_modules/react-native-svg/src/fabric/MaskNativeComponent.ts
+@@ -16,6 +16,7 @@ interface SvgNodeCommonProps {
+   clipPath?: string;
+   clipRule?: CodegenTypes.WithDefault<CodegenTypes.Int32, 0>;
+   responsible?: boolean;
++  hasOnLayout?: boolean;
+   display?: string;
+   pointerEvents?: string;
+ }
+diff --git a/node_modules/react-native-svg/src/fabric/PathNativeComponent.ts b/node_modules/react-native-svg/src/fabric/PathNativeComponent.ts
+index 86fc2ec..62ccd73 100644
+--- a/node_modules/react-native-svg/src/fabric/PathNativeComponent.ts
++++ b/node_modules/react-native-svg/src/fabric/PathNativeComponent.ts
+@@ -16,6 +16,7 @@ interface SvgNodeCommonProps {
+   clipPath?: string;
+   clipRule?: CodegenTypes.WithDefault<CodegenTypes.Int32, 0>;
+   responsible?: boolean;
++  hasOnLayout?: boolean;
+   display?: string;
+   pointerEvents?: string;
+ }
+diff --git a/node_modules/react-native-svg/src/fabric/PatternNativeComponent.ts b/node_modules/react-native-svg/src/fabric/PatternNativeComponent.ts
+index 78ba5ff..0e7bd8e 100644
+--- a/node_modules/react-native-svg/src/fabric/PatternNativeComponent.ts
++++ b/node_modules/react-native-svg/src/fabric/PatternNativeComponent.ts
+@@ -16,6 +16,7 @@ interface SvgNodeCommonProps {
+   clipPath?: string;
+   clipRule?: CodegenTypes.WithDefault<CodegenTypes.Int32, 0>;
+   responsible?: boolean;
++  hasOnLayout?: boolean;
+   display?: string;
+   pointerEvents?: string;
+ }
+diff --git a/node_modules/react-native-svg/src/fabric/RadialGradientNativeComponent.ts b/node_modules/react-native-svg/src/fabric/RadialGradientNativeComponent.ts
+index feedadb..cd4ad7f 100644
+--- a/node_modules/react-native-svg/src/fabric/RadialGradientNativeComponent.ts
++++ b/node_modules/react-native-svg/src/fabric/RadialGradientNativeComponent.ts
+@@ -16,6 +16,7 @@ interface SvgNodeCommonProps {
+   clipPath?: string;
+   clipRule?: CodegenTypes.WithDefault<CodegenTypes.Int32, 0>;
+   responsible?: boolean;
++  hasOnLayout?: boolean;
+   display?: string;
+   pointerEvents?: string;
+ }
+diff --git a/node_modules/react-native-svg/src/fabric/RectNativeComponent.ts b/node_modules/react-native-svg/src/fabric/RectNativeComponent.ts
+index 2e0738a..80fe77b 100644
+--- a/node_modules/react-native-svg/src/fabric/RectNativeComponent.ts
++++ b/node_modules/react-native-svg/src/fabric/RectNativeComponent.ts
+@@ -16,6 +16,7 @@ interface SvgNodeCommonProps {
+   clipPath?: string;
+   clipRule?: CodegenTypes.WithDefault<CodegenTypes.Int32, 0>;
+   responsible?: boolean;
++  hasOnLayout?: boolean;
+   display?: string;
+   pointerEvents?: string;
+ }
+diff --git a/node_modules/react-native-svg/src/fabric/SymbolNativeComponent.ts b/node_modules/react-native-svg/src/fabric/SymbolNativeComponent.ts
+index 785430e..14f7122 100644
+--- a/node_modules/react-native-svg/src/fabric/SymbolNativeComponent.ts
++++ b/node_modules/react-native-svg/src/fabric/SymbolNativeComponent.ts
+@@ -16,6 +16,7 @@ interface SvgNodeCommonProps {
+   clipPath?: string;
+   clipRule?: CodegenTypes.WithDefault<CodegenTypes.Int32, 0>;
+   responsible?: boolean;
++  hasOnLayout?: boolean;
+   display?: string;
+   pointerEvents?: string;
+ }
+diff --git a/node_modules/react-native-svg/src/fabric/TSpanNativeComponent.ts b/node_modules/react-native-svg/src/fabric/TSpanNativeComponent.ts
+index c8d0524..33e8b89 100644
+--- a/node_modules/react-native-svg/src/fabric/TSpanNativeComponent.ts
++++ b/node_modules/react-native-svg/src/fabric/TSpanNativeComponent.ts
+@@ -16,6 +16,7 @@ interface SvgNodeCommonProps {
+   clipPath?: string;
+   clipRule?: CodegenTypes.WithDefault<CodegenTypes.Int32, 0>;
+   responsible?: boolean;
++  hasOnLayout?: boolean;
+   display?: string;
+   pointerEvents?: string;
+ }
+diff --git a/node_modules/react-native-svg/src/fabric/TextNativeComponent.ts b/node_modules/react-native-svg/src/fabric/TextNativeComponent.ts
+index f31fe3a..9c02e27 100644
+--- a/node_modules/react-native-svg/src/fabric/TextNativeComponent.ts
++++ b/node_modules/react-native-svg/src/fabric/TextNativeComponent.ts
+@@ -16,6 +16,7 @@ interface SvgNodeCommonProps {
+   clipPath?: string;
+   clipRule?: CodegenTypes.WithDefault<CodegenTypes.Int32, 0>;
+   responsible?: boolean;
++  hasOnLayout?: boolean;
+   display?: string;
+   pointerEvents?: string;
+ }
+diff --git a/node_modules/react-native-svg/src/fabric/TextPathNativeComponent.ts b/node_modules/react-native-svg/src/fabric/TextPathNativeComponent.ts
+index d86be76..e0da714 100644
+--- a/node_modules/react-native-svg/src/fabric/TextPathNativeComponent.ts
++++ b/node_modules/react-native-svg/src/fabric/TextPathNativeComponent.ts
+@@ -16,6 +16,7 @@ interface SvgNodeCommonProps {
+   clipPath?: string;
+   clipRule?: CodegenTypes.WithDefault<CodegenTypes.Int32, 0>;
+   responsible?: boolean;
++  hasOnLayout?: boolean;
+   display?: string;
+   pointerEvents?: string;
+ }
+diff --git a/node_modules/react-native-svg/src/fabric/UseNativeComponent.ts b/node_modules/react-native-svg/src/fabric/UseNativeComponent.ts
+index a39a994..6ff1541 100644
+--- a/node_modules/react-native-svg/src/fabric/UseNativeComponent.ts
++++ b/node_modules/react-native-svg/src/fabric/UseNativeComponent.ts
+@@ -16,6 +16,7 @@ interface SvgNodeCommonProps {
+   clipPath?: string;
+   clipRule?: CodegenTypes.WithDefault<CodegenTypes.Int32, 0>;
+   responsible?: boolean;
++  hasOnLayout?: boolean;
+   display?: string;
+   pointerEvents?: string;
+ }
+diff --git a/node_modules/react-native-svg/src/lib/extract/extractProps.ts b/node_modules/react-native-svg/src/lib/extract/extractProps.ts
+index 010b05b..7f26952 100644
+--- a/node_modules/react-native-svg/src/lib/extract/extractProps.ts
++++ b/node_modules/react-native-svg/src/lib/extract/extractProps.ts
+@@ -109,6 +109,7 @@ export default function extractProps(
+ 
+   if (onLayout) {
+     extracted.onSvgLayout = onLayout;
++    extracted.hasOnLayout = true;
+   }
+ 
+   if (markerStart) {
+diff --git a/node_modules/react-native-svg/src/lib/extract/types.ts b/node_modules/react-native-svg/src/lib/extract/types.ts
+index ba03d7f..f1916c9 100644
+--- a/node_modules/react-native-svg/src/lib/extract/types.ts
++++ b/node_modules/react-native-svg/src/lib/extract/types.ts
+@@ -361,6 +361,7 @@ export type extractedProps = {
+   matrix?: number[];
+   propList?: string[];
+   onSvgLayout?: CodegenTypes.DirectEventHandler<OnSvgLayoutEvent>;
++  hasOnLayout?: boolean;
+   ref?: (instance: React.Component | null) => void;
+   markerStart?: string;
+   markerMid?: string;

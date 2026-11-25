@@ -8,37 +8,27 @@
 // board's mount cost is dominated by view count, not JS logic (see CLAUDE.md's performance notes). A
 // bitmap face is ONE Image.
 //
-// Pixel-derived from the REAL component, never a lookalike: esbuild bundles @tastic/cards' CardFace
-// with react-native aliased to react-native-web, react-dom/server renders it to HTML (react-native-svg
-// has a real DOM implementation on web), and headless Chrome screenshots each card at 288px wide
-// (CARD_WIDTH_MAX, 96pt, at 3x - the largest a card is ever drawn). The colours are
-// this app's own palettes (theme.ts's lightColors/darkColors), which is why this lives in the app and
-// not in @tastic/cards: the faces bake in Solitaire's inks.
+// Pixel-derived from the REAL component, never a lookalike (cardRaster.mjs: esbuild, react-native-web and
+// headless Chrome, which needs Google Chrome installed): each card at 288px wide (CARD_WIDTH_MAX, 96pt, at 3x -
+// the largest a card is ever drawn). The colours are this app's own palettes (theme.ts's lightColors/darkColors),
+// which is why this lives in the app and not in @tastic/cards: the faces bake in Solitaire's inks.
 //
-// Needs Google Chrome installed (macOS path below, or CHROME=/path/to/chrome). Chrome runs with software
-// rendering, and every card starts on a whole device pixel, so the output is byte-for-byte repeatable.
 // Identical images (the compact and numeric styles share their court cards) are written once and
 // referenced twice.
-import { spawn, execSync } from 'node:child_process'
 import crypto from 'node:crypto'
 import fs from 'node:fs'
 import { createRequire } from 'node:module'
 import path from 'node:path'
-import { fileURLToPath, pathToFileURL } from 'node:url'
 
 import UPNG from 'upng-js'
 
-const HERE = path.dirname(fileURLToPath(import.meta.url))
-const ROOT = path.join(HERE, '..')
+import { bundle, capture, makeWorkDir, ROOT, writeFormatted, writePage } from './cardRaster.mjs'
+
 const OUT_DIR = path.join(ROOT, 'assets', 'cardFaces')
 const INDEX_FILE = path.join(ROOT, 'src', 'components', 'cardFaceBitmaps.ts')
 const PREVIEW_OUT_DIR = path.join(ROOT, 'assets', 'previewFaces')
 const PREVIEW_INDEX_FILE = path.join(ROOT, 'src', 'components', 'previewFaceBitmaps.ts')
-// Inside the project, so both the bundle and the entry resolve this app's node_modules.
-const WORK_DIR = fs.mkdtempSync(path.join(HERE, '.card-faces-'))
-const ENTRY_FILE = path.join(WORK_DIR, 'entry.tsx')
-const BUNDLE_FILE = path.join(WORK_DIR, 'bundle.cjs')
-const CHROME = process.env.CHROME ?? '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
+const WORK_DIR = makeWorkDir('.card-faces-')
 
 const SUITS = ['clubs', 'diamonds', 'hearts', 'spades']
 const RANKS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]
@@ -72,9 +62,9 @@ const PREVIEW_GAMES = ['klondike', 'freecell', 'yukon', 'canfield', 'fortythieve
 const PREVIEW_BUILDERS = { klondike: 'Klondike', freecell: 'FreeCell', yukon: 'Yukon', canfield: 'Canfield', fortythieves: 'FortyThieves', spider: 'Spider', scorpion: 'Scorpion', pyramid: 'Pyramid', golf: 'Golf', tripeaks: 'TriPeaks', acesup: 'AcesUp' }
 const PREVIEW_SCALE = 3
 
-function bundle() {
-  fs.writeFileSync(
-    ENTRY_FILE,
+function bundleFaces() {
+  return bundle(
+    WORK_DIR,
     `import { CardFace } from '@tastic/cards'
 import { AppRegistry } from 'react-native'
 import { darkColors, lightColors } from '${path.join(ROOT, 'src', 'components', 'palettes')}'
@@ -83,64 +73,23 @@ ${PREVIEW_GAMES.map((g) => `export { build${PREVIEW_BUILDERS[g]}Preview } from '
 export { AppRegistry, CardFace, darkColors, lightColors }
 `
   )
-  // react-native-svg's web build imports React Native's asset registry, which React Native 0.88 no longer ships. Only an
-  // svg <Image> with a require()d asset reads it, and CardFace draws none, so a stub that finds nothing is enough. Two
-  // more stay out of the bundle (esbuild can't link them against react-native-web): expo-modules-core, reached only
-  // through Paper's optional icon-set requires (each in a try/catch), and react-native-svg's Android touch-sound module.
-  const assetRegistryStub = path.join(WORK_DIR, 'assets-registry.js')
-  fs.writeFileSync(assetRegistryStub, 'export function getAssetByID() { return undefined }\n')
-  execSync(
-    [
-      `${path.join(ROOT, 'node_modules', '.bin', 'esbuild')} ${ENTRY_FILE}`,
-      '--bundle --format=cjs --platform=node',
-      `--outfile=${BUNDLE_FILE}`,
-      '--resolve-extensions=.web.tsx,.web.ts,.web.js,.tsx,.ts,.js',
-      '--main-fields=react-native,browser,module,main',
-      '--conditions=react-native,browser',
-      '--alias:react-native=react-native-web',
-      `--alias:@=${path.join(ROOT, 'src')}`,
-      `--alias:@react-native/assets-registry/registry=${assetRegistryStub}`,
-      '--external:react --external:react-dom --external:react-dom/server',
-      "--external:expo-modules-core --external:'*/NativeSvgSoundModule'",
-      '--loader:.png=dataurl --loader:.ttf=dataurl --loader:.otf=dataurl --loader:.js=jsx',
-      '--jsx=automatic',
-      '--define:__DEV__=false --define:process.env.NODE_ENV=\\"production\\"',
-      '--log-level=error'
-    ].join(' '),
-    { cwd: ROOT, stdio: 'inherit' }
-  )
 }
 
-function buildPages() {
-  const req = createRequire(import.meta.url)
-  const React = req('react')
-  const { renderToStaticMarkup } = req('react-dom/server')
-  const mod = req(BUNDLE_FILE)
-  const fontUrl = pathToFileURL(req.resolve('dejavu-fonts-ttf/ttf/DejaVuSerif-Bold.ttf')).href
+function buildPages(mod) {
+  const React = createRequire(import.meta.url)('react')
 
   // One HTML page of absolutely placed CardFaces (each `{ card, x, y, w, h }`), rendered by react-native-web. Each is
   // clipped to the card's rounded box like PlayingCard's own clip (theme.ts's cardRadiusForWidth): a court figure is
   // nudged down and spills past the card's bottom edge on purpose (CardFace's COURT_TOP_INSET_FRACTION).
-  function writePage(key, colors, invert, style, faces, width, height) {
-    function Page() {
-      return React.createElement(
-        'div',
-        null,
-        faces.map(({ card, x, y, w, h }, i) =>
-          React.createElement('div', { key: i, style: { position: 'absolute', left: x, top: y, width: w, height: h, display: 'flex', overflow: 'hidden', borderRadius: w * 0.06 } }, React.createElement(mod.CardFace, { card, colors, width: w, height: h, cardStyle: style, invertDarkModeColors: invert }))
-        )
+  function writeFacePage(key, colors, invert, style, faces, width, height) {
+    const element = React.createElement(
+      'div',
+      null,
+      faces.map(({ card, x, y, w, h }, i) =>
+        React.createElement('div', { key: i, style: { position: 'absolute', left: x, top: y, width: w, height: h, display: 'flex', overflow: 'hidden', borderRadius: w * 0.06 } }, React.createElement(mod.CardFace, { card, colors, width: w, height: h, cardStyle: style, invertDarkModeColors: invert }))
       )
-    }
-    mod.AppRegistry.registerComponent(key, () => Page)
-    const { element, getStyleElement } = mod.AppRegistry.getApplication(key, {})
-    const body = renderToStaticMarkup(element)
-    const css = renderToStaticMarkup(getStyleElement())
-    // The app registers the Bold TTF under the plain family name (useFontsPreload), so every weight
-    // resolves to it - declare the whole weight range so Chrome never synthesizes a bolder copy.
-    const html = `<!doctype html><html><head><meta charset="utf-8"><style>@font-face{font-family:'DejaVu Serif';src:url('${fontUrl}');font-weight:100 900}html,body{margin:0;background:transparent}#root{position:relative}</style>${css}</head><body><div id="root">${body}</div></body></html>`
-    const file = path.join(WORK_DIR, `${key}.html`)
-    fs.writeFileSync(file, html)
-    return { file, width, height }
+    )
+    return writePage(mod, WORK_DIR, key, element, width, height)
   }
 
   const previewW = mod.PREVIEW_CANVAS_WIDTH * PREVIEW_SCALE
@@ -158,7 +107,7 @@ function buildPages() {
       const colors = mod[palette]
       const cells = []
       SUITS.forEach((suit, row) => RANKS.forEach((rank, col) => cells.push({ card: { id: `${suit}-${rank}`, suit, rank, faceUp: true }, x: col * STRIDE_X, y: row * STRIDE_Y, w: CARD_W, h: CARD_H })))
-      const facePage = writePage(`${style}-${variant}`, colors, invert, style, cells, COLS * STRIDE_X, SUITS.length * STRIDE_Y)
+      const facePage = writeFacePage(`${style}-${variant}`, colors, invert, style, cells, COLS * STRIDE_X, SUITS.length * STRIDE_Y)
       pages.push({ ...facePage, shots: cells.map(({ card, x, y }) => ({ kind: 'face', style, variant, suit: card.suit, rank: card.rank, clip: { x, y, width: CARD_W, height: CAPTURE_H } })) })
 
       const previewFaces = []
@@ -170,7 +119,7 @@ function buildPages() {
           if (p.faceUp && p.card) previewFaces.push({ card: p.card, x: (p.x - frame.x) * s, y: i * previewStride + (p.y - frame.y) * s, w: mod.PREVIEW_CARD_WIDTH * s, h: mod.PREVIEW_CARD_HEIGHT * s })
         })
       })
-      const previewPage = writePage(`preview-${style}-${variant}`, colors, invert, style, previewFaces, previewW, PREVIEW_GAMES.length * previewStride)
+      const previewPage = writeFacePage(`preview-${style}-${variant}`, colors, invert, style, previewFaces, previewW, PREVIEW_GAMES.length * previewStride)
       pages.push({ ...previewPage, shots: PREVIEW_GAMES.map((game, i) => ({ kind: 'preview', game, style, variant, clip: { x: 0, y: i * previewStride, width: previewW, height: previewH } })) })
     }
   }
@@ -187,72 +136,6 @@ function assertBacksBelowFaces(game, placements, w, h) {
       if (face.faceUp && Math.abs(face.x - back.x) < w && Math.abs(face.y - back.y) < h) throw new Error(`${game}'s preview paints a face-down card over a face-up one - GamePreview's back layer can't draw that`)
     })
   })
-}
-
-async function launchChrome() {
-  const proc = spawn(CHROME, ['--headless=new', '--remote-debugging-port=0', `--user-data-dir=${path.join(WORK_DIR, 'profile')}`, '--no-first-run', '--no-default-browser-check', '--hide-scrollbars', '--disable-gpu', '--force-color-profile=srgb', '--disable-lcd-text', '--disable-font-subpixel-positioning', '--allow-file-access-from-files', 'about:blank'], { stdio: ['ignore', 'ignore', 'pipe'] })
-  const wsUrl = await new Promise((resolve, reject) => {
-    let buf = ''
-    proc.stderr.on('data', (d) => {
-      buf += d
-      const m = buf.match(/DevTools listening on (ws:\/\/\S+)/)
-      if (m) resolve(m[1])
-    })
-    proc.on('exit', (code) => reject(new Error(`chrome exited (${code}): ${buf}`)))
-  })
-  const port = new URL(wsUrl).port
-  const targets = await (await fetch(`http://127.0.0.1:${port}/json/list`)).json()
-  const page = targets.find((t) => t.type === 'page')
-  const ws = new WebSocket(page.webSocketDebuggerUrl)
-  await new Promise((resolve, reject) => {
-    ws.onopen = resolve
-    ws.onerror = reject
-  })
-  let nextId = 1
-  const pending = new Map()
-  const listeners = []
-  ws.onmessage = (ev) => {
-    const msg = JSON.parse(ev.data)
-    if (msg.id && pending.has(msg.id)) {
-      const { resolve, reject } = pending.get(msg.id)
-      pending.delete(msg.id)
-      if (msg.error) reject(new Error(`${msg.error.message}`))
-      else resolve(msg.result)
-    } else if (msg.method) listeners.forEach((l) => l(msg))
-  }
-  const send = (method, params = {}) =>
-    new Promise((resolve, reject) => {
-      const id = nextId++
-      pending.set(id, { resolve, reject })
-      ws.send(JSON.stringify({ id, method, params }))
-    })
-  const once = (method) => new Promise((resolve) => listeners.push((m) => m.method === method && resolve(m.params)))
-  return { proc, ws, send, once }
-}
-
-async function capture(pages) {
-  const chrome = await launchChrome()
-  const { send, once } = chrome
-  try {
-    await send('Page.enable')
-    await send('Emulation.setDefaultBackgroundColorOverride', { color: { r: 0, g: 0, b: 0, a: 0 } })
-    const shots = []
-    for (const page of pages) {
-      await send('Emulation.setDeviceMetricsOverride', { width: Math.ceil(page.width), height: Math.ceil(page.height), deviceScaleFactor: SCALE, mobile: false })
-      const loaded = once('Page.loadEventFired')
-      await send('Page.navigate', { url: pathToFileURL(page.file).href })
-      await loaded
-      await send('Runtime.evaluate', { expression: 'document.fonts.ready.then(() => document.fonts.size)', awaitPromise: true })
-      for (const shot of page.shots) {
-        const { data } = await send('Page.captureScreenshot', { format: 'png', clip: { ...shot.clip, scale: 1 } })
-        shots.push({ ...shot, png: Buffer.from(data, 'base64') })
-      }
-    }
-    return shots
-  } finally {
-    chrome.ws.close()
-    chrome.proc.kill()
-  }
 }
 
 // Deduplicated on decoded pixels, then re-encoded as a 256-colour palette PNG: Chrome's own encoder is ~2x larger, and
@@ -278,12 +161,6 @@ function writePngs(shots, dir, nameFor) {
     return name
   })
   return { names, files: byHash.size, bytes }
-}
-
-// The repo's prettier config (printWidth 1000) wants each array on one line; format rather than hand-wrap.
-function writeFormatted(file, source) {
-  fs.writeFileSync(file, source)
-  execSync(`${path.join(ROOT, 'node_modules', '.bin', 'prettier')} --write ${file}`, { cwd: ROOT, stdio: 'ignore' })
 }
 
 function write(shots) {
@@ -346,9 +223,8 @@ ${lines.join(',\n')}
   return { files, bytes }
 }
 
-bundle()
-const pages = buildPages()
-const shots = await capture(pages)
+const pages = buildPages(bundleFaces())
+const shots = await capture(WORK_DIR, pages)
 const faces = write(shots.filter((shot) => shot.kind === 'face'))
 const previews = writePreviews(shots.filter((shot) => shot.kind === 'preview'))
 fs.rmSync(WORK_DIR, { recursive: true, force: true })

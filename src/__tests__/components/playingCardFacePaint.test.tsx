@@ -103,24 +103,21 @@ describe('PlayingCard turned face-up in place', () => {
   })
 })
 
-// Android draws images with Fresco, which gives a view a bitmap already in its memory cache in the frame the view mounts,
-// so a face whose bitmap has loaded once on this run counts as painted in the commit that mounts it (cardFacePaint.ts's
-// isFaceDecoded): a ghost no longer waits a JS round trip for an onLoad before it can fly.
+// Android waits for each face's onLoad like iOS. Until 2026-11-25 a face loaded once on the run counted as painted at mount
+// there (Fresco draws a cached bitmap as the view attaches, in theory); on an LG Stylo 6 that showed blank white cards, and
+// Jay chose to drop it (cardFacePaint.ts).
 describe('PlayingCard face paint on Android', () => {
   const { Platform } = require('react-native')
-  const { forgetDecodedFaces } = require('@/components/cardFacePaint')
   beforeEach(() => {
     jest.replaceProperty(Platform, 'OS', 'android')
-    forgetDecodedFaces()
   })
   afterEach(() => {
     jest.restoreAllMocks()
-    forgetDecodedFaces()
   })
 
-  function ghost(card: Card, onFacePainted: () => void, width = 64) {
+  function ghost(card: Card, onFacePainted: () => void) {
     return (
-      <CardSizeProvider width={width}>
+      <CardSizeProvider width={64}>
         <FaceLoadTrackingContext.Provider value={false}>
           <PlayingCard card={card} onFacePainted={onFacePainted} />
         </FaceLoadTrackingContext.Provider>
@@ -133,66 +130,30 @@ describe('PlayingCard face paint on Android', () => {
     })
   }
 
-  it('waits for the onLoad of a bitmap it has not loaded yet', async () => {
-    const painted = jest.fn()
-    const r = await render(ghost(NINE(true), painted))
-    expect(painted).not.toHaveBeenCalled()
-    await loadFaces()
-    expect(painted).toHaveBeenCalled()
-    await r.unmount()
-  })
-
-  it('counts a face whose bitmap has loaded before as painted in the commit that mounts it, and never as loading', async () => {
+  it('waits for the onLoad of a face it has shown before, on the board and in a ghost', async () => {
     const board = await render(playing(NINE(true)))
     await loadFaces()
     const painted = jest.fn()
     const flight = await render(ghost(NINE(true), painted))
-    expect(painted).toHaveBeenCalledTimes(1)
+    expect(painted).not.toHaveBeenCalled()
+    await loadFaces()
+    expect(painted).toHaveBeenCalled()
+    const landed = await render(playing(NINE(true, 1)))
+    expect(isAnyFaceLoading(['spades-9-1'])).toBe(true)
+    await loadFaces()
+    expect(isAnyFaceLoading(['spades-9-1'])).toBe(false)
+    await landed.unmount()
     await flight.unmount()
     await board.unmount()
-    const again = await render(playing(NINE(true, 1)))
-    expect(isAnyFaceLoading(['spades-9-1'])).toBe(false)
-    await again.unmount()
   })
 
-  it('turns a card face-up in place at once when its bitmap has loaded before', async () => {
+  it('keeps a card turned face-up in place on its back until its face paints, even when that face loaded before', async () => {
     const first = await render(playing(NINE(true)))
     await loadFaces()
     await first.unmount()
     const r = await render(playing(NINE(false)))
     await r.rerender(playing(NINE(true)))
-    expect(screen.queryAllByTestId('card-back')).toHaveLength(0)
-    await r.unmount()
-  })
-
-  it('waits again at another size (an OTA image is decoded at the size it is drawn)', async () => {
-    const first = await render(ghost(NINE(true), jest.fn(), 64))
-    await loadFaces()
-    await first.unmount()
-    const painted = jest.fn()
-    const r = await render(ghost(NINE(true), painted, 80))
-    expect(painted).not.toHaveBeenCalled()
-    await r.unmount()
-  })
-
-  it('starts over when the face set changes (another card style)', async () => {
-    const { noteFaceDecoded, isFaceDecoded } = require('@/components/cardFacePaint')
-    noteFaceDecoded('compact/normal', 1, '64x90')
-    expect(isFaceDecoded('compact/normal', 1, '64x90')).toBe(true)
-    noteFaceDecoded('tarot/normal', 2, '64x90')
-    expect(isFaceDecoded('compact/normal', 1, '64x90')).toBe(false)
-    expect(isFaceDecoded('tarot/normal', 1, '64x90')).toBe(false)
-    expect(isFaceDecoded('tarot/normal', 2, '64x90')).toBe(true)
-  })
-
-  it('still waits for every onLoad on iOS, where a cached image is filled in off the main thread too', async () => {
-    jest.replaceProperty(Platform, 'OS', 'ios')
-    const first = await render(ghost(NINE(true), jest.fn()))
-    await loadFaces()
-    await first.unmount()
-    const painted = jest.fn()
-    const r = await render(ghost(NINE(true), painted))
-    expect(painted).not.toHaveBeenCalled()
+    expect(screen.queryAllByTestId('card-back')).toHaveLength(1)
     await r.unmount()
   })
 })

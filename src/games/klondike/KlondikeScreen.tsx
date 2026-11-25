@@ -18,7 +18,7 @@ import { GAME_CONTENT_PADDING, GameChrome } from '@/components/GameChrome'
 import { useGameLayout } from '@/components/gameLayout'
 import { GameLoading } from '@/components/GameLoading'
 import { hintStacking } from '@/components/hintGlow'
-import { PileDragConfig, PileView } from '@/components/PileView'
+import { PileView } from '@/components/PileView'
 import { countHiddenUntilDealt } from '@/components/reducedMotionFlag'
 import type { StockRequestOptions } from '@/components/stockHold'
 import { StockWaste } from '@/components/StockWaste'
@@ -46,6 +46,7 @@ import { createStockQueue, startStockWait, stockWaitTick } from '@/games/shared/
 import { MoveInfo, UndoEntry } from '@/games/shared/undoTypes'
 import { useAutoFinish } from '@/games/shared/useAutoFinish'
 import { useAutoFoundationCascade } from '@/games/shared/useAutoFoundationCascade'
+import { useColumnHandlers } from '@/games/shared/useColumnHandlers'
 import { useDailyDeal, useDealSettings } from '@/games/shared/useDailyDeal'
 import { useDeferredDeal } from '@/games/shared/useDeferredDeal'
 import { UndoGate, useFlightConcurrency } from '@/games/shared/useFlightConcurrency'
@@ -1455,6 +1456,23 @@ function KlondikeScreenInner() {
     }
   }
 
+  // Each column's drag config and tap handler, built once so PileView's memo holds: a column re-renders only when it changes.
+  const columns = useColumnHandlers(state?.tableau.length ?? 0, dropZones, COLUMN_RUNS, {
+    // Claims a flight slot (see activeFlightCountRef's doc comment above) purely so undo sees this drop as in-flight for its
+    // whole duration, not just once completeMove lands one. Rejects outright if undo is running (see attemptDrop's identical
+    // comment on why undo holds full mutual exclusion, not just a one-way wait).
+    onDrop: (colIndex, to, count, anchorCardId, flight) => {
+      if (undoBusyRef.current) return false
+      startFlights(1)
+      if (!completeMove({ zone: 'tableau', index: colIndex }, to, count, anchorCardId, flight)) {
+        settleFlight()
+        return false
+      }
+      return true
+    },
+    onPressCard: (colIndex, card, indexFromTop, measure) => handleCardTap({ zone: 'tableau', index: colIndex }, card.id, measure, indexFromTop)
+  })
+
   if (!state) return <GameLoading />
 
   const wasteTop = top(state.waste)
@@ -1509,29 +1527,10 @@ function KlondikeScreenInner() {
 
         <View style={[styles.tableauRow, { gap }]}>
           {state.tableau.map((col, colIndex) => {
-            const dragConfig: PileDragConfig = {
-              registry: dropZones,
-              getRunCount: (indexFromTop) => tableauRunCount(colIndex, indexFromTop),
-              // Claims a flight slot (see activeFlightCountRef's doc comment above) purely so undo
-              // sees this drop as in-flight for its whole duration, not just once completeMove
-              // lands one - PileView.tsx (shared, not ours to edit) already ran its own hitTest
-              // await before invoking this callback, so this is the earliest point KlondikeScreen
-              // gets a look-in. Rejects outright if undo is running (see attemptDrop's identical
-              // comment on why undo holds full mutual exclusion, not just a one-way wait).
-              onDrop: (to, count, anchorCardId, flight) => {
-                if (undoBusyRef.current) return false
-                startFlights(1)
-                if (!completeMove({ zone: 'tableau', index: colIndex }, to, count, anchorCardId, flight)) {
-                  settleFlight()
-                  return false
-                }
-                return true
-              }
-            }
             const hiddenCount = flying.filter((f) => f.to.zone === 'tableau' && f.to.index === colIndex).reduce((sum, f) => sum + f.count, 0)
             return (
               <DropZone key={colIndex} registry={dropZones} pileRef={{ zone: 'tableau', index: colIndex }} style={[hintStacking(hintCountFor(activeHint, { zone: 'tableau', index: colIndex }) > 0), styles.tableauColumn, { width: cardWidth }]}>
-                <PileView cards={col} onPressCard={(card, indexFromTop, measure) => handleCardTap({ zone: 'tableau', index: colIndex }, card.id, measure, indexFromTop)} maxHeight={tableauMaxHeight} drag={dragConfig} hiddenCount={hiddenCount} hiddenCardIds={dealHiddenIds} shakeCardId={shake?.cardId} shakeCount={shake?.count} shakeToken={shake?.token} hintCount={hintCountFor(activeHint, { zone: 'tableau', index: colIndex })} />
+                <PileView cards={col} onPressCard={columns.onPressCard[colIndex]} maxHeight={tableauMaxHeight} drag={columns.drag[colIndex]} hiddenCount={hiddenCount} hiddenCardIds={dealHiddenIds} shakeCardId={shake?.cardId} shakeCount={shake?.count} shakeToken={shake?.token} hintCount={hintCountFor(activeHint, { zone: 'tableau', index: colIndex })} />
               </DropZone>
             )
           })}
@@ -1548,6 +1547,9 @@ function KlondikeScreenInner() {
     </CardSizeProvider>
   )
 }
+
+// A column card moves with the descending run of alternating colors on top of it (useColumnHandlers' getRunCount).
+const COLUMN_RUNS = { getRunCount: (indexFromTop: number, cards: Card[]) => runCountFrom(cards, indexFromTop, isDescendingAltColor) }
 
 function makeStyles() {
   return StyleSheet.create({

@@ -347,14 +347,16 @@ describe('PileView hands its hidden cards to the scrim as a hold', () => {
     expect(mockTiming).toHaveBeenCalledTimes(1)
     expect(mockTiming).toHaveBeenCalledWith(1, { duration: DIM_FADE_MS }, expect.any(Function))
     expect(opacities()).toEqual([0])
-    await rerender(pile({ hiddenCardIds: new Set([bottom]) }))
-    expect(opacities()).toEqual([1])
+    // The fade runs on the UI thread (cards are memoized, so nothing here re-renders the scrim to show it); when it reports
+    // done, the scrim hands over to the plain one (FadingDimScrim's onDone).
+    await act(async () => mockTiming.mock.calls[0][2]?.(true))
+    expect(opacities()).toEqual([undefined])
 
-    // The last card lands.
+    // The last card lands: its scrim fades in the same way, beside the middle card's plain one.
     await rerender(pile({ hiddenCardIds: new Set() }))
     await rerender(pile({ hiddenCardIds: new Set() }))
     expect(mockTiming).toHaveBeenCalledTimes(2)
-    expect(opacities()).toEqual([1, 1])
+    expect(opacities()).toEqual([0, undefined])
   })
 
   it('dimming switched on once the deal has landed fades every buried card in together (useDimAfterDeal)', async () => {

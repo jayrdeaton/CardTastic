@@ -1,6 +1,6 @@
 import { callWorkletCallback, useWorkletCallback } from '@rific/core'
 import { useCardSize } from '@tastic/cards'
-import { ReactNode, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { memo, ReactNode, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { StyleProp, StyleSheet, View, ViewStyle } from 'react-native'
 import { Gesture, GestureDetector } from 'react-native-gesture-handler'
 import Animated, { measure, useAnimatedRef, useSharedValue } from 'react-native-reanimated'
@@ -96,7 +96,10 @@ interface DraggableCardProps {
  * underlying native handler, which can orphan a drag that's still in progress mid-gesture and
  * leave the card frozen wherever it was when that happened, since onEnd would never fire.
  */
-export function DraggableCard({ card, selected, hinted, disabled, dimmed, dimHold, onPress, onDrop, hidden, emptyFallback, underCard, shakeToken, registryId, style, testID }: DraggableCardProps) {
+/** Memoized (a shallow compare of its props), so a single-card pile (foundation, waste, freecell, reserve) only re-renders its card when something about it changes; callers keep their callbacks stable (useLatestCallback). */
+export const DraggableCard = memo(DraggableCardBase)
+
+function DraggableCardBase({ card, selected, hinted, disabled, dimmed, dimHold, onPress, onDrop, hidden, emptyFallback, underCard, shakeToken, registryId, style, testID }: DraggableCardProps) {
   const viewRef = useAnimatedRef<Animated.View>()
   const ghost = useDragGhost()
   const { playCardSound, hapticCard } = useCardSoundEffects()

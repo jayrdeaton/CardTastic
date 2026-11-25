@@ -16,7 +16,7 @@ import { GAME_CONTENT_PADDING, GameChrome } from '@/components/GameChrome'
 import { useGameLayout } from '@/components/gameLayout'
 import { GameLoading } from '@/components/GameLoading'
 import { hintStacking } from '@/components/hintGlow'
-import { PileDragConfig, PileView } from '@/components/PileView'
+import { PileView } from '@/components/PileView'
 import { PlayingCard } from '@/components/PlayingCard'
 import type { UndoRequestOptions } from '@/components/undoHold'
 import { useCardSoundEffects } from '@/components/useCardSounds'
@@ -39,6 +39,7 @@ import { LossBanner } from '@/games/shared/LossBanner'
 import { MoveInfo, UndoEntry } from '@/games/shared/undoTypes'
 import { useAutoFinish } from '@/games/shared/useAutoFinish'
 import { useAutoFoundationCascade } from '@/games/shared/useAutoFoundationCascade'
+import { useColumnHandlers } from '@/games/shared/useColumnHandlers'
 import { useDailyDeal } from '@/games/shared/useDailyDeal'
 import { useDeferredDeal } from '@/games/shared/useDeferredDeal'
 import { UndoGate, useFlightConcurrency } from '@/games/shared/useFlightConcurrency'
@@ -979,6 +980,22 @@ function YukonScreenInner() {
     }
   }
 
+  // Each column's drag config and tap handler, built once so PileView's memo holds: a column re-renders only when it changes.
+  const columns = useColumnHandlers(state?.tableau.length ?? 0, dropZones, COLUMN_RUNS, {
+    // Claims a flight slot so undo sees the drop as in flight for its whole duration (activeFlightCountRef); refused while an
+    // undo runs (see attemptDrop on why undo holds full mutual exclusion).
+    onDrop: (colIndex, to, count, anchorCardId, flight) => {
+      if (undoBusyRef.current) return false
+      startFlights(1)
+      if (!completeMove({ zone: 'tableau', index: colIndex }, to, count, anchorCardId, flight)) {
+        settleFlight()
+        return false
+      }
+      return true
+    },
+    onPressCard: (colIndex, card, indexFromTop, measure) => handleCardTap({ zone: 'tableau', index: colIndex }, card.id, measure, indexFromTop)
+  })
+
   if (!state) return <GameLoading />
 
   return (
@@ -1033,31 +1050,10 @@ function YukonScreenInner() {
 
         <View style={[styles.tableauRow, { gap }]}>
           {state.tableau.map((col, colIndex) => {
-            const dragConfig: PileDragConfig = {
-              registry: dropZones,
-              getRunCount: (indexFromTop) => tableauRunCount(colIndex, indexFromTop),
-              // Claims a flight slot (see activeFlightCountRef's doc comment above) purely so undo
-              // sees this drop as in-flight for its whole duration, not just once completeMove
-              // lands one - PileView.tsx (shared, not ours to edit) already ran its own hitTest
-              // await before invoking this callback, so this is the earliest point YukonScreen
-              // gets a look-in. Rejects outright if undo is running (undo holds full mutual
-              // exclusion, not just a one-way wait - see undoBusyRef's own doc comment) - the
-              // drag's own ghost (already shown by PileView/DraggableCard well before this runs)
-              // just snaps back, same as "no legal target".
-              onDrop: (to, count, anchorCardId, flight) => {
-                if (undoBusyRef.current) return false
-                startFlights(1)
-                if (!completeMove({ zone: 'tableau', index: colIndex }, to, count, anchorCardId, flight)) {
-                  settleFlight()
-                  return false
-                }
-                return true
-              }
-            }
             const hiddenCount = flying.filter((f) => f.to.zone === 'tableau' && f.to.index === colIndex).reduce((sum, f) => sum + f.count, 0)
             return (
               <DropZone key={colIndex} registry={dropZones} pileRef={{ zone: 'tableau', index: colIndex }} style={[hintStacking(hintCountFor(activeHint, { zone: 'tableau', index: colIndex }) > 0), styles.tableauColumn, { width: cardWidth }]}>
-                <PileView cards={col} onPressCard={(card, indexFromTop, measure) => handleCardTap({ zone: 'tableau', index: colIndex }, card.id, measure, indexFromTop)} maxHeight={tableauMaxHeight} drag={dragConfig} hiddenCount={hiddenCount} hiddenCardIds={dealHiddenIds} hintCount={hintCountFor(activeHint, { zone: 'tableau', index: colIndex })} shakeCardId={shake?.cardId} shakeCount={shake?.count} shakeToken={shake?.token} />
+                <PileView cards={col} onPressCard={columns.onPressCard[colIndex]} maxHeight={tableauMaxHeight} drag={columns.drag[colIndex]} hiddenCount={hiddenCount} hiddenCardIds={dealHiddenIds} hintCount={hintCountFor(activeHint, { zone: 'tableau', index: colIndex })} shakeCardId={shake?.cardId} shakeCount={shake?.count} shakeToken={shake?.token} />
               </DropZone>
             )
           })}
@@ -1074,6 +1070,9 @@ function YukonScreenInner() {
     </CardSizeProvider>
   )
 }
+
+// A column card moves with every card on top of it (useColumnHandlers' getRunCount).
+const COLUMN_RUNS = { getRunCount: (indexFromTop: number, cards: Card[]) => runCountFrom(cards, indexFromTop, alwaysValidRun) }
 
 function makeStyles() {
   return StyleSheet.create({

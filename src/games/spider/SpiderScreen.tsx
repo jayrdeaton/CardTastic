@@ -19,7 +19,7 @@ import { GAME_CONTENT_PADDING, GameChrome } from '@/components/GameChrome'
 import { TABLEAU_ROW_PADDING_BOTTOM, useGameLayout } from '@/components/gameLayout'
 import { GameLoading } from '@/components/GameLoading'
 import { HintGlow, hintStacking } from '@/components/hintGlow'
-import { PileDragConfig, PileView } from '@/components/PileView'
+import { PileView } from '@/components/PileView'
 import { EmptySlot, PlayingCard } from '@/components/PlayingCard'
 import { hiddenUntilDealt, isMotionReduced } from '@/components/reducedMotionFlag'
 import type { UndoRequestOptions } from '@/components/undoHold'
@@ -40,6 +40,7 @@ import { showNoHintToast } from '@/games/shared/gameToasts'
 import { liftTappedRun, peelInAir } from '@/games/shared/inAirRun'
 import { LossBanner } from '@/games/shared/LossBanner'
 import { MoveInfo, UndoEntry } from '@/games/shared/undoTypes'
+import { useColumnHandlers } from '@/games/shared/useColumnHandlers'
 import { useDailyDeal, useDealSettings } from '@/games/shared/useDailyDeal'
 import { useDeferredDeal } from '@/games/shared/useDeferredDeal'
 import { useDerivedWinCheck } from '@/games/shared/useDerivedWinCheck'
@@ -469,7 +470,7 @@ function SpiderScreenInner() {
   const sequenceFlightIdRef = useRef(0)
   // A landed group has waited out the faces under it (SequenceFlightGroup's landed hold): it goes for good. Stable, so the
   // group's wait isn't restarted by every render of this screen.
-  const retireSequenceFlight = useCallback((id: number) => setSequenceFlights((flights) => flights.filter((f) => f.id !== id)), [])
+  const retireSequenceFlight = useCallback((id: number) => setSequenceFlights((flights) => flights.filter((f) => f.id !== id)), [setSequenceFlights])
   // Nothing animating: every ghost flight (tap/drag, stock deal, run sweep, undo) holds an activeFlightCount claim
   // until it lands (startSequenceFlight claims one per sweep/restore flight), and the initial deal holds dealHiddenIds
   // until its last card does. sequenceFlights is the ghosts actually still in the air - checked directly as well; a
@@ -1345,6 +1346,22 @@ function SpiderScreenInner() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state])
 
+  // Each column's drag config and tap handler, built once so PileView's memo holds: a column re-renders only when it changes.
+  const columns = useColumnHandlers(state?.tableau.length ?? 0, dropZones, COLUMN_RUNS, {
+    // Claims a flight slot so undo sees the drop as in flight for its whole duration (activeFlightCountRef); refused while an
+    // undo runs (see attemptDrop on why undo holds full mutual exclusion).
+    onDrop: async (colIndex, to, count, anchorCardId, flight) => {
+      if (undoBusyRef.current) return false
+      startFlights(1)
+      if (!(await completeMove({ zone: 'tableau', index: colIndex }, to, count, anchorCardId, flight))) {
+        settleFlight()
+        return false
+      }
+      return true
+    },
+    onPressCard: (colIndex, card, indexFromTop, measure) => handlePressCard(colIndex, card, indexFromTop, measure)
+  })
+
   if (!ready || !state) return <GameLoading />
 
   // Finds one legal move (or a stock-draw suggestion) to highlight - see engine/hint.ts's
@@ -1881,27 +1898,6 @@ function SpiderScreenInner() {
 
         <View style={[styles.tableauRow, { gap }]}>
           {state.tableau.map((col, colIndex) => {
-            const dragConfig: PileDragConfig = {
-              registry: dropZones,
-              getRunCount: (indexFromTop) => tableauRunCount(colIndex, indexFromTop),
-              // A finger aimed at the head of a run on these narrow columns often lands on the card above it.
-              grabRunBelow: true,
-              // Claims a flight slot (see activeFlightCountRef's doc comment) purely so undo sees
-              // this drop as in-flight for its whole duration, not just once completeMove lands one
-              // - PileView.tsx (shared, not ours to edit) already ran its own hitTest await before
-              // invoking this callback, so this is the earliest point SpiderScreen gets a look-in.
-              // Rejects outright if undo is running (see handlePressCard's identical comment on why
-              // undo holds full mutual exclusion, not just a one-way wait).
-              onDrop: async (to, count, anchorCardId, flight) => {
-                if (undoBusyRef.current) return false
-                startFlights(1)
-                if (!(await completeMove({ zone: 'tableau', index: colIndex }, to, count, anchorCardId, flight))) {
-                  settleFlight()
-                  return false
-                }
-                return true
-              }
-            }
             const hiddenCount = flying.filter((f) => f.to.zone === 'tableau' && f.to.index === colIndex).reduce((sum, f) => sum + f.count, 0)
             return (
               <DropZone key={colIndex} registry={dropZones} pileRef={{ zone: 'tableau', index: colIndex }} style={[hintStacking(hintCountFor(activeHint, { zone: 'tableau', index: colIndex }) > 0), styles.column, { width: cardWidth }]}>
@@ -1913,7 +1909,7 @@ function SpiderScreenInner() {
                 same "face-up but not currently a legal run head" case FreeCell/Canfield's own
                 dimUnplayable exists for, not Klondike's (whose own drop rule already forces every
                 face-up run to stay internally valid). */}
-                <PileView cards={col} maxHeight={tableauMaxHeight} onPressCard={(card, indexFromTop, measure) => handlePressCard(colIndex, card, indexFromTop, measure)} drag={dragConfig} hiddenCount={hiddenCount} hiddenCardIds={dealHiddenIds} dimUnplayable={settings.dimUnplayable} shakeCardId={shake?.cardId} shakeCount={shake?.count} shakeToken={shake?.token} hintCount={hintCountFor(activeHint, { zone: 'tableau', index: colIndex })} />
+                <PileView cards={col} maxHeight={tableauMaxHeight} onPressCard={columns.onPressCard[colIndex]} drag={columns.drag[colIndex]} hiddenCount={hiddenCount} hiddenCardIds={dealHiddenIds} dimUnplayable={settings.dimUnplayable} shakeCardId={shake?.cardId} shakeCount={shake?.count} shakeToken={shake?.token} hintCount={hintCountFor(activeHint, { zone: 'tableau', index: colIndex })} />
               </DropZone>
             )
           })}
@@ -2007,6 +2003,9 @@ function StockFan({ count, onPress, hinted }: { count: number; onPress: () => vo
     </View>
   )
 }
+
+// A column card moves with the descending same-suit run on top of it (useColumnHandlers' getRunCount); a touch above a break grabs the run below (PileDragConfig's grabRunBelow).
+const COLUMN_RUNS = { getRunCount: (indexFromTop: number, cards: Card[]) => runCountFrom(cards, indexFromTop, isDescendingSameSuit), grabRunBelow: true }
 
 function makeStyles() {
   return StyleSheet.create({

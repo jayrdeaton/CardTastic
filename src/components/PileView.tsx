@@ -24,8 +24,11 @@ import { useCardSoundEffects } from './useCardSounds'
 export interface PileDragConfig {
   registry: DropZoneRegistry
   /** Given the index-from-top of a face-up card, how many cards (including it) move together if
-   * dragged from here. Return 0 if this card can't start a drag (e.g. would break a valid run). */
-  getRunCount: (indexFromTop: number) => number
+   * dragged from here. Return 0 if this card can't start a drag (e.g. would break a valid run). `cards` is the pile as
+   * this PileView draws it, so a config that only needs its own pile can be built once and kept (games/shared's
+   * useColumnHandlers): a config made fresh every render defeats PileView's memo, and every column re-renders on every
+   * commit. Anything else it reads goes in `runCountKey`. */
+  getRunCount: (indexFromTop: number, cards: Card[]) => number
   /** A touch on a card that can't start a drag or a tap (face-down, or above a break in the run) acts on the longest
    * run at the top of the column instead, as if the head of that run had been touched. Spider's columns are narrow and
    * their cards' strips short, so a finger aimed at the head of a run often lands on the card above it (a coworker of
@@ -571,7 +574,7 @@ function PileViewImpl({ cards, selectedCount = 0, hintCount = 0, onPressCard, on
   // How many cards a drag from each card would pick up (see the runCount comment in the loop below for why a flying card is
   // skipped), worked out up front so a touch on a card that can't start one can act on the run below it (grabRunBelow): the
   // run's head is the deepest card of the unbroken stretch of movable cards at the top of the column.
-  const runCounts = cards.map((card, i) => (!isFlying(card, cards.length - 1 - i) && drag && card.faceUp ? drag.getRunCount(cards.length - 1 - i) : 0))
+  const runCounts = cards.map((card, i) => (!isFlying(card, cards.length - 1 - i) && drag && card.faceUp ? drag.getRunCount(cards.length - 1 - i, cards) : 0))
   let grabHead = -1
   if (drag?.grabRunBelow) {
     for (let i = cards.length - 1; i >= 0 && runCounts[i] > 0; i--) grabHead = i

@@ -126,7 +126,11 @@ export function useAutoFinish<TState>(config: {
     try {
       while (allowedRef.current) {
         const gap = lastLeftAt + (latestRef.current.gapMs ?? finishGapMs)(sent) - Date.now()
-        if (gap > 0) await sleep(gap) // a card already late (its predecessor was slow to measure) goes at once
+        // A card already late (its predecessor was slow to measure) goes at once, but still after a zero-delay timer: firePlay's
+        // measurement resolves as a microtask (Fabric's measureInWindow calls back synchronously), so without a timer here a
+        // phone that is always behind ran the whole finish as one JS task, and React Native only mounts a task's commits when
+        // it ends (a Stylo 6 drew nothing for 3.9 s, then 23 moves at once).
+        await sleep(Math.max(gap, 0))
         let step = nextStep()
         const deadline = Date.now() + FINISH_LANDING_WAIT_MS
         while (step && latestRef.current.isLanding(step.entry.ref) && Date.now() < deadline) {

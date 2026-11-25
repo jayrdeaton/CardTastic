@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useCallback, useEffect, useMemo, useRef } from 'react'
 import { View } from 'react-native'
 
 import { DraggableCard } from '@/components/dragdrop/DraggableCard'
@@ -6,6 +6,7 @@ import { DragFlightHandle, useDragGhost } from '@/components/dragdrop/DragGhostL
 import { PileOverlay } from '@/components/PileOverlay'
 import { FoundationSlot, PlayingCard } from '@/components/PlayingCard'
 import { useFrozenWhileHidden } from '@/components/useFrozenWhileHidden'
+import { useLatestCallback } from '@/components/useLatestCallback'
 import { useTakeOffHold } from '@/components/useTakeOffHold'
 import { Card, Rank, Suit } from '@/engine/types'
 
@@ -69,6 +70,18 @@ export function FoundationCell({ card, isFlyingHere, suit, rank, highlighted, sl
   // uncovered is revealed (useTakeOffHold's `revealing`: the real card's Image has just been re-sourced from the departed
   // card and would show its stale bitmap; the overlay's has shown `card` since the undo's own commit).
   const overlayVisible = (isFlyingHere && !holding) || revealing
+  // Stable props for the memoized DraggableCard (its card art is the costly part of every screen render): the caller's
+  // onDrop and slotRef are fresh closures each render.
+  const stableDrop = useLatestCallback(onDrop)
+  const stableSlotRef = useLatestCallback(slotRef)
+  const emptyFallback = useMemo(() => <FoundationSlot suit={suit} rank={rank} />, [suit, rank])
+  const setView = useCallback(
+    (el: View | null) => {
+      viewRef.current = el
+      stableSlotRef?.(el)
+    },
+    [stableSlotRef]
+  )
 
   useEffect(() => {
     if (!card) return
@@ -78,16 +91,10 @@ export function FoundationCell({ card, isFlyingHere, suit, rank, highlighted, sl
   }, [card, ghost.cardRegistry])
 
   return (
-    <View
-      ref={(el) => {
-        viewRef.current = el
-        slotRef?.(el)
-      }}
-      collapsable={false}
-    >
+    <View ref={setView} collapsable={false}>
       {/* Registered by this cell (the pile's real top, `card`, above), never by the DraggableCard itself (registryId null).
       While the slot still draws a card that has left, the card under it is the pile's top. */}
-      {shown ? <DraggableCard card={shown} hinted={highlighted && !holding} hidden={overlayVisible} disabled={holding} registryId={null} underCard={holding ? card : under} emptyFallback={<FoundationSlot suit={suit} rank={rank} />} onDrop={holding || isFlyingHere ? undefined : onDrop} /> : <FoundationSlot suit={suit} rank={rank} hinted={highlighted} />}
+      {shown ? <DraggableCard card={shown} hinted={highlighted && !holding} hidden={overlayVisible} disabled={holding} registryId={null} underCard={holding ? card : under} emptyFallback={emptyFallback} onDrop={holding || isFlyingHere ? undefined : stableDrop} /> : <FoundationSlot suit={suit} rank={rank} hinted={highlighted} />}
       {/* Mounted (invisible) whenever there is a card, not just while a flight is in the air: the copy that shows under an
       incoming ghost is then the card that was already on top, already painted, instead of a new Image that would show a
       blank face for a frame or two as the flight starts (see PileOverlay). */}

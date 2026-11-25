@@ -1,8 +1,11 @@
 import { getContrastColor } from '@rific/auto-paper'
 import { CARD_FONT_FAMILY, DecoratedCardBack, type TableColors } from '@tastic/cards'
 import React from 'react'
-import { StyleSheet, View, ViewStyle } from 'react-native'
+import { StyleSheet, Text, View, ViewStyle } from 'react-native'
 import Svg, { Text as SvgText } from 'react-native-svg'
+
+import { bitmapBackSources, BitmapCardBack } from './BitmapCardBack'
+import { BITMAP_CARD_ART } from './cardArtPlatform'
 
 // The Monogram back (Jay, 2026-10-16): the selected player's tag, or S, as big as it fits, on the Plain
 // back (its double-line border, Jay's pick). The Plain back is @tastic/cards' own DecoratedCardBack,
@@ -19,6 +22,10 @@ const MAX_CAP_HEIGHT = 0.6
 // (node_modules/dejavu-fonts-ttf/ttf/DejaVuSerif-Bold.ttf) with fontTools, so a tag is sized to fill the
 // back exactly (a lone S is set at ~0.72W, MMM still fits inside the inner line). A character missing here gets the table's mean.
 const CAP_HEIGHT_EM = 0.729
+// The font's ascent (hhea, 1923/2048; it doesn't set USE_TYPO_METRICS, so Android lays a line out by this): the first
+// line's baseline sits this far below the top of a Text with no font padding, which puts the native-text monogram's
+// baseline where the SVG's is.
+const ASCENT_EM = 1923 / 2048
 const ADVANCE_EM: Record<string, number> = {
   A: 0.776,
   B: 0.845,
@@ -85,6 +92,20 @@ export const MonogramCardBack = React.memo(function MonogramCardBack({ colors, w
   // A letter's capitals are centred on the card (its cap height straddles the middle); an emoji's whole glyph is.
   const baseline = height / 2 + fontSize * (isEmoji ? EMOJI_BASELINE_FRACTION : CAP_HEIGHT_EM / 2)
 
+  // Where the backs are bitmaps (cardArtPlatform.ts), the Plain back's layers and the monogram as native text in the card
+  // font, on the same baseline: no SVG left on the back.
+  const bitmap = BITMAP_CARD_ART ? bitmapBackSources('plain', colors, invertDarkModeColors, width) : null
+  if (bitmap) {
+    return (
+      <View style={{ height, width }}>
+        <BitmapCardBack sources={bitmap} colors={colors} width={width} height={height} invertDarkModeColors={invertDarkModeColors} />
+        <Text allowFontScaling={false} numberOfLines={1} style={[styles.text, { fontSize, top: baseline - fontSize * ASCENT_EM, width }, isEmoji ? styles.emoji : { color: getContrastColor(colors.cardBack) }]}>
+          {isEmoji ? monogram : monogram.toUpperCase()}
+        </Text>
+      </View>
+    )
+  }
+
   return (
     // Sized, so the overlay (only absolute children) never lays out as a zero frame: see CLAUDE.md's
     // Fabric view-recycling note.
@@ -110,5 +131,7 @@ export const MonogramCardBack = React.memo(function MonogramCardBack({ colors, w
 const overlayStyle: ViewStyle & { userSelect?: 'none' } = { left: 0, position: 'absolute', top: 0, userSelect: 'none' }
 
 const styles = StyleSheet.create({
-  overlay: overlayStyle
+  emoji: { opacity: EMOJI_OPACITY },
+  overlay: overlayStyle,
+  text: { fontFamily: CARD_FONT_FAMILY, includeFontPadding: false, left: 0, position: 'absolute', textAlign: 'center' }
 })

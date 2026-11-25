@@ -207,6 +207,29 @@ describe('useAutoFoundationCascade', () => {
     await unmount()
   })
 
+  it('a card already late still leaves the JS task first, so each card commits to the screen on its own (a phone always behind)', async () => {
+    // As in useAutoFinish: each card's measurement and commit here take two gaps of the clock (jest.setSystemTime, with no
+    // timer, as slow synchronous JS would) and resolve as a microtask. The marker task each card queues must run before the
+    // next card starts, or a slow phone runs the whole cascade as one task and shows none of it until the end.
+    const { board, commit, playerMove } = setup()
+    const events: string[] = []
+    let sent = 0
+    const firePlay = jest.fn(async (_entry: AccessibleCard, to: PileRef) => {
+      events.push(`card ${sent++}`)
+      jest.setSystemTime(Date.now() + AUTO_PLAY_STAGGER_MS * 2)
+      setTimeout(() => events.push('task'), 0)
+      commit(to)
+      return true
+    })
+    const computeNextStep = jest.fn((): AutoCompleteStep | null => (sent < 4 ? STEP_PLAY : null))
+    const { result, rerender, unmount } = await renderHook(({ state }: Props) => useAutoFoundationCascade<string>({ state, isLanding: () => false, getState: () => board.current, enabled: () => true, isBusy: () => false, computeNextStep, firePlay }), { initialProps: { state: 'board-0' } as Props })
+
+    await playerMove(rerender, result.current)
+    for (let i = 0; i < 8; i++) await advance(AUTO_PLAY_STAGGER_MS)
+    expect(events).toEqual(['card 0', 'task', 'card 1', 'task', 'card 2', 'task', 'card 3', 'task'])
+    await unmount()
+  })
+
   it('a plain draw plays no beat of its own here (fireDraw plays its own); a draw-and-play does', async () => {
     const { board, playerMove, computeNextStep } = setup()
     const beat = jest.fn()
